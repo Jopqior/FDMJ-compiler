@@ -42,7 +42,11 @@ void printX_MainMethod(FILE *out, A_mainMethod main) {
   fprintf(out, "Entering printX_MainMethod...\n");
 #endif
   fprintf(out, "<main>\n");
-  if (main->sl) printX_StmList(out, main->sl);
+  if (main->sl) {
+    fprintf(out, "<statementList>\n");
+    printX_StmList(out, main->sl);
+    fprintf(out, "</statementList>\n");
+  }
   fprintf(out, "</main>\n");
   return ;
 }
@@ -54,7 +58,11 @@ void printX_StmList(FILE *out, A_stmList sl) {
 #endif
   if (!sl) return;
   printX_Stm(out, sl->head);
-  if (sl->tail) printX_StmList(out, sl->tail);
+  if (sl->tail) {
+    fprintf(out, "<statementList>\n");
+    printX_StmList(out, sl->tail);
+    fprintf(out, "</statementList>\n");
+  }
   return;
 }
 
@@ -243,7 +251,11 @@ void printX_EscExp(FILE *out, A_exp e) {
   if (e->kind != A_escExp) fprintf(out, "Not Esc exp!\n");
   else {
     fprintf(out, "<escExp>\n<escStmList>\n");
-    printX_StmList(out, e->u.escExp.ns);
+    if (e->u.escExp.ns) {
+      fprintf(out, "<statementList>\n");
+      printX_StmList(out, e->u.escExp.ns);
+      fprintf(out, "</statementList>\n");
+    }
     fprintf(out, "</escStmList>\n");  
     fprintf(out, "<tailexp>");
     printX_Exp(out, e->u.escExp.exp);
