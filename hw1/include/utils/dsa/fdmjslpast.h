@@ -1,8 +1,6 @@
-//This is an AST definition for FDMJ2024 SLP
-//Filename: fdmjslpast.h
+#ifndef FDMJSLPAST_H
+#define FDMJSLPAST_H
 
-#ifndef __SLPAST
-#define __SLPAST
 #include "util.h"
 
 typedef struct A_pos_* A_pos; //position information

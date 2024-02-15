@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include "fdmjslpast.h"
 #include "slpast_xmlprinter.h"
 
 #define __DEBUG
