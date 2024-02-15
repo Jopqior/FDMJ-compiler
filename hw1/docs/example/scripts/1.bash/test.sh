@@ -1,0 +1,1 @@
+build/main.out < test/test.txt
