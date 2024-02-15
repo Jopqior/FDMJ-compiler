@@ -88,7 +88,7 @@ EXP: EXP ADD EXP {
   $$ = $2;
 } | '(' '{' STMLIST '}' EXP ')' {
   $$ = A_EscExp($1, $3, $5);
-} |  INTCONST {
+} | INTCONST {
   $$ = $1;
 } | ID {
   $$=$1;
