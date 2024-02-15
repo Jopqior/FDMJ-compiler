@@ -3,11 +3,11 @@
 #include "fdmjslpast.h"
 #include "slpast_fdmjprinter.h"
 #include "slpast_xmlprinter.h"
+#include "llvmgen.h"
 #include "util.h"
 #include "parser.h"
 
 A_prog root;
-//void AS_generateLLVMcode(FILE*, A_prog);
 
 extern int yyparse();
 
@@ -40,7 +40,7 @@ int main(int argc, const char * argv[]) {
   
   freopen(file_ll, "w", stdout);
   fprintf(stdout, "define i64 @main {\n");
-  //AS_generateLLVMcode(stdout, root); //code to fill in in this homework assignment 
+  AS_generateLLVMcode(stdout, root);
   fclose(stdout);
 
   //add the external library
