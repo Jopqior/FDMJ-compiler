@@ -1,1 +1,5 @@
 .vscode/
+build/
+*.ll
+*.output
+*.xml

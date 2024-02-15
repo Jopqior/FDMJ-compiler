@@ -25,8 +25,8 @@ extern A_prog root;
 }
 
 // termianl symbols
-%token<pos> PUBLIC INT MAIN EXTENDS CLASS IF ELSE WHILE CONTINUE BREAK RETURN PUTINT PUTCH PUTARRAY STARTTIME STOPTIME T F LENGTH THIS NEW GETINT GETCH GETARRAY
-%token<pos> ADD MINUS TIMES DIV OR AND LT LE GT GE EQ NE
+%token<pos> PUBLIC INT MAIN PUTINT PUTCH
+%token<pos> ADD MINUS TIMES DIV
 %token<pos> '(' ')' '[' ']' '{' '}' '=' ',' ';' '.' '!'
 %token<exp> ID NUM
 
@@ -41,103 +41,59 @@ extern A_prog root;
 %start PROG
 
 // precedence
-%left OR
-%left AND
 %left ADD MINUS
 %left TIMES DIV
 %right UMINUS
 
 %%
-PROG: MAINMETHOD
-  {
-    root = A_Prog(A_Pos($1->pos->line, $1->pos->pos), $1);
-    $$ = root;
-  }
-  ;
+PROG: MAINMETHOD {
+  root = A_Prog(A_Pos($1->pos->line, $1->pos->pos), $1);
+  $$ = root;
+} ;
 
-MAINMETHOD: PUBLIC INT MAIN '(' ')' '{' STMLIST '}'
-  {
-    $$ = A_MainMethod($1, $7);
-  }
-  ;
+MAINMETHOD: PUBLIC INT MAIN '(' ')' '{' STMLIST '}' {
+  $$ = A_MainMethod($1, $7);
+} ;
   
-INTCONST: NUM
-  {
-    $$ = $1;
-  }
-  ;
+INTCONST: NUM {
+  $$ = $1;
+} ;
 
-STMLIST: /* empty */
-  {
-    $$ = NULL;
-  }
-  |
-  STM STMLIST
-  {
-    $$ = A_StmList($1, $2);
-  }
-  ;
+STMLIST: /* empty */ {
+  $$ = NULL;
+} | STM STMLIST {
+  $$ = A_StmList($1, $2);
+} ;
 
-STM: EXP '=' EXP ';'
-  {
-    $$ = A_AssignStm(A_Pos($1->pos->line, $1->pos->pos), $1, $3);
-  }
-  |
-  PUTINT '(' EXP ')' ';'
-  {
-    $$ = A_Putint($1, $3);
-  }
-  |
-  PUTCH '(' EXP ')' ';'
-  {
-    $$ = A_Putch($1, $3);
-  }
-  ;
+STM: EXP '=' EXP ';' {
+  $$ = A_AssignStm(A_Pos($1->pos->line, $1->pos->pos), $1, $3);
+} | PUTINT '(' EXP ')' ';' {
+  $$ = A_Putint($1, $3);
+} | PUTCH '(' EXP ')' ';' {
+  $$ = A_Putch($1, $3);
+} ;
 
-EXP: EXP ADD EXP
-  {
-    $$ = A_OpExp(A_Pos($1->pos->line, $1->pos->pos), $1, A_plus, $3);
-  }
-  |
-  EXP MINUS EXP
-  {
-    $$ = A_OpExp(A_Pos($1->pos->line, $1->pos->pos), $1, A_minus, $3);
-  }
-  |
-  EXP TIMES EXP
-  {
-    $$ = A_OpExp(A_Pos($1->pos->line, $1->pos->pos), $1, A_times, $3);
-  }
-  |
-  EXP DIV EXP
-  {
-    $$ = A_OpExp(A_Pos($1->pos->line, $1->pos->pos), $1, A_div, $3);
-  }
-  |
-  MINUS EXP %prec UMINUS
-  {
-    $$ = A_MinusExp($1, $2);
-  }
-  |
-  '(' EXP ')'
-  {
-    $2->pos = $1;
-    $$ = $2;
-  }
-  |
-  '(' '{' STMLIST '}' EXP ')'
-  {
-    $$ = A_EscExp($1, $3, $5);
-  }
-  |  INTCONST
-  {
-    $$ = $1;
-  }
-  | ID
-  {
-    $$=$1;
-  }
-  ;
+EXP: EXP ADD EXP {
+  $$ = A_OpExp(A_Pos($1->pos->line, $1->pos->pos), $1, A_plus, $3);
+} | EXP MINUS EXP {
+  $$ = A_OpExp(A_Pos($1->pos->line, $1->pos->pos), $1, A_minus, $3);
+} | EXP TIMES EXP {
+  $$ = A_OpExp(A_Pos($1->pos->line, $1->pos->pos), $1, A_times, $3);
+} | EXP DIV EXP {
+  $$ = A_OpExp(A_Pos($1->pos->line, $1->pos->pos), $1, A_div, $3);
+} | MINUS EXP %prec UMINUS {
+  $$ = A_MinusExp($1, $2);
+} | '(' EXP ')' {
+  $2->pos = $1;
+  $$ = $2;
+} | '(' '{' STMLIST '}' EXP ')' {
+  $$ = A_EscExp($1, $3, $5);
+} |  INTCONST {
+  $$ = $1;
+} | ID {
+  $$=$1;
+} ;
+
 %%
 
 void yyerror(char *s) {

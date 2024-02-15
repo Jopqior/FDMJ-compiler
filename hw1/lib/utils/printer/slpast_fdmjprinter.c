@@ -3,13 +3,18 @@
 #define __DEBUG
 #undef __DEBUG
 
-/* */
-void printA_Pos(FILE* out, A_pos pos) {
-#ifdef __DEBUG
-  fprintf(out, "Entering printA_Pos...\n");
-#endif
-  return ; //don't need to print position
-}
+void printA_MainMethod(FILE *out, A_mainMethod main);
+void printA_StmList(FILE *out, A_stmList sl);
+void printA_Stm(FILE *out, A_stm s);
+void printA_AssignStm(FILE *out, A_stm s);
+void printA_Putint(FILE *out, A_stm s);
+void printA_Putch(FILE *out, A_stm s);
+void printA_Exp(FILE *out, A_exp e);
+void printA_OpExp(FILE *out, A_exp e);
+void printA_NumConst(FILE *out, A_exp e);
+void printA_IdExp(FILE *out, A_exp e);
+void printA_MinusExp(FILE *out, A_exp e);
+void printA_EscExp(FILE *out, A_exp e);
 
 /* */
 void printA_Prog(FILE *out, A_prog p) {
@@ -21,6 +26,14 @@ void printA_Prog(FILE *out, A_prog p) {
     fprintf(out, "Error: There's no main class!\n");
   fflush(out);
   return;
+}
+
+/* */
+void printA_Pos(FILE* out, A_pos pos) {
+#ifdef __DEBUG
+  fprintf(out, "Entering printA_Pos...\n");
+#endif
+  return ; //don't need to print position
 }
 
 /* */

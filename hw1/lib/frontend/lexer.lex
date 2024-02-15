@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include "fdmjslpast.h"
 #include "util.h"
-#include "y.tab.h"
+#include "parser.h"
 
 int c;
 int line = 1;

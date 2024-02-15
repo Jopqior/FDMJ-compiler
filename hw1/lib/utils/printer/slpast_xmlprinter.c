@@ -3,13 +3,18 @@
 #define __DEBUG
 #undef __DEBUG
 
-/* */
-void printX_Pos(FILE* out, A_pos pos) {
-#ifdef __DEBUG
-  fprintf(out, "Entering printX_Pos...\n");
-#endif
-  return ; //don't need to print position
-}
+void printX_MainMethod(FILE *out, A_mainMethod main);
+void printX_StmList(FILE *out, A_stmList sl);
+void printX_Stm(FILE *out, A_stm s);
+void printX_AssignStm(FILE *out, A_stm s);
+void printX_Putint(FILE *out, A_stm s);
+void printX_Putch(FILE *out, A_stm s);
+void printX_Exp(FILE *out, A_exp e);
+void printX_OpExp(FILE *out, A_exp e);
+void printX_NumConst(FILE *out, A_exp e);
+void printX_IdExp(FILE *out, A_exp e);
+void printX_MinusExp(FILE *out, A_exp e);
+void printX_EscExp(FILE *out, A_exp e);
 
 /* */
 void printX_Prog(FILE *out, A_prog p) {
@@ -21,6 +26,14 @@ void printX_Prog(FILE *out, A_prog p) {
     fprintf(out, "Error: There's no main class!\n");
   fflush(out);
   return;
+}
+
+/* */
+void printX_Pos(FILE* out, A_pos pos) {
+#ifdef __DEBUG
+  fprintf(out, "Entering printX_Pos...\n");
+#endif
+  return ; //don't need to print position
 }
 
 /* */
@@ -67,7 +80,6 @@ void printX_Stm(FILE *out, A_stm s) {
   }
   return;
 }
-
 
 /* */
 void printX_AssignStm(FILE *out, A_stm s) {
