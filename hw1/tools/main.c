@@ -39,13 +39,13 @@ int main(int argc, const char * argv[]) {
   // go through the ast to generate .ll file
   
   freopen(file_ll, "w", stdout);
-  fprintf(stdout, "define i64 @main {\n");
+  fprintf(stdout, "define i64 @main() {\n");
   AS_generateLLVMcode(stdout, root);
   fclose(stdout);
 
   //add the external library
   freopen(file_ll, "a", stdout);
-  fprintf(stdout, "}\n");
+  fprintf(stdout, "ret i64 0\n}\n\n");
   fprintf(stdout, "declare ptr @malloc(i64)\n");
   fprintf(stdout, "declare void @putint(i64)\n");
   fprintf(stdout, "declare void @putch(i64)\n");
