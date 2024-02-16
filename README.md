@@ -1,6 +1,6 @@
-# 复旦2024编译H（COMP130014h.01）Assignments
+# 复旦2024编译H（COMP130014h.01)
 
-## Assignment #1
+## Homework Assignment #1
 
 See eLearning for more details and about submission.
 
