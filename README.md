@@ -12,10 +12,10 @@ See eLearning for more details and about submission.
 
 4. There are two "printers" you may use: one is to print back the fdmj source file back, or the XML representation of the AST tree (so we can browse/visualize the AST tree). You are free to change the printer to be used.
 
-5. The LLVM IR instructions to use is as follows:
+5. The LLVM IR instructions to use are as follows:
 ```
 %x = op i64 X, Y
 call void @putint(i64 X)
 call void @putch(i64 X)
 ```
-where (1) x is an positive integer number that can only be used once on the left of the instructions (you may use them as many times as you wish on the right); (2) X and Y are either an integer number, or a %y where y has appeared on the left hand side of an earlier instruction
+where (1) x is an positive integer number that can only be used once on the left of the assignment instructions (you may use them as many times as you wish on the right or in the putint/putch functions); (2) X and Y are either an integer number, or a %y where y has appeared on the left hand side of an earlier assignment instruction.
