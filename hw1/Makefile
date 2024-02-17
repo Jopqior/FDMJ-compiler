@@ -48,4 +48,4 @@ handin:
 	echo "请输入"学号-姓名" (例如: 12345678910-某个人)"; \
 	read filename; \
 	zip -r "docs/$$filename-hw1.zip" \
-	  include lib tools CMakeLists.txt Makefile docs/report.pd
+	  include lib tools CMakeLists.txt Makefile docs/report.pdf
