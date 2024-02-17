@@ -14,7 +14,9 @@ MAKEFLAGS = --no-print-directory
 
 build:
 	@cmake -G Ninja -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release; \
-	cd $(BUILD_DIR) && ninja
+	cd $(BUILD_DIR) && ninja; \
+	mkdir -p vendor; cd ..; \
+	$(CLANG) -S -emit-llvm vendor/libsysy64.c -o build/vendor/libsysy64.ll
 
 clean:
 	@find $(TEST_DIR) -type f \( \
@@ -32,6 +34,8 @@ test: clean
 		if [ "$${file##*.}" = "fdmj" ]; then \
 			echo "$${file%%.*}"; \
 			../$(BUILD_DIR)/tools/main "$${file%%.*}" < "$${file%%.*}".fdmj > "$${file%%.*}".output; \
+			$(LLVMLINK) --opaque-pointers "$${file%%.*}".ll ../build/vendor/libsysy64.ll -S -o "$${file%%.*}".ll.ll; \
+			$(LLI) -opaque-pointers "$${file%%.*}".ll.ll; echo $$?; \
 		fi \
 	done; \
 	cd ../..
