@@ -116,8 +116,13 @@ Ubuntu20.04 LTS
 
 ## 项目结构
 
-我们的项目结构仿照gcc三段式的设计
-  ![gcc](reading/gcc.png)
+我们的编译器仿照gcc三段式的设计
+
+![gcc](reading/gcc.png)
+
+- Frontend（前端）：词法分析、语法分析、语义分析、生成中间代码
+- Optimizer（优化器）：中间代码优化
+- Backend（后端）：生成机器码
 
 我们的项目结构模仿llvm-project（非常著名的一个编译项目）
 
@@ -178,16 +183,29 @@ Ubuntu20.04 LTS
 
 - gcc 是GNU Compiler Collection，原名为Gun C语言编译器，因为它原本只能处理C语言，但gcc很快地扩展，包含很多编译器（C、C++、Objective-C、Ada、Fortran、Java），可以说gcc是GNU编译器集合。
 - g++ 是C++编译器。并不是说gcc只能编译C代码，g++只能编译C++代码，而是两者都可以，只是实现细节上有差别（若有兴趣请见链接）。
-- cc 是 Unix系统的 C Compiler，一个是古老的 C 编译器。而 Linux 下 cc 一般是一个符号连接，指向 gcc；可以通过 $ ls -l /usr/bin/cc 来简单察看，该变量是 make 程序的内建变量，默认指向 gcc 。 cc       符号链接和变量存在的意义在于源码的移植性，可以方便的用 gcc 来编译老的用cc编译的Unix软件，甚至连 makefile 都不用改，而且也便于 Linux 程序在 Unix下 编译。
+- cc 是 Unix系统的 C Compiler，一个是古老的 C 编译器。而 Linux 下 cc 一般是一个符号连接，指向 gcc；可以通过 $ ls -l /usr/bin/cc 来简单察看，该变量是 make 程序的内建变量，默认指向 gcc 。 cc 符号链接和变量存在的意义在于源码的移植性，可以方便的用 gcc 来编译老的用cc编译的Unix软件，甚至连 makefile 都不用改，而且也便于 Linux 程序在 Unix下 编译。
 - CC 则一般是 makefile 里面的一个名字标签，即宏定义，表示采用的是什么编译器（如：CC = gcc）。
 
 ## gcc/clang/llvm
 
 > [【编译原理】GCC/Clang/LLVM的区别与联系 - 掘金 (juejin.cn)](https://juejin.cn/post/6946088617617915918)
+>
+> [深入浅出让你理解什么是LLVM - 简书 (jianshu.com)](https://www.jianshu.com/p/1367dad95445)
 
-- gcc ≈ clang + llvm
-- clang 在前端生成的抽象语法树是GCC内存的20%
-- llvm提供了灵活的代码复用能力，将编译后端的算法封装成为了一个个独立的模块并提供对外接口，而GCC传统编译器耦合很重，很难小粒度复用代码
+gcc ≈ clang + llvm
+
+![llvm](reading/llvm.png)
+
+gcc的前端和后端没分得太开，前端后端耦合在了一起。所以gcc为了支持一门新的语言，或者为了支持一个新的目标平台，就变得特别困难
+
+![gcc](reading/gcc.png)
+
+LLVM (Low Level Virtual Machine) 的出现正是为了解决编译器代码重用的问题，不同的前端后端使用统一的中间代码LLVM IR (LLVM Intermediate Representation)
+- 如果需要支持一种新的编程语言，那么只需要实现一个新的前端
+- 如果需要支持一种新的硬件设备，那么只需要实现一个新的后端
+- 优化阶段是一个通用的阶段，它针对的是统一的LLVM IR，不论是支持新的编程语言，还是支持新的硬件设备，都不需要对优化阶段做修改
+
+![llvm_ir](reading/llvm_ir.png)
 
 ## gcc/makefile/cmake
 
@@ -199,15 +217,19 @@ Ubuntu20.04 LTS
 >
 > CMake进阶：[Introduction - 《CMake菜谱（CMake Cookbook中文版）》 - 书栈网 · BookStack](https://www.bookstack.cn/read/CMake-Cookbook/README.md)
 
-- 示例：见example中的代码，是如何从各种.sh文件变为Makefile以致CMake的
+演进：bash脚本 → Makefile → Makefile+CMake
 
-  - 执行.c文件前，首先要把源文件编译成.o中间代码文件（Object File），然后再把大量的.o文件链接成.exe可执行文件。这个过程通过若干gcc命令来完成。一个简单的做法是编写.sh文件，一般来说需要构建 `build.sh`、运行 `run.sh`、清理 `clean.sh`等脚本。
-  - Makefile起到汇总脚本的效果，可以看作.sh文件的多合一。
-  - Makefile的另一个用处是简化构建过程。当需要编译的东西很多时，需要说明先编译什么，后编译什么，这个过程称为构建。Makefile能自动找到依赖关系，我们就无需按顺序写命令编译文件；并且，Makefile还会根据文件更新的时间以及依赖关系，避免重新编译无需再编译的文件。
-  - CMake能进一步简化构建过程，但无法替代Makefile作为.sh文件的多合一，因此通常的做法是Makefile单单将构建过程建委托给CMake。此外，Makefile的构建会将中间文件和代码文件混在一起，而CMake能分离它们。
+![gcc_makefile_cmake](reading/gcc_makefile_cmake.png)
 
-    ![gcc_makefile_cmake](reading/gcc_makefile_cmake.png)
-- 本项目使用Makefile调用CMake进行构建，测试、清理等命令都集成在Makefile中。统一格式会给出，但当你想要添加自己的东西的时候，你得自己编写。
+- bash脚本：执行.c文件前，首先要把源文件编译成.o中间代码文件（Object File），然后再把大量的.o文件链接成.exe可执行文件。这个过程通过若干gcc命令来完成。一个简单的做法是编写.sh文件，一般来说需要构建 `build.sh`、运行 `run.sh`、清理 `clean.sh`等脚本。
+
+- Makefile
+  - 起到汇总脚本的效果，可以看作.sh文件的多合一。
+  - 其另一个用处是简化构建过程。当需要编译的东西很多时，需要说明先编译什么，后编译什么，这个过程称为构建。Makefile能自动找到依赖关系，我们就无需按顺序写命令编译文件；并且，Makefile还会根据文件更新的时间以及依赖关系，避免重新编译无需再编译的文件。
+
+- CMake：能进一步简化构建过程，但无法替代Makefile作为.sh文件的多合一，因此通常的做法是Makefile单单将构建过程建委托给CMake。此外，Makefile的构建会将中间文件和代码文件混在一起，而CMake能分离它们。
+
+本项目使用Makefile调用CMake进行构建，测试、清理等命令都集成在Makefile中。以下介绍一些常见的语法。
 
 ### gcc
 
