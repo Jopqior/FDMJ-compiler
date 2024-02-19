@@ -18,4 +18,4 @@ See eLearning for more details and about submission.
 call void @putint(i64 X)
 call void @putch(i64 X)
 ```
-where (1) x is an positive integer number that can only be used once on the left of the assignment instructions (you may use them as many times as you wish on the right or in the putint/putch functions); (2) X and Y are either an integer number, or a %y where y has appeared on the left hand side of an earlier assignment instruction; (3) op can be one of the following: add, sub, mul, sdiv.
+where (1) x is an positive integer number (starting from 1 and incrementing by 1) that can only be used once on the left of the assignment instructions (you may use them as many times as you wish on the right or in the putint/putch functions); (2) X and Y are either an integer number, or a %y where y has appeared on the left hand side of an earlier assignment instruction; (3) op can be one of the following: add, sub, mul, sdiv.
