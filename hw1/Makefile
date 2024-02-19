@@ -33,9 +33,9 @@ test: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fdmj" ]; then \
 			echo "$${file%%.*}"; \
-			../$(BUILD_DIR)/tools/main "$${file%%.*}" < "$${file%%.*}".fdmj > "$${file%%.*}".output; \
+			../$(BUILD_DIR)/tools/main "$${file%%.*}" < "$${file%%.*}".fdmj; \
 			$(LLVMLINK) --opaque-pointers "$${file%%.*}".ll ../build/vendor/libsysy64.ll -S -o "$${file%%.*}".ll.ll; \
-			$(LLI) -opaque-pointers "$${file%%.*}".ll.ll; echo $$?; \
+			$(LLI) -opaque-pointers "$${file%%.*}".ll.ll > "$${file%%.*}".output; echo $$?; \
 		fi \
 	done; \
 	cd ../..
