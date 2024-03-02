@@ -42,10 +42,10 @@ test: clean
 
 handin:
 	@if [ ! -f docs/report.pdf ]; then \
-		echo "请先在docs文件夹下攥写报告并转换为report.pdf"; \
+		echo "请先在docs文件夹下攥写报告, 并转换为'report.pdf'"; \
 		exit 1; \
 	fi; \
-	echo "请输入"学号-姓名" (例如: 12345678910-某个人)"; \
+	echo "请输入'学号-姓名' (例如: 12345678910-某个人)"; \
 	read filename; \
-	zip -r "docs/$$filename-hw1.zip" \
-	  include lib tools CMakeLists.txt Makefile docs/report.pdf
+	zip -q -r "docs/$$filename-hw1.zip" \
+	  include lib tools vendor CMakeLists.txt Makefile docs/report.pdf
