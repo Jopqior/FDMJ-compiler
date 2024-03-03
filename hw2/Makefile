@@ -5,5 +5,5 @@ handin:
 	fi; \
 	echo "请输入'学号-姓名' (例如: 12345678910-某个人)"; \
 	read filename; \
-	zip -q -r "docs/$$filename-hw1.zip" \
-	  include lib tools CMakeLists.txt Makefile docs/report.pdf
+	zip -q -r "docs/$$filename-hw2.zip" \
+	  tools CMakeLists.txt Makefile docs/report.pdf
