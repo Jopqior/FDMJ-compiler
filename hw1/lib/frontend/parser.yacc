@@ -71,6 +71,8 @@ STM: EXP '=' EXP ';' {
   $$ = A_Putint($1, $3);
 } | PUTCH '(' EXP ')' ';' {
   $$ = A_Putch($1, $3);
+} | PUTINT '(' EXP ',' EXP ')' ';' {
+  $$ = A_Putint($1, A_EscExp($1, A_StmList(A_Putint($1, $3), NULL), $5));
 } ;
 
 EXP: EXP ADD EXP {
