@@ -67,6 +67,14 @@ int acquireNewVar(STRTAB_table table) {
   return oldnum;
 }
 
+int createTempVar(STRTAB_table table) {
+  int idNum = acquireNewVar(table);
+  string id = checked_malloc(15);
+  sprintf(id, "temp_%d", idNum);
+  STRTAB_enter(table, id, idNum);
+  return idNum;
+}
+
 void handleStmList(FILE *out, A_stmList sl, STRTAB_table table) {
   if (sl == NULL) {
     return;
@@ -114,12 +122,7 @@ A_expResult handleExp(FILE *out, A_exp e, STRTAB_table table, string id) {
         op = "sdiv";
         break;
     }
-    int idNum = acquireNewVar(table);
-    if (id == NULL) {
-      id = checked_malloc(15);
-      sprintf(id, "temp_%d", idNum);
-      STRTAB_enter(table, id, idNum);
-    }    
+    int idNum = id == NULL? createTempVar(table) : acquireNewVar(table);  
     fprintf(out, "%%%d = %s i64 %s, %s\n", idNum, op, A_expResultToString(leftRes), A_expResultToString(rightRes));
     return A_IdNum(idNum);
   } else if (e->kind == A_escExp) {
@@ -136,10 +139,7 @@ A_expResult handleExp(FILE *out, A_exp e, STRTAB_table table, string id) {
     return A_IdNum(idNum);
   } else if (e->kind == A_minusExp) {
     A_expResult res = handleExp(out, e->u.e, table, NULL);
-    int idNum = acquireNewVar(table);
-    string id = checked_malloc(15);
-    sprintf(id, "temp_%d", idNum);
-    STRTAB_enter(table, id, idNum);
+    int idNum = createTempVar(table);
     fprintf(out, "%%%d = sub i64 0, %s\n", idNum, A_expResultToString(res));
     return A_IdNum(idNum);
   }
