@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 # 项目信息
-project(Parser0)
+project(FudanCompiler)
 
 # 添加包含路径
 include_directories(include/frontend)

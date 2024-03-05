@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "fdmjast.h"
-#include "printast.h"
+#include "print_src.h"
 
 #define __DEBUG
 #undef __DEBUG

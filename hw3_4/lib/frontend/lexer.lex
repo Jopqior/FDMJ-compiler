@@ -1,14 +1,20 @@
+/* 1. declarations */
+
+/* included code */
 %{
 
 #include <stdlib.h>
 #include "fdmjast.h"
-#include "util.h"
-#include "y.tab.h"
+#include "parser.h"
 
 %}
 
-%%
+/* start conditions */
 
-. {return yytext[0];} //this needs to be replaced!
+/* regexp nicknames */
 
-%%
+%% /* 2. rules */
+
+. {return yytext[0];} // this needs to be replaced!
+
+%% /* 3. programs */

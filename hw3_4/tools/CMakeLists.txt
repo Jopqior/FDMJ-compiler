@@ -1,11 +1,11 @@
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-result")
 
-set(Parser0 "Parser0")
-add_executable(${Parser0} parser0.c)
-target_link_libraries(${Parser0} PUBLIC
+set(main "main")
+add_executable(${main} main.c)
+target_link_libraries(${main} PUBLIC
   frontend
   utils
 )
-install(TARGETS ${Parser0}
+install(TARGETS ${main}
   RUNTIME DESTINATION bin
-  COMPONENT ${Parser0})
+  COMPONENT ${main})

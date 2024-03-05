@@ -1,38 +1,40 @@
 RM       = rm -rf
+CLANG    = clang-14
+LLVMLINK = llvm-link-14
+LLI      = lli-14
+ARMCC    = arm-linux-gnueabihf-gcc
+QEMU     = qemu-arm
+
+BUILD_DIR = build
+TEST_DIR  = test
 
 MAKEFLAGS = --no-print-directory
 
-TESTS_DIR = test
-
-.PHONY: build clean veryclean rebuild test
+.PHONY: build clean veryclean rebuild test handin
 
 build:
-	@cmake -G Ninja -B build \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_INSTALL_PREFIX=build; \
-	cd build; \
-	ninja; \
-	ninja install; 
+	@cmake -G Ninja -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release; \
+	cd $(BUILD_DIR) && ninja;
 
-clean: 
-	@cd $(TESTS_DIR); \
-	$(RM) *.output *.ll *.s *.out *.ast *.irp *.stm *.liv; \
-	cd ..
+clean:
+	@find $(TEST_DIR) -type f \( \
+		-name "*.src" -o -name "*.ast" -o -name "*.output" \
+		\) -exec $(RM) {} \;
 
 veryclean: clean
-	@$(RM) build
+	@$(RM) $(BUILD_DIR)
 
 rebuild: veryclean build
 
 test: clean
-	@cd $(TESTS_DIR); \
+	@cd $(TEST_DIR); \
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
-			echo "COMPILE $${file%%.*}"; \
-			../build/bin/Parser0 "$${file%%.*}".s < "$${file%%.*}".fmj; \
+			echo "$${file%%.*}"; \
+			../$(BUILD_DIR)/tools/main "$${file%%.*}" < "$${file%%.*}".fmj > "$${file%%.*}".output; \
 		fi \
 	done; \
-	cd ..
+	cd ../..
 
 handin:
 	@if [ ! -f docs/report.pdf ]; then \
@@ -41,5 +43,5 @@ handin:
 	fi; \
 	echo "请输入'学号-姓名' (例如: 12345678910-某个人)"; \
 	read filename; \
-	zip -q -r "docs/$$filename-hw1.zip" \
-	  include lib tools CMakeLists.txt Makefile docs/report.pdf
+	zip -q -r "docs/$$filename-hw3_4.zip" \
+	  include lib tools vendor CMakeLists.txt Makefile docs/report.pdf

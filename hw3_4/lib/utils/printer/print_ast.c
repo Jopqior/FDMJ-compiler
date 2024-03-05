@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "fdmjast.h"
-#include "printastXML.h"
+#include "print_ast.h"
 
 #define __DEBUG
 #undef __DEBUG
@@ -46,10 +46,13 @@ void printX_Prog(FILE *out, A_prog p) {
 #ifdef __DEBUG
   fprintf(out, "Entering printX_Prog...\n");
 #endif
+  fprintf(stdout, "<?xml version=\"1.0\"?>\n");
+  fprintf(stdout, "<Program>\n");
   if (p->m) printX_MainMethod(out, p->m);
   else
     fprintf(out, "Error: There's no main class!\n");
   if (p->cdl) printX_ClassDeclList(out, p->cdl);
+  fprintf(stdout, "</Program>\n");
   fflush(out);
   return;
 }

@@ -1,5 +1,5 @@
-#ifndef __PRINTASTXML
-#define __PRINTASTXML
+#ifndef PRINT_AST_H
+#define PRINT_AST_H
 
 #include <stdio.h>
 #include "fdmjast.h"

@@ -1,5 +1,5 @@
-#ifndef __PRINTAST
-#define __PRINTAST
+#ifndef PRINT_SRC_H
+#define PRINT_SRC_H
 
 #include <stdio.h>
 #include "fdmjast.h"
