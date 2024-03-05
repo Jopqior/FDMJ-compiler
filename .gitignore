@@ -1,6 +1,8 @@
 .DS_Store
 .vscode/
 build/
-*.ll
+*.src
+*.ast
 *.output
 *.xml
+*.ll
