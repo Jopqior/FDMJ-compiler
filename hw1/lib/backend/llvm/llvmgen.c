@@ -66,13 +66,14 @@ AS_expResult AS_handleMinusExp(FILE *out, A_exp e, S_table table, string id);
 
 int AS_acquireNewVar(S_table table);
 int AS_createTempVar(S_table table);
+void AS_S_enter_wrapper(S_table table, string id, int idNum);
 
 void AS_generateLLVMcode(FILE *out, A_prog p) {
   // ASSUME THE AST IS ALWAYS CORRECT.
   if (p->m) {
     AS_handleMainMethod(out, p->m);
   } else {
-    fprintf(out, "Error: There's no main class!\n");
+    fprintf(stderr, "Error: There's no main class!\n");
   } 
 }
 
@@ -81,8 +82,7 @@ void AS_handleMainMethod(FILE *out, A_mainMethod m) {
     A_stmList slHead = m->sl;
 
     S_table table = S_empty();
-    int init_num = 1;
-    S_enter(table, S_Symbol("LLVMIR_num"), (void *)init_num);
+    AS_S_enter_wrapper(table, String("LLVMIR_num"), 1);
 
     AS_handleStmList(out, slHead, table);
   }
@@ -115,12 +115,12 @@ void AS_handleAssignStm(FILE *out, A_stm s, S_table table) {
   AS_expResult rightRes = AS_handleExp(out, s->u.assign.value, table, id);
   if (rightRes->kind == AS_num) {
     int idNum = AS_acquireNewVar(table);
-    S_enter(table, S_Symbol(id), (void *)idNum);
+    AS_S_enter_wrapper(table, id, idNum);
     fprintf(out, "%%%d = add i64 0, %d\n", idNum, rightRes->u.num);
   } else if (rightRes->kind == AS_id) { 
     // don't need to acquire a new idNum
     // because we do it in AS_handleExp
-    S_enter(table, S_Symbol(id), (void *)(rightRes->u.idNum));
+    AS_S_enter_wrapper(table, id, rightRes->u.idNum);
   }
 }
 
@@ -184,12 +184,12 @@ AS_expResult AS_handleNumConst(FILE *out, A_exp e, S_table table) {
 }
 
 AS_expResult AS_handleIdExp(FILE *out, A_exp e, S_table table) {
-  int idNum = (int)S_look(table, S_Symbol(e->u.v));
-  if (!idNum) {
+  void *p_idNum = S_look(table, S_Symbol(e->u.v));
+  if (!p_idNum) {
     fprintf(stderr, "Error: id %s not found in table\n", e->u.v);
     exit(1);
   }
-  return AS_IdNum(idNum);
+  return AS_IdNum(*(int *)p_idNum);
 }
 
 AS_expResult AS_handleMinusExp(FILE *out, A_exp e, S_table table, string id) {
@@ -200,9 +200,8 @@ AS_expResult AS_handleMinusExp(FILE *out, A_exp e, S_table table, string id) {
 }
 
 int AS_acquireNewVar(S_table table) {
-  int oldnum = (int)S_look(table, S_Symbol(String("LLVMIR_num")));
-  int newNum = oldnum + 1;
-  S_enter(table, S_Symbol(String("LLVMIR_num")), (void *)newNum);
+  int oldnum = *(int *)S_look(table, S_Symbol(String("LLVMIR_num")));
+  AS_S_enter_wrapper(table, String("LLVMIR_num"), oldnum + 1);
   return oldnum;
 }
 
@@ -210,6 +209,12 @@ int AS_createTempVar(S_table table) {
   int idNum = AS_acquireNewVar(table);
   string id = checked_malloc(15);
   sprintf(id, "temp_%d", idNum);
-  S_enter(table, S_Symbol(id), (void *)idNum);
+  AS_S_enter_wrapper(table, id, idNum);
   return idNum;
+}
+
+void AS_S_enter_wrapper(S_table table, string id, int idNum) {
+  void *p_idNum = checked_malloc(sizeof(int));
+  *(int *)p_idNum = idNum;
+  S_enter(table, S_Symbol(id), p_idNum);
 }
