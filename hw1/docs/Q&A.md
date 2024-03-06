@@ -3,7 +3,10 @@
 ## lex&yacc
 
 - lex：肉眼看正则表达式对不对，不确定的可以问chatGPT
-- yacc：将 `BISON_TARGET(parser parser.yacc ${PROJECT_BINARY_DIR}/include/frontend/parser.c)`替换为 `BISON_TARGET(parser parser.yacc ${PROJECT_BINARY_DIR}/include/frontend/parser.c COMPILE_FLAGS -v)`，make后会在build/include/frontend文件夹下找到parser.output文件，可以检查语法冲突，至于AST树接的对不对就要肉眼看了
+- yacc：
+  - 将 `BISON_TARGET(parser parser.yacc ${PROJECT_BINARY_DIR}/include/frontend/parser.c)`替换为 `BISON_TARGET(parser parser.yacc ${PROJECT_BINARY_DIR}/include/frontend/parser.c COMPILE_FLAGS -v)`，make后会在build/include/frontend文件夹下找到parser.output文件，可以检查语法冲突
+  - 可以删除fdmj的部分内容来调试，删了哪些编译通过了就说明哪些地方解析的有问题
+  - AST树接的对不对可以通过print_ast的相关函数来检查
 
 ## .h和.c文件
 
