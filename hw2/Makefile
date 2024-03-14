@@ -1,15 +1,23 @@
 MAKEFLAGS = --no-print-directory
 
+SUBDIRS = $(wildcard tools/*)
+
 .PHONY: build test clean handin
 
 build:
-	@cd tools/hw_demo; make build; cd ../..
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir build; \
+	done
 
 test:
-	@cd tools/hw_demo; make test; cd ../..
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir test; \
+	done
 
 clean:
-	@cd tools/hw_demo; make clean; cd ../..
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir clean; \
+	done
 
 handin:
 	@if [ ! -f docs/report.pdf ]; then \
