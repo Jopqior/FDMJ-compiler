@@ -11,7 +11,11 @@ build:
 
 test:
 	@for dir in $(SUBDIRS); do \
+		echo "Testing $$dir"; \
+		echo "===================="; \
 		$(MAKE) -C $$dir test; \
+		echo "===================="; \
+		echo; \
 	done
 
 clean:
