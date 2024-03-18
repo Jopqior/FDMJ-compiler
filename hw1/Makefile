@@ -5,14 +5,13 @@ LLI      = lli-14
 ARMCC    = arm-linux-gnueabihf-gcc
 QEMU     = qemu-arm
 
-BUILD_DIR       = $(CURDIR)/build
-MAIN_EXE        = $(BUILD_DIR)/tools/main
-TEST_DIR        = $(CURDIR)/test
-TEST_EXTRA_DIR  = $(TEST_DIR)/extra
+BUILD_DIR = $(CURDIR)/build
+MAIN_EXE  = $(BUILD_DIR)/tools/main
+TEST_DIR  = $(CURDIR)/test
 
 MAKEFLAGS = --no-print-directory
 
-.PHONY: build clean veryclean rebuild test handin
+.PHONY: build clean veryclean rebuild test test-extra handin
 
 build:
 	@cmake -G Ninja -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release; \
@@ -25,12 +24,7 @@ clean:
 		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
 		\) -exec $(RM) {} \;
 
-clean-extra:
-	@find $(TEST_EXTRA_DIR) -type f \( \
-		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
-		\) -exec $(RM) {} \;
-
-veryclean: clean clean-extra
+veryclean: clean
 	@$(RM) $(BUILD_DIR)
 
 rebuild: veryclean build
@@ -48,8 +42,8 @@ test: clean
 	done; \
 	cd ../..
 
-test-extra: clean-extra
-	@cd $(TEST_EXTRA_DIR); \
+test-extra: clean
+	@cd $(TEST_DIR)/extra; \
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fdmj" ]; then \
 			echo "[$${file%%.*}]"; \
