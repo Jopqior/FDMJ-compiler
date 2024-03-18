@@ -5,8 +5,10 @@ LLI      = lli-14
 ARMCC    = arm-linux-gnueabihf-gcc
 QEMU     = qemu-arm
 
-BUILD_DIR = build
-TEST_DIR  = test
+BUILD_DIR       = $(CURDIR)/build
+MAIN_EXE        = $(BUILD_DIR)/tools/main
+TEST_DIR        = $(CURDIR)/test
+TEST_EXTRA_DIR  = $(TEST_DIR)/extra
 
 MAKEFLAGS = --no-print-directory
 
@@ -23,7 +25,12 @@ clean:
 		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
 		\) -exec $(RM) {} \;
 
-veryclean: clean
+clean-extra:
+	@find $(TEST_EXTRA_DIR) -type f \( \
+		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
+		\) -exec $(RM) {} \;
+
+veryclean: clean clean-extra
 	@$(RM) $(BUILD_DIR)
 
 rebuild: veryclean build
@@ -33,9 +40,23 @@ test: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fdmj" ]; then \
 			echo "$${file%%.*}"; \
-			../$(BUILD_DIR)/tools/main "$${file%%.*}" < "$${file%%.*}".fdmj; \
-			$(LLVMLINK) --opaque-pointers "$${file%%.*}".ll ../build/vendor/libsysy64.ll -S -o "$${file%%.*}".ll.ll; \
-			$(LLI) -opaque-pointers "$${file%%.*}".ll.ll > "$${file%%.*}".output; echo $$?; \
+			$(MAIN_EXE) "$${file%%.*}" < "$${file%%.*}".fdmj && \
+			$(LLVMLINK) --opaque-pointers "$${file%%.*}".ll ../build/vendor/libsysy64.ll -S -o "$${file%%.*}".ll.ll && \
+			$(LLI) -opaque-pointers "$${file%%.*}".ll.ll > "$${file%%.*}".output && \
+			echo $$?; \
+		fi \
+	done; \
+	cd ../..
+
+test-extra: clean-extra
+	@cd $(TEST_EXTRA_DIR); \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fdmj" ]; then \
+			echo "$${file%%.*}"; \
+			$(MAIN_EXE) "$${file%%.*}" < "$${file%%.*}".fdmj && \
+			$(LLVMLINK) --opaque-pointers "$${file%%.*}".ll ../build/vendor/libsysy64.ll -S -o "$${file%%.*}".ll.ll && \
+			$(LLI) -opaque-pointers "$${file%%.*}".ll.ll > "$${file%%.*}".output && \
+			echo $$?; \
 		fi \
 	done; \
 	cd ../..
@@ -48,4 +69,4 @@ handin:
 	echo "请输入'学号-姓名' (例如: 12345678910-某个人)"; \
 	read filename; \
 	zip -q -r "docs/$$filename-hw1.zip" \
-	  include lib tools vendor CMakeLists.txt Makefile docs/report.pdf
+	  include lib tools vendor CMakeLists.txt docs/report.pdf
