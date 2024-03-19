@@ -7,17 +7,17 @@ TEST_DIR = test/2.5
 build:
 	@mkdir -p build; \
 	lex -o build/lexer.c lexer.lex; \
-	cc -o build/lexer build/lexer.c -ll
+	cc -o build/main build/lexer.c -ll
 
 run:
-	@build/lexer
+	@build/main
 
 test:
 	@cd ../../$(TEST_DIR); \
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "txt" ]; then \
-			echo test "$${file%%.*}".txt; \
-			../../$(BUILD_DIR)/lexer < "$${file%%.*}".txt; \
+			echo "$${file%%.*}".txt; \
+			../../$(BUILD_DIR)/main < "$${file%%.*}".txt; \
 		fi \
 	done; \
 	cd ../../$(CURRENT_DIR)
