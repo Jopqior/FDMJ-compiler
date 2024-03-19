@@ -2,7 +2,7 @@ MAKEFLAGS = --no-print-directory
 
 SUBDIRS = $(wildcard tools/*)
 
-.PHONY: build test clean handin
+.PHONY: build test clean rebuild handin
 
 build:
 	@for dir in $(SUBDIRS); do \
@@ -22,6 +22,8 @@ clean:
 	@for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir clean; \
 	done
+
+rebuild: clean build
 
 handin:
 	@if [ ! -f docs/report.pdf ]; then \
