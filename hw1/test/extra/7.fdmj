@@ -5,3 +5,7 @@ public int main() {
   putint(a+(({a=2;}a)+a)*a);
   putch(10);
 }
+// 1
+//  9
+// 
+// 

@@ -3,3 +3,7 @@ public int main() {
   a=123;
   putint(a*a+a/a*a/a-a*a, ({putint(({b=23;a=a-b;} a));} a-100));
 }
+
+// 1
+// 100
+// 0
