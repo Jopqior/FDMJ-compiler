@@ -1,0 +1,7 @@
+// 打印字符
+public int main() {
+  putint(({a=1;} a));
+  putch(32);
+  putint(a+(({a=2;}a)+a)*a);
+  putch(10);
+}
