@@ -14,8 +14,6 @@ extern int yywrap();
 // start symbol
 %start S
 
-%right OPENPAREN
-
 %%
 S   :   /* empty */
     |   OPENBRKT P CLOSEBRKT S
