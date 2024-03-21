@@ -9,10 +9,12 @@ extern int yywrap();
 %token OPENBRKT CLOSEBRKT OPENPAREN CLOSEPAREN
 
 // non-terminal symbols
-%type S P
+%type S P RP
 
 // start symbol
 %start S
+
+%right OPENPAREN
 
 %%
 S   :   /* empty */
@@ -20,9 +22,12 @@ S   :   /* empty */
     |   OPENPAREN S CLOSEPAREN S
     ; 
 
-P   :   S
+P   :   RP
     |   OPENPAREN P
-    |   P OPENPAREN
+    ;
+
+RP  :   S
+    |   RP OPENPAREN
     ;
 %%
 
