@@ -63,4 +63,28 @@ handin:
 	echo "请输入'学号-姓名' (例如: 12345678910-某个人)"; \
 	read filename; \
 	zip -q -r "docs/$$filename-hw1.zip" \
-	  include lib tools vendor CMakeLists.txt docs/report.pdf
+	  include lib tools vendor CMakeLists.txt Makefile docs/report.pdf
+
+TEST_EXTERNAL_DIR=../../FDMJ-tests
+TEXT_EXTERNAL_HW=hw01
+clean_external: 
+	@$(RM) $(TEST_EXTERNAL_DIR)/bin
+	@find $(TEST_EXTERNAL_DIR) -type f \( \
+		-name "*.ll" -o -name "*.xml" -o -name "*.output" -o -name "gen_program_*" \
+		\) -exec $(RM) {} \;
+
+test_external: build clean_external
+	@mkdir -p $(TEST_EXTERNAL_DIR)/bin/; \
+	cp $(BUILD_DIR)/tools/main $(TEST_EXTERNAL_DIR)/bin/$(TEXT_EXTERNAL_HW); \
+	cp $(BUILD_DIR)/vendor/libsysy64.ll $(TEST_EXTERNAL_DIR)/bin/$(TEXT_EXTERNAL_HW)_libsysy64.ll; \
+	cd $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW); \
+	python3 randomCodeGen.py; \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fdmj" ]; then \
+			echo "$${file%%.*}"; \
+			../bin/$(TEXT_EXTERNAL_HW) "$${file%%.*}" < "$${file%%.*}".fdmj; \
+			$(LLVMLINK) --opaque-pointers "$${file%%.*}".ll ../bin/$(TEXT_EXTERNAL_HW)_libsysy64.ll -S -o "$${file%%.*}".ll.ll; \
+			$(LLI) -opaque-pointers "$${file%%.*}".ll.ll > "$${file%%.*}".output; echo $$?; \
+		fi \
+	done; \
+	python3 check.py;
