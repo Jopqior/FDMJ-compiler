@@ -15,6 +15,8 @@ int pos = 1;
 %s COMMENT1 COMMENT2
 
 /* regexp nicknames */
+punctuation [()\[\]{}=,;.!]
+id      [a-z_A-Z][a-z_A-Z0-9]*
 
 %% /* 2. rules */
 
