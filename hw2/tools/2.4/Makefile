@@ -6,8 +6,9 @@ TEST_DIR = test/2.4
 
 build:
 	@mkdir -p build; \
+	yacc -d -v -o build/parser.c parser.yacc; \
 	lex -o build/lexer.c lexer.lex; \
-	cc -o build/main build/lexer.c -ll
+	cc -o build/main build/lexer.c build/parser.c
 
 run:
 	@build/main

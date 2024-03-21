@@ -1,14 +1,10 @@
 %{
 #include <stdio.h>
+#include "parser.h"
 %}
 
 %%
-ca(t|r)s? { printf("Accepted\n"); }
-.* { printf("Rejected\n"); }
+ca(t|r)s? { return PATTERN; }
+. { return yytext[0]; }
 \n {}
 %%
-
-int main() {
-    yylex();
-    return 0;
-}

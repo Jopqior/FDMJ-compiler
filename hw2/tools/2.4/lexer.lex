@@ -1,14 +1,10 @@
 %{
 #include <stdio.h>
+#include "parser.h"
 %}
 
 %%
-a((b|a*c)x)*|x*a { printf("Accepted\n"); }
-.* { printf("Rejected\n"); }
+a((b|a*c)x)*|x*a { return PATTERN; }
+. { return yytext[0]; }
 \n {}
 %%
-
-int main() {
-    yylex();
-    return 0;
-}
