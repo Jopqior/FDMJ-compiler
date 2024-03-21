@@ -22,6 +22,7 @@ S   :   /* empty */
 
 P   :   S
     |   OPENPAREN P
+    |   P OPENPAREN
     ;
 %%
 
