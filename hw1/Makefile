@@ -5,18 +5,19 @@ LLI      = lli-14
 ARMCC    = arm-linux-gnueabihf-gcc
 QEMU     = qemu-arm
 
-BUILD_DIR = build
-TEST_DIR  = test
+BUILD_DIR = $(CURDIR)/build
+MAIN_EXE  = $(BUILD_DIR)/tools/main
+TEST_DIR  = $(CURDIR)/test
 
 MAKEFLAGS = --no-print-directory
 
-.PHONY: build clean veryclean rebuild test handin
+.PHONY: build clean veryclean rebuild test test-extra handin
 
 build:
 	@cmake -G Ninja -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release; \
-	cd $(BUILD_DIR) && ninja; \
-	mkdir -p vendor; cd ..; \
-	$(CLANG) -S -emit-llvm vendor/libsysy64.c -o build/vendor/libsysy64.ll
+	cd $(BUILD_DIR) && ninja && cd ..; \
+	mkdir -p $(BUILD_DIR)/vendor; \
+	$(CLANG) -S -emit-llvm $(CURDIR)/vendor/libsysy64.c -o $(BUILD_DIR)/vendor/libsysy64.ll
 
 clean:
 	@find $(TEST_DIR) -type f \( \
@@ -32,10 +33,24 @@ test: clean
 	@cd $(TEST_DIR); \
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fdmj" ]; then \
-			echo "$${file%%.*}"; \
-			../$(BUILD_DIR)/tools/main "$${file%%.*}" < "$${file%%.*}".fdmj; \
-			$(LLVMLINK) --opaque-pointers "$${file%%.*}".ll ../build/vendor/libsysy64.ll -S -o "$${file%%.*}".ll.ll; \
-			$(LLI) -opaque-pointers "$${file%%.*}".ll.ll > "$${file%%.*}".output; echo $$?; \
+			echo "[$${file%%.*}]"; \
+			$(MAIN_EXE) "$${file%%.*}" < "$${file%%.*}".fdmj && \
+			$(LLVMLINK) --opaque-pointers "$${file%%.*}".ll $(BUILD_DIR)/vendor/libsysy64.ll -S -o "$${file%%.*}".ll.ll && \
+			$(LLI) -opaque-pointers "$${file%%.*}".ll.ll > "$${file%%.*}".output && \
+			echo $$?; \
+		fi \
+	done; \
+	cd ../..
+
+test-extra: clean
+	@cd $(TEST_DIR)/extra; \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fdmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(MAIN_EXE) "$${file%%.*}" < "$${file%%.*}".fdmj && \
+			$(LLVMLINK) --opaque-pointers "$${file%%.*}".ll $(BUILD_DIR)/vendor/libsysy64.ll -S -o "$${file%%.*}".ll.ll && \
+			$(LLI) -opaque-pointers "$${file%%.*}".ll.ll > "$${file%%.*}".output && \
+			echo $$?; \
 		fi \
 	done; \
 	cd ../..
