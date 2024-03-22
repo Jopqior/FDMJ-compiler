@@ -62,7 +62,7 @@ extern A_prog root;
 
 // operators
 %token<pos> ADD MINUS TIMES DIV
-%token<pos> OR AND
+%token<pos> OR AND NOT
 %token<pos> EQ NE LT LE GT GE
 
 // identifiers
