@@ -55,7 +55,7 @@ extern A_prog root;
 %token<pos> LENGTH
 
 // boolean values
-%token<pos> TRUE FALSE
+%token<pos> TRUE_V FALSE_V
 
 // punctuation
 %token<pos> '(' ')' '[' ']' '{' '}' '=' ',' ';' '.' '!'
