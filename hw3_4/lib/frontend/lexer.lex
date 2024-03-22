@@ -20,6 +20,7 @@ id      [a-z_A-Z][a-z_A-Z0-9]*
 
 %% /* 2. rules */
 
+/* for comments */
 <INITIAL>"//" {
   pos += 2;
   BEGIN COMMENT1;
@@ -28,8 +29,6 @@ id      [a-z_A-Z][a-z_A-Z0-9]*
   pos += 2;
   BEGIN COMMENT2;
 }
-
-<INITIAL>. {return yytext[0];} // this needs to be replaced!
 
 <COMMENT1>\n {
   line += 1;
@@ -51,5 +50,27 @@ id      [a-z_A-Z][a-z_A-Z0-9]*
 <COMMENT2>. {
   pos += 1;
 }
+
+/* for blanks */
+<INITIAL>" "|\t {
+  pos += 1;
+}
+<INITIAL>\n {
+  line += 1;
+  pos = 1;
+}
+<INITIAL>\r {}
+
+/* for punctuation */
+<INITIAL>{punctuation} {
+  yylval.pos = A_Pos(line, pos);
+  pos += 1;
+  c = yytext[0];
+  return c;
+}
+
+/* for num */
+
+/* for reserved keywords */
 
 %% /* 3. programs */

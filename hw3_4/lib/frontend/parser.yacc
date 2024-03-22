@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include "fdmjast.h"
+#include "util.h"
 
 extern int yylex();
 extern void yyerror(char*);
@@ -32,17 +33,43 @@ extern A_prog root;
   A_stm stm;
   A_exp exp;
   A_expList expList;
+
+  // add for id
+  string id;
 }
 
 /* termianl symbols */
 // reserved keywords
-%token<pos> PUBLIC INT MAIN
+%token<pos> PUBLIC MAIN
+%token<pos> CLASS EXTENDS
+%token<pos> INT FLOAT
+%token<pos> IF ELSE
+%token<pos> WHILE CONTINUE BREAK
+%token<pos> RETURN
+%token<pos> THIS NEW
+
+// functions
+%token<pos> PUTNUM PUTCH PUTARRAY
+%token<pos> STARTTIME STOPTIME
+%token<pos> GETNUM GETCH GETARRAY
+%token<pos> LENGTH
+
+// boolean values
+%token<pos> TRUE FALSE
 
 // punctuation
 %token<pos> '(' ')' '[' ']' '{' '}' '=' ',' ';' '.' '!'
 
 // operators
 %token<pos> ADD MINUS TIMES DIV
+%token<pos> OR AND
+%token<pos> EQ NE LT LE GT GE
+
+// identifiers
+%token<id> ID
+
+// num
+%token<exp> NUM
 
 /* non-termianl symbols */
 %type<type> TYPE
@@ -53,13 +80,13 @@ extern A_prog root;
 %type<methodDecl> METHOD_DECL
 %type<methodDeclList> METHOD_DECL_LIST
 %type<formal> FORMAL
-%type<formalList> FORMAL_LIST
+%type<formalList> FORMAL_LIST FORMAL_REST
 %type<varDecl> VAR_DECL
 %type<varDeclList> VAR_DECL_LIST
 %type<stmList> STM_LIST
 %type<stm> STM
-%type<exp> EXP
-%type<expList> EXP_LIST
+%type<exp> EXP CONST
+%type<expList> EXP_LIST CONST_LIST CONST_REST
 
 /* start symbol */
 %start PROG
@@ -77,9 +104,21 @@ PROG: MAIN_METHOD CLASS_DECL_LIST { //to be replaced!
 } ;
 
 MAIN_METHOD: PUBLIC INT MAIN '(' ')' '{' VAR_DECL_LIST STM_LIST '}' {
-  $$ = A_MainMethod(A_Pos($1->line, $1->pos), $7, $8);
+  $$ = A_MainMethod($1, $7, $8);
 } ;
 
+VAR_DECL_LIST: /* empty */ {
+  $$ = NULL;
+} | VAR_DECL VAR_DECL_LIST {
+  $$ = A_VarDeclList($1, $2);
+}
+
+VAR_DECL: CLASS ID ID ';' {
+  // TODO
+  $$ = A_VarDecl($1, A_Type($1, A_idType, $2), NULL);
+} | INT ID ';' {
+  
+}
 %% /* 3. programs */
 
 void yyerror(char *s) {
