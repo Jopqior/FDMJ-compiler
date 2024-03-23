@@ -88,9 +88,15 @@ extern A_prog root;
 %start PROG
 
 /* precedence */
+%left OR
+%left AND
+%left EQ NE
+%left LT LE GT GE
 %left PLUS MINUS
 %left TIMES DIV
 %right UMINUS
+%right NOT
+%left '.' '[' '('
 
 %% /* 2. rules */
 
@@ -238,7 +244,7 @@ EXP: NUM {
   $$ = A_OpExp(A_Pos($1->pos->line, $1->pos->pos), $1, A_ne, $3);
 } | NOT EXP {
   $$ = A_NotExp($1, $2);
-} | MINUS EXP {
+} | MINUS EXP %prec UMINUS {
   $$ = A_MinusExp($1, $2);
 } | '(' EXP ')' {
   $2->pos = $1;
