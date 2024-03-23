@@ -16,7 +16,7 @@ int pos = 1;
 %s COMMENT1 COMMENT2
 
 /* regexp nicknames */
-punctuation   [()\[\]{}=,;.!]
+punctuation   [()\[\]{}=,;.]
 id            [a-z_A-Z][a-z_A-Z0-9]*
 integer       [1-9][0-9]*|0
 float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
@@ -69,13 +69,6 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
   pos += 1;
   c = yytext[0];
   return c;
-}
-
-
-<INITIAL>{id} {
-  yylval.exp = A_IdExp(A_Pos(line, pos), String(yytext));
-  pos += yyleng;
-  return ID;
 }
 
 
@@ -284,6 +277,12 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
   yylval.pos = A_Pos(line, pos);
   pos += yyleng;
   return GE;
+}
+
+<INITIAL>{id} {
+  yylval.exp = A_IdExp(A_Pos(line, pos), String(yytext));
+  pos += yyleng;
+  return ID;
 }
 
 <INITIAL>. {
