@@ -7,6 +7,7 @@
 #include "fdmjast.h"
 #include "parser.h"
 
+int c;
 int line = 1;
 int pos = 1;
 %}
@@ -73,7 +74,7 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
 
 /* for identifiers */
 <INITIAL>{id} {
-  yylval.id = String(yytext);
+  yylval.exp = A_IdExp(A_Pos(line, pos), String(yytext));
   pos += yyleng;
   return ID;
 }
