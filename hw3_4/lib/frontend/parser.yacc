@@ -97,6 +97,8 @@ extern A_prog root;
 %right UMINUS
 %right NOT
 %left '.' '[' '('
+%precedence THEN
+%precedence ELSE
 
 %% /* 2. rules */
 
@@ -164,7 +166,7 @@ STM: '{' STM_LIST '}' {
   $$ = A_NestedStm($1, $2);
 } | IF '(' EXP ')' STM ELSE STM {
   $$ = A_IfStm($1, $3, $5, $7);
-} | IF '(' EXP ')' STM {
+} | IF '(' EXP ')' STM %prec THEN {
   $$ = A_IfStm($1, $3, $5, NULL);
 } | WHILE '(' EXP ')' STM {
   $$ = A_WhileStm($1, $3, $5);
