@@ -23,7 +23,6 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
 
 %% /* 2. rules */
 
-/* for comments */
 <INITIAL>"//" {
   pos += 2;
   BEGIN COMMENT1;
@@ -54,7 +53,7 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
   pos += 1;
 }
 
-/* for blanks */
+
 <INITIAL>" "|\t {
   pos += 1;
 }
@@ -64,7 +63,7 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
 }
 <INITIAL>\r {}
 
-/* for punctuation */
+
 <INITIAL>{punctuation} {
   yylval.pos = A_Pos(line, pos);
   pos += 1;
@@ -72,14 +71,14 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
   return c;
 }
 
-/* for identifiers */
+
 <INITIAL>{id} {
   yylval.exp = A_IdExp(A_Pos(line, pos), String(yytext));
   pos += yyleng;
   return ID;
 }
 
-/* for num */
+
 <INITIAL>{integer} {
   yylval.exp = A_NumConst(A_Pos(line, pos), (float)atoi(yytext));
   pos += yyleng;
@@ -91,7 +90,7 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
   return NUM;
 }
 
-/* for boolean values */
+
 <INITIAL>"true" {
   yylval.pos = A_Pos(line, pos);
   pos += yyleng;
@@ -103,7 +102,7 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
   return FALSE_V;
 }
 
-/* for reserved keywords and functions */
+
 <INITIAL>"public" {
   yylval.pos = A_Pos(line, pos);
   pos += yyleng;
@@ -220,7 +219,7 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
   return LENGTH;
 }
 
-/* for operators */
+
 <INITIAL>"+" {
   yylval.pos = A_Pos(line, pos);
   pos += yyleng;
