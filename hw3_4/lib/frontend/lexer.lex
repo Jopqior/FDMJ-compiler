@@ -224,7 +224,7 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
 <INITIAL>"+" {
   yylval.pos = A_Pos(line, pos);
   pos += yyleng;
-  return ADD;
+  return PLUS;
 }
 <INITIAL>"-" {
   yylval.pos = A_Pos(line, pos);
