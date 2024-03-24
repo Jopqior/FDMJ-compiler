@@ -1,0 +1,7 @@
+public int main() {
+    int[] a={0}; 
+    int i=0;
+    int l;
+    i=({} 0);
+    return l;
+}

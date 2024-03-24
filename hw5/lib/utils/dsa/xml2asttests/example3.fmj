@@ -1,0 +1,39 @@
+public int main() {
+    int[] a={0}; 
+    int i=0;
+    int l;
+float[] f={0,1,0.999999};
+putnum(f); putch(10);
+starttime();
+stoptime();
+putarray(f, length(f));
+{{while (1) break; continue;}{}{a=2;{{a=3;a=4;a=5;}}}}
+    i=({} 0)+2+3+4+-5*a[length(f)+({a=0;} 100)];
+putnum(length(f));
+a=new int[10];
+a=new float[10];
+a=getarray(a>3 && !a);
+a=a>3 && !a;
+    return a+o.m1(4)+o.a+a+({a=new o().m();} a);
+}
+
+public class c1 {
+    int i1=0;
+    public int m1(int x) {
+this.i1=true;
+      return this.i1;
+    }
+}
+
+public class c2 extends c1 {
+    // int i1=3;
+    public int m1(int x) {
+        return this.i1+x*2;
+    }
+    public int m2(int x) {
+        return this.i1+x*2;
+    }
+}
+
+public class c3 extends c2 {
+}
