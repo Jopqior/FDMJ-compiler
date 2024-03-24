@@ -1,4 +1,6 @@
 #include "util.h"
+#include "table.h"
+#include "symbol.h"
 #include "fdmjast.h"
 #include <stdio.h>
 #include <strings.h>
