@@ -675,7 +675,10 @@ void printA_NumConst(FILE *out, A_exp e) {
   if (!e) return;
   if (e->kind != A_numConst) fprintf(out, "Not Num constant!\n");
   else {
-    fprintf(out, "%f", e->u.num);
+    if (e->u.num == (int)e->u.num)
+      fprintf(out, "%d", (int)e->u.num);
+    else
+      fprintf(out, "%f", e->u.num);
   }
   return;
 }

@@ -10,6 +10,8 @@ void printX_Pos(FILE* out, A_pos pos) {
 #ifdef __DEBUG
   fprintf(out, "Entering printX_Pos...\n");
 #endif
+  if (!pos) return;
+  fprintf(out, "<pos><line>%d</line><col>%d</col></pos>\n", pos->line, pos->pos);
   return ; //don't need to print position
 }
 
@@ -48,6 +50,7 @@ void printX_Prog(FILE *out, A_prog p) {
 #endif
   fprintf(stdout, "<?xml version=\"1.0\"?>\n");
   fprintf(stdout, "<Program>\n");
+  printX_Pos(out, p->pos);
   if (p->m) printX_MainMethod(out, p->m);
   else
     fprintf(out, "Error: There's no main class!\n");
@@ -63,6 +66,7 @@ void printX_MainMethod(FILE *out, A_mainMethod main) {
   fprintf(out, "Entering printX_MainMethod...\n");
 #endif
   fprintf(out, "<main>\n");
+  printX_Pos(stdout, main->pos);
   if (main->vdl) printX_VarDeclList(out, main->vdl);
   if (main->sl) printX_StmList(out, main->sl);
   fprintf(out, "</main>\n");
@@ -125,7 +129,7 @@ void printX_ClassDecl(FILE *out, A_classDecl cd) {
   fprintf(out, "<className>%s</className>\n", cd->id);
   //fprintf(out, "<class>\n");
   if (cd->parentID) 
-    fprintf(out, "<extends>\n%s</extends>\n", cd->parentID);
+    fprintf(out, "<extends>%s</extends>\n", cd->parentID);
   //fprintf(out, "{\n");
   if (cd->vdl) printX_VarDeclList(out, cd->vdl);
   if (cd->mdl) printX_MethodDeclList(out, cd->mdl);
@@ -221,11 +225,10 @@ void printX_StmList(FILE *out, A_stmList sl) {
   fprintf(out, "Entering printX_StmList...\n");
 #endif
   if (!sl) return;
-  fprintf(out, "<stmtList>\n<stmt>\n");
+  fprintf(out, "<stmList>\n");
   printX_Stm(out, sl->head);
-  fprintf(out, "</stmt>\n");
   if (sl->tail) printX_StmList(out, sl->tail);
-  fprintf(out, "</stmtList>\n");
+  fprintf(out, "</stmList>\n");
   return;
 }
 
@@ -294,6 +297,7 @@ void printX_NestedStm(FILE *out, A_stm s) {
   if (s->kind != A_nestedStm) fprintf(out, "Not a nested stm!\n");
   else {
     fprintf(out, "<nestedStm>\n");
+    printX_Pos(out, s->pos);
 //    fprintf(out, "{\n");
     printX_StmList(out, s->u.ns);
     fprintf(out, "</nestedStm>\n");
@@ -311,6 +315,7 @@ void printX_IfStm(FILE *out, A_stm s) {
   if (s->kind != A_ifStm) fprintf(out, "Not a if stm!\n");
   else {
     fprintf(out, "<if>\n");
+    printX_Pos(out, s->pos);
     printX_Exp(out, s->u.if_stat.e);
     fprintf(out, "<then>\n");
     printX_Stm(out, s->u.if_stat.s1);
@@ -333,7 +338,9 @@ void printX_WhileStm(FILE *out, A_stm s) {
   if (!s) return;
   if (s->kind != A_whileStm) fprintf(out, "Not a while stm!\n");
   else {
-    fprintf(out, "<while>\n<cond>\n");
+    fprintf(out, "<while>\n");
+    printX_Pos(out, s->pos);
+    fprintf(out, "<cond>\n");
     printX_Exp(out, s->u.while_stat.e);
     fprintf(out, "</cond>\n");
     if (!s->u.while_stat.s)
@@ -381,7 +388,9 @@ void printX_ArrayInit(FILE *out, A_stm s) {
 #endif
   if (s->kind != A_arrayInit) fprintf(out, "Not an array init stm!\n");
   else {
-    fprintf(out, "<arrayInit>\n<left>");
+    fprintf(out, "<arrayInit>\n");
+    printX_Pos(out, s->pos);
+    fprintf(out, "<left>");
     printX_Exp(out, s->u.array_init.arr);
     fprintf(out, "</left>\n");
 //    fprintf(out, "[");
@@ -390,6 +399,7 @@ void printX_ArrayInit(FILE *out, A_stm s) {
     fprintf(out, "<right>\n");
     printX_ExpList(out, s->u.array_init.init_values);
     fprintf(out, "</right>\n");
+    fprintf(out, "</arrayInit>\n");
   }
   return;
 }
@@ -401,7 +411,9 @@ void printX_CallStm(FILE *out, A_stm s) {
 #endif
   if (s->kind != A_callStm) fprintf(out, "Not a call stm!\n");
   else {
-    fprintf(out, "<call>\n<obj>\n");
+    fprintf(out, "<call>\n");
+    printX_Pos(out, s->pos);
+    fprintf(out, "<obj>\n");
     printX_Exp(out, s->u.call_stat.obj);
     fprintf(out, "</obj>\n<fun>\n");
     fprintf(out, "%s", s->u.call_stat.fun);
@@ -420,8 +432,11 @@ void printX_Continue(FILE *out, A_stm s) {
 #endif
   if (!s) return;
   if (s->kind != A_continue) fprintf(out, "Not a continue stm!\n");
-  else
-    fprintf(out, "<continue>\n</continue>\n");
+  else {
+    fprintf(out, "<continue>\n");
+    printX_Pos(out, s->pos);
+    fprintf(out, "</continue>\n");
+  }
   return;
 }
 
@@ -432,8 +447,11 @@ void printX_Break(FILE *out, A_stm s) {
 #endif
   if (!s) return;
   if (s->kind != A_break) fprintf(out, "Not a break stm!\n");
-  else
-    fprintf(out, "<break>\n</break>\n");
+  else {
+    fprintf(out, "<break>\n");
+    printX_Pos(out, s->pos);
+    fprintf(out, "</break>\n");
+  }
   return;
 }
 
@@ -445,6 +463,7 @@ void printX_Return(FILE *out, A_stm s) {
   if (s->kind != A_return) fprintf(out, "Not a return stm!\n");
   else {
     fprintf(out, "<return>\n");
+    printX_Pos(out, s->pos);
     if (s->u.e)
       printX_Exp(out, s->u.e);
     fprintf(out, "</return>\n");
@@ -460,6 +479,7 @@ void printX_Putnum(FILE *out, A_stm s) {
   if (s->kind != A_putnum) fprintf(out, "Not a putint stm!\n");
   else {
     fprintf(out, "<putnum>\n");
+    printX_Pos(out, s->pos);
     if (s->u.e) printX_Exp(out, s->u.e);
     fprintf(out, "</putnum>\n");
   }
@@ -473,7 +493,9 @@ void printX_Putarray(FILE *out, A_stm s) {
 #endif
   if (s->kind != A_putarray) fprintf(out, "Not a putarray stm!\n");
   else {
-    fprintf(out, "<putarray>\n<arr>\n");
+    fprintf(out, "<putarray>\n");
+    printX_Pos(out, s->pos);
+    fprintf(out, "<arr>\n");
     printX_Exp(out, s->u.putarray.e1);
     fprintf(out, "</arr>\n<length>\n");
     printX_Exp(out, s->u.putarray.e2);
@@ -490,6 +512,7 @@ void printX_Putch(FILE *out, A_stm s) {
   if (s->kind != A_putch) fprintf(out, "Not a putch stm!\n");
   else {
     fprintf(out, "<putch>\n");
+    printX_Pos(out, s->pos);
     if (s->u.e) printX_Exp(out, s->u.e);
     fprintf(out, "</putch>\n");
   }
@@ -503,8 +526,11 @@ void printX_Starttime(FILE *out, A_stm s) {
 #endif
   if (!s) return;
   if (s->kind != A_starttime) fprintf(out, "Not a starttime stm!\n");
-  else
-    fprintf(out, "<starttime>\n</starttime>\n");
+  else {
+    fprintf(out, "<starttime>\n");
+    printX_Pos(out, s->pos);
+    fprintf(out, "</starttime>\n");
+  }
   return;
 }
 
@@ -515,8 +541,11 @@ void printX_Stoptime(FILE *out, A_stm s) {
 #endif
   if (!s) return;
   if (s->kind != A_stoptime) fprintf(out, "Not a stoptime stm!\n");
-  else
-    fprintf(out, "<stoptime>\n</stoptime>\n");
+  else {
+    fprintf(out, "<stoptime>\n");
+    printX_Pos(out, s->pos);
+    fprintf(out, "</stoptime>\n");
+  }   
   return;
 }
 
@@ -594,9 +623,8 @@ void printX_ExpList(FILE *out, A_expList el) {
   fprintf(out, "Entering printX_ExpList...\n");
 #endif
   if (!el) return;
-  fprintf(out, "<expList>\n<exp>\n");
+  fprintf(out, "<expList>\n");
   printX_Exp(out, el->head);
-  fprintf(out, "</exp>\n");
   if (el->tail) {
     //fprintf(out, ", ");
     printX_ExpList(out, el->tail);
@@ -611,7 +639,9 @@ void printX_OpExp(FILE *out, A_exp e) {
   fprintf(out, "Entering printX_OpExp...\n");
 #endif
   if (!e) return;
-  fprintf(out, "<opExp>\n<left>\n");
+  fprintf(out, "<opExp>\n");
+  printX_Pos(out, e->pos);
+  fprintf(out, "<left>\n");
   printX_Exp(out, e->u.op.left);
   fprintf(out, "</left>\n<op>");
   switch (e->u.op.oper) {
@@ -625,7 +655,7 @@ void printX_OpExp(FILE *out, A_exp e) {
     fprintf(out, "LESS THAN");
     break;
   case A_le:
-    fprintf(out, "GREATER THAN OR EQUAL TO");
+    fprintf(out, "LESS THAN OR EQUAL TO");
     break;
   case A_greater:
     fprintf(out, "GREATER THAN");
@@ -664,11 +694,13 @@ void printX_ArrayExp(FILE *out, A_exp e) {
   fprintf(out, "Entering printX_OpExp...\n");
 #endif
   if (!e) return;
-  fprintf(out, "<arrExp>\n<arr>\n");
+  fprintf(out, "<arrExp>\n");
+  printX_Pos(out, e->pos);
+  fprintf(out, "<arr>\n");
   printX_Exp(out, e->u.array_pos.arr);
-  fprintf(out, "</arr>\n<pos>\n");
+  fprintf(out, "</arr>\n<index>\n");
   printX_Exp(out, e->u.array_pos.arr_pos);
-  fprintf(out, "</pos>\n</arrExp>\n");
+  fprintf(out, "</index>\n</arrExp>\n");
   return;
 }
 
@@ -681,7 +713,9 @@ void printX_CallExp(FILE *out, A_exp e) {
   if (!e) return;
   if (e->kind != A_callExp) fprintf(out, "Not Call exp!\n");
   else {
-    fprintf(out, "<callExp>\n<obj>\n");
+    fprintf(out, "<callExp>\n");
+    printX_Pos(out, e->pos);
+    fprintf(out, "<obj>\n");
     printX_Exp(out, e->u.call.obj);
     fprintf(out, "</obj>\n<fun>\n");
     fprintf(out, "%s", e->u.call.fun);
@@ -700,7 +734,9 @@ void printX_ClassVarExp(FILE *out, A_exp e) {
   if (!e) return;
   if (e->kind != A_classVarExp) fprintf(out, "Not classVar exp!\n");
   else {
-    fprintf(out, "<classVarExp>\n<obj>\n");
+    fprintf(out, "<classVarExp>\n");
+    printX_Pos(out, e->pos);
+    fprintf(out, "<obj>\n");
     printX_Exp(out, e->u.classvar.obj);
     fprintf(out, "</obj>\n<var>\n");
     fprintf(out, "%s", e->u.classvar.var);
@@ -724,8 +760,16 @@ void printX_BoolConst(FILE *out, A_exp e) {
   if (!e) return;
   if (e->kind != A_boolConst) fprintf(out, "Not Bool constant!\n");
   else {
-    if (e->u.b) fprintf(out, "<true>\n</true>\n");
-    else fprintf(out, "<false>\n</false>\n");
+    if (e->u.b) {
+      fprintf(out, "<true>\n");
+      printX_Pos(out, e->pos);
+      fprintf(out, "</true>\n");
+    }
+    else {
+      fprintf(out, "<false>\n");
+      printX_Pos(out, e->pos);
+      fprintf(out, "</false>\n");
+    }
   }
   return;
 }
@@ -738,7 +782,12 @@ void printX_NumConst(FILE *out, A_exp e) {
   if (!e) return;
   if (e->kind != A_numConst) fprintf(out, "Not Num constant!\n");
   else {
-    fprintf(out, "<num>%f</num>\n", e->u.num);
+    fprintf(out, "<num>\n");
+    printX_Pos(out, e->pos);
+    if (e->u.num == (int)e->u.num)
+      fprintf(out, "<value>%d</value></num>\n", (int)e->u.num);
+    else
+      fprintf(out, "<value>%f</value></num>\n", e->u.num);
   }
   return;
 }
@@ -752,6 +801,7 @@ void printX_LengthExp(FILE *out, A_exp e) {
   if (e->kind != A_lengthExp) fprintf(out, "Not length exp!\n");
   else {
     fprintf(out, "<lengthOf>\n");
+    printX_Pos(out, e->pos); 
     printX_Exp(out, e->u.e);
     fprintf(out, "</lengthOf>\n");
   }
@@ -766,7 +816,9 @@ void printX_IdExp(FILE *out, A_exp e) {
   if (!e) return;
   if (e->kind != A_idExp) fprintf(out, "Not ID exp!\n");
   else {
-    fprintf(out, "<id>%s</id>\n", e->u.v);
+    fprintf(out, "<id>\n");
+    printX_Pos(out, e->pos);
+    fprintf(out, "<string>%s</string></id>\n", e->u.v);
   }
   return;
 }
@@ -778,8 +830,11 @@ void printX_ThisExp(FILE *out, A_exp e) {
 #endif
   if (!e) return;
   if (e->kind != A_thisExp) fprintf(out, "Not This exp!\n");
-  else
-    fprintf(out, "<this>\n</this>\n");
+  else {
+    fprintf(out, "<this>\n");
+    printX_Pos(out, e->pos);
+    fprintf(out, "</this>\n");
+  }
   return;
 }
 
@@ -792,6 +847,7 @@ void printX_NewIntArrExp(FILE *out, A_exp e) {
   if (e->kind != A_newIntArrExp) fprintf(out, "Not NewIntArray Exp!\n");
   else {
     fprintf(out, "<newInt>\n");
+    printX_Pos(out, e->pos);
     printX_Exp(out, e->u.e);
     fprintf(out, "</newInt>\n");
   }
@@ -807,6 +863,7 @@ void printX_NewFloatArrExp(FILE *out, A_exp e) {
   if (e->kind != A_newFloatArrExp) fprintf(out, "Not NewFloatArray Exp!\n");
   else {
     fprintf(out, "<newFloat>\n");
+    printX_Pos(out, e->pos); 
     printX_Exp(out, e->u.e);
     fprintf(out, "</newFloat>\n");
   }
@@ -820,8 +877,11 @@ void printX_NewObjExp(FILE *out, A_exp e) {
 #endif
   if (!e) return;
   if (e->kind != A_newObjExp) fprintf(out, "Not newObj exp!\n");
-  else
-    fprintf(out, "<newObj>%s</newObj>\n", e->u.v);
+  else {
+    fprintf(out, "<newObj>\n");
+    printX_Pos(out, e->pos);
+    fprintf(out, "<id>%s</id></newObj>\n", e->u.v);
+  }
   return;
 }
 
@@ -834,6 +894,7 @@ void printX_NotExp(FILE *out, A_exp e) {
   if (e->kind != A_notExp) fprintf(out, "Not Not exp!\n");
   else {
     fprintf(out, "<notExp>\n");
+    printX_Pos(out, e->pos);
     printX_Exp(out, e->u.e);
     fprintf(out, "</notExp>\n");
   }
@@ -849,6 +910,7 @@ void printX_MinusExp(FILE *out, A_exp e) {
   if (e->kind != A_minusExp) fprintf(out, "Not Minus exp!\n");
   else {
     fprintf(out, "<minusExp>\n");
+    printX_Pos(out, e->pos);
     printX_Exp(out, e->u.e);
     fprintf(out, "</minusExp>\n");
   }
@@ -864,10 +926,10 @@ void printX_EscExp(FILE *out, A_exp e) {
   if (e->kind != A_escExp) fprintf(out, "Not Esc exp!\n");
   else {
     fprintf(out, "<escExp>\n");
+    printX_Pos(out, e->pos);
     printX_StmList(out, e->u.escExp.ns);
-    fprintf(out, "<exp>\n");
     printX_Exp(out, e->u.escExp.exp);
-    fprintf(out, "</exp>\n</escExp>\n");
+    fprintf(out, "</escExp>\n");
   }
   return;
 }
@@ -879,8 +941,11 @@ void printX_Getnum(FILE *out, A_exp e) {
 #endif
   if (!e) return;
   if (e->kind != A_getnum) fprintf(out, "Not getint exp!\n");
-  else
-    fprintf(out, "<getnum></getnum>\n");
+  else {
+    fprintf(out, "<getnum>\n");
+    printX_Pos(out, e->pos);
+    fprintf(out, "</getnum>\n");
+  }
   return;
 }
 
@@ -891,8 +956,11 @@ void printX_Getch(FILE *out, A_exp e) {
 #endif
   if (!e) return;
   if (e->kind != A_getch) fprintf(out, "Not getch exp!\n");
-  else
-    fprintf(out, "<getch></getch>\n");
+  else {
+    fprintf(out, "<getch>\n");
+    printX_Pos(out, e->pos);
+    fprintf(out, "</getch>\n");
+  }
   return;
 }
 
@@ -905,6 +973,7 @@ void printX_Getarray(FILE *out, A_exp e) {
   if (e->kind != A_getarray) fprintf(out, "Not getarray exp!\n");
   else {
     fprintf(out, "<getarray>\n");
+    printX_Pos(out, e->pos);
     printX_Exp(out, e->u.e);
     fprintf(out, "</getarray>\n");
   }
