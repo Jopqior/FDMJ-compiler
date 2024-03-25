@@ -8,8 +8,9 @@ project(FudanCompiler)
 include_directories(include/frontend)
 include_directories(include/utils/dsa)
 include_directories(include/utils/printer)
-include_directories(include/lxml)
+include_directories(vendor/lxml)
 
 # 递归构建
 add_subdirectory(lib)
 add_subdirectory(tools)
+add_subdirectory(vendor)
