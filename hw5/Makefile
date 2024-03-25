@@ -7,6 +7,7 @@ QEMU     = qemu-arm
 
 BUILD_DIR = $(CURDIR)/build
 MAIN_EXE  = $(BUILD_DIR)/tools/main
+FMJ2AST   = $(CURDIR)/vendor/tools/fmj2ast
 TEST_DIR  = $(CURDIR)/test
 
 MAKEFLAGS = --no-print-directory
@@ -32,6 +33,7 @@ test: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}" < "$${file%%.*}".fmj && \
 			$(MAIN_EXE) "$${file%%.*}".2.ast > "$${file%%.*}".output; \
 		fi \
 	done; \
@@ -42,6 +44,7 @@ test-extra: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}" < "$${file%%.*}".fmj && \
 			$(MAIN_EXE) "$${file%%.*}".2.ast > "$${file%%.*}".output; \
 		fi \
 	done; \
