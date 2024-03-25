@@ -105,17 +105,17 @@ extern A_prog root;
 PROG: MAIN_METHOD CLASS_DECL_LIST {
   root = A_Prog(A_Pos($1->pos->line, $1->pos->pos), $1, $2);
   $$ = root;
-} ;
+};
 
 MAIN_METHOD: PUBLIC INT MAIN '(' ')' '{' VAR_DECL_LIST STM_LIST '}' {
   $$ = A_MainMethod($1, $7, $8);
-} ;
+};
 
 VAR_DECL_LIST: /* empty */ {
   $$ = NULL;
 } | VAR_DECL VAR_DECL_LIST {
   $$ = A_VarDeclList($1, $2);
-}
+};
 
 VAR_DECL: CLASS ID ID ';' {
   $$ = A_VarDecl($1, A_Type($1, A_idType, $2->u.v), $3->u.v, NULL);
@@ -135,13 +135,13 @@ VAR_DECL: CLASS ID ID ';' {
   $$ = A_VarDecl($1, A_Type($1, A_floatArrType, NULL), $4->u.v, NULL);
 } | FLOAT '[' ']' ID '=' '{' CONST_LIST '}' ';' {
   $$ = A_VarDecl($1, A_Type($1, A_floatArrType, NULL), $4->u.v, $7);
-} ;
+};
 
 CONST: NUM {
   $$ = $1;
 } | MINUS NUM %prec UMINUS {
   $$ = A_NumConst($1, -$2->u.num);
-}
+};
 
 CONST_LIST: /* empty */ {
   $$ = NULL;
@@ -321,7 +321,7 @@ FORMAL_REST: /* empty */ {
 %% /* 3. programs */
 
 void yyerror(char *s) {
-  fprintf(stderr, "%s\n",s);
+  fprintf(stderr, "%s\n", s);
 }
 
 int yywrap() {
