@@ -5,20 +5,21 @@ LLI      = lli-14
 ARMCC    = arm-linux-gnueabihf-gcc
 QEMU     = qemu-arm
 
-BUILD_DIR = build
-TEST_DIR  = test
+BUILD_DIR = $(CURDIR)/build
+MAIN_EXE  = $(BUILD_DIR)/tools/main
+TEST_DIR  = $(CURDIR)/test
 
 MAKEFLAGS = --no-print-directory
 
-.PHONY: build clean veryclean rebuild test handin
+.PHONY: build clean veryclean rebuild test test-extra handin
 
 build:
 	@cmake -G Ninja -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release; \
-	cd $(BUILD_DIR) && ninja;
+	cd $(BUILD_DIR) && ninja
 
 clean:
 	@find $(TEST_DIR) -type f \( \
-		-name "*.src" -o -name "*.ast" -o -name "*.output" \
+		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean
@@ -30,8 +31,18 @@ test: clean
 	@cd $(TEST_DIR); \
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
-			echo "$${file%%.*}"; \
-			../$(BUILD_DIR)/tools/main "$${file%%.*}" < "$${file%%.*}".fmj > "$${file%%.*}".output; \
+			echo "[$${file%%.*}]"; \
+			$(MAIN_EXE) "$${file%%.*}" < "$${file%%.*}".fmj > "$${file%%.*}".output; \
+		fi \
+	done; \
+	cd ../..
+
+test-extra: clean
+	@cd $(TEST_DIR)/extra; \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(MAIN_EXE) "$${file%%.*}" < "$${file%%.*}".fmj > "$${file%%.*}".output; \
 		fi \
 	done; \
 	cd ../..
@@ -44,4 +55,4 @@ handin:
 	echo "请输入'学号-姓名' (例如: 12345678910-某个人)"; \
 	read filename; \
 	zip -q -r "docs/$$filename-hw3_4.zip" \
-	  include lib tools vendor CMakeLists.txt Makefile docs/report.pdf
+	  include lib tools CMakeLists.txt docs/report.pdf
