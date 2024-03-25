@@ -118,7 +118,6 @@ VAR_DECL_LIST: /* empty */ {
 }
 
 VAR_DECL: CLASS ID ID ';' {
-  // TODO
   $$ = A_VarDecl($1, A_Type($1, A_idType, $2->u.v), $3->u.v, NULL);
 } | INT ID ';' {
   $$ = A_VarDecl($1, A_Type($1, A_intType, NULL), $2->u.v, NULL);
