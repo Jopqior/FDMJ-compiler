@@ -408,9 +408,9 @@ void printA_Putnum(FILE *out, A_stm s) {
 #ifdef __DEBUG
   fprintf(out, "Entering printA_Putin...\n");
 #endif
-  if (s->kind != A_putnum) fprintf(out, "Not a putint stm!\n");
+  if (s->kind != A_putnum) fprintf(out, "Not a putnum stm!\n");
   else {
-    fprintf(out, "putint(");
+    fprintf(out, "putnum(");
     if (s->u.e) printA_Exp(out, s->u.e);
     fprintf(out, ");\n");
   }
@@ -817,7 +817,7 @@ void printA_Getnum(FILE *out, A_exp e) {
   fprintf(out, "Entering printA_Getnum...\n");
 #endif
   if (!e) return;
-  if (e->kind != A_getnum) fprintf(out, "Not getint exp!\n");
+  if (e->kind != A_getnum) fprintf(out, "Not getnum exp!\n");
   else
     fprintf(out, "getnum()");
   return;

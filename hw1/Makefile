@@ -40,7 +40,7 @@ test: clean
 			echo $$?; \
 		fi \
 	done; \
-	cd ../..
+	cd $(CURDIR)
 
 test-extra: clean
 	@cd $(TEST_DIR)/extra; \
@@ -53,7 +53,7 @@ test-extra: clean
 			echo $$?; \
 		fi \
 	done; \
-	cd ../..
+	cd $(CURDIR)
 
 handin:
 	@if [ ! -f docs/report.pdf ]; then \

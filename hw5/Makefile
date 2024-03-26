@@ -37,7 +37,7 @@ test: clean
 			$(MAIN_EXE) "$${file%%.*}".2.ast > "$${file%%.*}".output; \
 		fi \
 	done; \
-	cd ../..
+	cd $(CURDIR)
 
 test-extra: clean
 	@cd $(TEST_DIR)/extra; \
@@ -48,7 +48,7 @@ test-extra: clean
 			$(MAIN_EXE) "$${file%%.*}".2.ast > "$${file%%.*}".output; \
 		fi \
 	done; \
-	cd ../..
+	cd $(CURDIR)
 
 handin:
 	@if [ ! -f docs/report.pdf ]; then \
