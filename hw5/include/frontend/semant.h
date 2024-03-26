@@ -1,5 +1,12 @@
-#include "fdmjast.h"
+#ifndef SEMANT_H
+#define SEMANT_H
+
 #include <stdio.h>
+#include "env.h"
+#include "fdmjast.h"
+#include "types.h"
+#include "util.h"
 
-int A_Semant(FILE* out, A_prog p);
+void transA_Prog(FILE *out, A_prog p);
 
+#endif

@@ -1,13 +1,15 @@
-#include "util.h"
-#include "table.h"
+#include "semant.h"
 #include "symbol.h"
-#include "fdmjast.h"
-#include <stdio.h>
-#include <strings.h>
+#include "table.h"
+#include <stdlib.h>
 
-int A_Semant(FILE* out, A_prog p) {
-    //print all symantic check errors to out
-    fprintf(out, "Ehhh.. I haven't done anything... but hey! ALL CORRECT!!! COOL.\n");
-    return 1;
+void transError(FILE *out, A_pos pos, string msg) {
+  fprintf(out, "(line:%d col:%d) %s\n", pos->line, pos->pos, msg);
+  fflush(out);
+  exit(1);
 }
 
+void transA_Prog(FILE* out, A_prog p) {
+  //print all symantic check errors to out
+  transError(out, A_Pos(0, 0), "Ehhh.. I haven't done anything... but hey! ALL CORRECT!!! COOL.");
+}
