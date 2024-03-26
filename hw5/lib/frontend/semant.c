@@ -10,6 +10,6 @@ void transError(FILE *out, A_pos pos, string msg) {
 }
 
 void transA_Prog(FILE* out, A_prog p) {
-  //print all symantic check errors to out
+  // TODO: type checking
   transError(out, A_Pos(0, 0), "Ehhh.. I haven't done anything... but hey! ALL CORRECT!!! COOL.");
 }

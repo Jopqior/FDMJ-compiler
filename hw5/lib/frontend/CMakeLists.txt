@@ -1,2 +1,2 @@
-aux_source_directory(. SEMANT_SRCS)
-add_library(semant OBJECT ${SEMANT_SRCS})
+aux_source_directory(. FRONTEND_SRCS)
+add_library(frontend OBJECT ${FRONTEND_SRCS})
