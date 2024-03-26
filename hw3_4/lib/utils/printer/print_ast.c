@@ -476,7 +476,7 @@ void printX_Putnum(FILE *out, A_stm s) {
 #ifdef __DEBUG
   fprintf(out, "Entering printX_Putin...\n");
 #endif
-  if (s->kind != A_putnum) fprintf(out, "Not a putint stm!\n");
+  if (s->kind != A_putnum) fprintf(out, "Not a putnum stm!\n");
   else {
     fprintf(out, "<putnum>\n");
     printX_Pos(out, s->pos);
@@ -940,7 +940,7 @@ void printX_Getnum(FILE *out, A_exp e) {
   fprintf(out, "Entering printX_Getnum...\n");
 #endif
   if (!e) return;
-  if (e->kind != A_getnum) fprintf(out, "Not getint exp!\n");
+  if (e->kind != A_getnum) fprintf(out, "Not getnum exp!\n");
   else {
     fprintf(out, "<getnum>\n");
     printX_Pos(out, e->pos);
