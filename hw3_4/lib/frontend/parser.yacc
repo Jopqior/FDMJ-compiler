@@ -159,7 +159,9 @@ STM_LIST: /* empty */ {
   $$ = NULL;
 } | STM STM_LIST {
   $$ = A_StmList($1, $2);
-};
+} | error ';' STM_LIST {
+  $$ = $3;
+}
 
 STM: '{' STM_LIST '}' {
   $$ = A_NestedStm($1, $2);
@@ -321,7 +323,9 @@ FORMAL_REST: /* empty */ {
 %% /* 3. programs */
 
 void yyerror(char *s) {
-  fprintf(stderr, "%s\n", s);
+  extern int pos, line;
+  extern char *yytext;
+  fprintf(stderr, "line %d, %d: %s at or near %s\n", line, pos, s, yytext);
 }
 
 int yywrap() {
