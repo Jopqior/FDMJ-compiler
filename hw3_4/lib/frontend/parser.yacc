@@ -139,7 +139,7 @@ VAR_DECL: CLASS ID ID ';' {
 
 CONST: NUM {
   $$ = $1;
-} | MINUS NUM %prec UMINUS {
+} | MINUS NUM {
   $$ = A_NumConst($1, -$2->u.num);
 };
 
@@ -160,8 +160,12 @@ STM_LIST: /* empty */ {
 } | STM STM_LIST {
   $$ = A_StmList($1, $2);
 } | error ';' STM_LIST {
+  yyerrok;
   $$ = $3;
-}
+} | error '}' STM_LIST {
+  yyerrok;
+  $$ = $3;
+};
 
 STM: '{' STM_LIST '}' {
   $$ = A_NestedStm($1, $2);
@@ -278,6 +282,9 @@ CLASS_DECL_LIST: /* empty */ {
   $$ = NULL;
 } | CLASS_DECL CLASS_DECL_LIST {
   $$ = A_ClassDeclList($1, $2);
+} | error '}' CLASS_DECL_LIST {
+  yyerrok;
+  $$ = $3;
 };
 
 CLASS_DECL: PUBLIC CLASS ID '{' VAR_DECL_LIST METHOD_DECL_LIST '}' {
@@ -290,7 +297,10 @@ METHOD_DECL_LIST: /* empty */ {
   $$ = NULL;
 } | METHOD_DECL METHOD_DECL_LIST {
   $$ = A_MethodDeclList($1, $2);
-};
+} | error '}' METHOD_DECL_LIST {
+  yyerrok;
+  $$ = $3;
+}
 
 METHOD_DECL: PUBLIC TYPE ID '(' FORMAL_LIST ')' '{' VAR_DECL_LIST STM_LIST '}' {
   $$ = A_MethodDecl($1, $2, $3->u.v, $5, $8, $9);
@@ -325,7 +335,10 @@ FORMAL_REST: /* empty */ {
 void yyerror(char *s) {
   extern int pos, line;
   extern char *yytext;
-  fprintf(stderr, "line %d, %d: %s at or near %s\n", line, pos, s, yytext);
+  extern int yyleng;
+  extern char linebuf[500];
+  fprintf(stderr, "line %d,%d: %s near %s:\n%s\n", line, pos - yyleng, s, yytext, linebuf);
+  fprintf(stderr, "%*s\n", pos - yyleng, "^");
 }
 
 int yywrap() {

@@ -4,12 +4,16 @@
 %{
 
 #include <stdlib.h>
+#include <string.h>
 #include "fdmjast.h"
 #include "parser.h"
 
 int c;
 int line = 1;
 int pos = 1;
+
+// for error reporting
+char linebuf[500];
 %}
 
 /* start conditions */
@@ -57,9 +61,11 @@ float         [1-9][0-9]*\.[0-9]*|0\.[0-9]*|[1-9][0-9]*\.|0\.|\.[0-9]*
 <INITIAL>" "|\t {
   pos += 1;
 }
-<INITIAL>\n {
+<INITIAL>\n.* {
   line += 1;
   pos = 1;
+  strcpy(linebuf, yytext + 1);
+  yyless(1);
 }
 <INITIAL>\r {}
 
