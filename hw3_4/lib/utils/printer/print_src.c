@@ -559,6 +559,7 @@ void printA_OpExp(FILE *out, A_exp e) {
   fprintf(out, "Entering printA_OpExp...\n");
 #endif
   if (!e) return;
+  fprintf(out, "(");
   printA_Exp(out, e->u.op.left);
   switch (e->u.op.oper) {
   case A_and:
@@ -599,6 +600,7 @@ void printA_OpExp(FILE *out, A_exp e) {
     break;
   }
   printA_Exp(out, e->u.op.right);
+  fprintf(out, ")");
   return;
 }
 
