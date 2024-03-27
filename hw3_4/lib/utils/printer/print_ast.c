@@ -197,7 +197,7 @@ void printX_Formal(FILE *out, A_formal f) {
   printX_Type(out, f->t);
   fprintf(out, "</type>\n");
   fprintf(out, "<id>");
-  fprintf(out, " %s", f->id);
+  fprintf(out, "%s", f->id);
   fprintf(out, "</id>\n");
   return;
 }
