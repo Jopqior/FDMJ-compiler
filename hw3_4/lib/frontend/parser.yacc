@@ -114,7 +114,11 @@ MAIN_METHOD: PUBLIC INT MAIN '(' ')' '{' VAR_DECL_LIST STM_LIST '}' {
 VAR_DECL_LIST: /* empty */ {
   $$ = NULL;
 } | VAR_DECL VAR_DECL_LIST {
-  $$ = A_VarDeclList($1, $2);
+  if ($1 != NULL) {
+    $$ = A_VarDeclList($1, $2);
+  } else {
+    $$ = $2;
+  }
 };
 
 VAR_DECL: CLASS ID ID ';' {
@@ -135,6 +139,15 @@ VAR_DECL: CLASS ID ID ';' {
   $$ = A_VarDecl($1, A_Type($1, A_floatArrType, NULL), $4->u.v, NULL);
 } | FLOAT '[' ']' ID '=' '{' CONST_LIST '}' ';' {
   $$ = A_VarDecl($1, A_Type($1, A_floatArrType, NULL), $4->u.v, $7);
+} | INT error ';' {
+  yyerrok;
+  $$ = NULL;
+} | FLOAT error ';' {
+  yyerrok;
+  $$ = NULL;
+} | CLASS error ';' {
+  yyerrok;
+  $$ = NULL;
 };
 
 CONST: NUM {
@@ -158,13 +171,11 @@ CONST_REST: /* empty */ {
 STM_LIST: /* empty */ {
   $$ = NULL;
 } | STM STM_LIST {
-  $$ = A_StmList($1, $2);
-} | error ';' STM_LIST {
-  yyerrok;
-  $$ = $3;
-} | error '}' STM_LIST {
-  yyerrok;
-  $$ = $3;
+  if ($1 != NULL) {
+    $$ = A_StmList($1, $2);
+  } else {
+    $$ = $2;
+  }
 };
 
 STM: '{' STM_LIST '}' {
@@ -199,6 +210,12 @@ STM: '{' STM_LIST '}' {
   $$ = A_Starttime($1);
 } | STOPTIME '(' ')' ';' {
   $$ = A_Stoptime($1);
+} | error ';' {
+  yyerrok;
+  $$ = NULL;
+} | error '}' {
+  yyerrok;
+  $$ = NULL;
 };
 
 EXP: NUM {
@@ -281,30 +298,38 @@ EXP_REST: /* empty */ {
 CLASS_DECL_LIST: /* empty */ {
   $$ = NULL;
 } | CLASS_DECL CLASS_DECL_LIST {
-  $$ = A_ClassDeclList($1, $2);
-} | error '}' CLASS_DECL_LIST {
-  yyerrok;
-  $$ = $3;
+  if ($1 != NULL) {
+    $$ = A_ClassDeclList($1, $2);
+  } else {
+    $$ = $2;
+  }
 };
 
 CLASS_DECL: PUBLIC CLASS ID '{' VAR_DECL_LIST METHOD_DECL_LIST '}' {
   $$ = A_ClassDecl($1, $3->u.v, NULL, $5, $6);
 } | PUBLIC CLASS ID EXTENDS ID '{' VAR_DECL_LIST METHOD_DECL_LIST '}' {
   $$ = A_ClassDecl($1, $3->u.v, $5->u.v, $7, $8);
+} | error '}' {
+  yyerrok;
+  $$ = NULL;
 };
 
 METHOD_DECL_LIST: /* empty */ {
   $$ = NULL;
 } | METHOD_DECL METHOD_DECL_LIST {
-  $$ = A_MethodDeclList($1, $2);
-} | error '}' METHOD_DECL_LIST {
-  yyerrok;
-  $$ = $3;
-}
+  if ($1 != NULL) {
+    $$ = A_MethodDeclList($1, $2);
+  } else {
+    $$ = $2;
+  }
+};
 
 METHOD_DECL: PUBLIC TYPE ID '(' FORMAL_LIST ')' '{' VAR_DECL_LIST STM_LIST '}' {
   $$ = A_MethodDecl($1, $2, $3->u.v, $5, $8, $9);
-};
+} | error '}' {
+  yyerrok;
+  $$ = NULL;
+}
 
 TYPE: CLASS ID {
   $$ = A_Type($1, A_idType, $2->u.v);
