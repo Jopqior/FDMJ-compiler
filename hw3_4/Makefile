@@ -56,3 +56,57 @@ handin:
 	read filename; \
 	zip -q -r "docs/$$filename-hw3_4.zip" \
 	  include lib tools CMakeLists.txt docs/report.pdf
+
+EXTERNAL_TEST_DIR = $(abspath $(CURDIR)/../../FDMJ-tests/hw03_04)
+EXTERAL_FMJ2ST = $(EXTERNAL_TEST_DIR)/tools/fmj2ast
+clean-external:
+	@find $(EXTERNAL_TEST_DIR)/yours -type f \( \
+		-name "*.src" -o -name "*.ast" -o -name "*.output" \
+		\) -exec $(RM) {} \;
+	@find $(EXTERNAL_TEST_DIR)/correct -type f \( \
+		-name "*.src" -o -name "*.ast" -o -name "*.output" \
+		\) -exec $(RM) {} \;
+	@find $(EXTERNAL_TEST_DIR)/test -type f \( \
+		-name "*.src" -o -name "*.ast" -o -name "*.output" \
+		\) -exec $(RM) {} \;
+
+gen-random:
+	@cd $(EXTERNAL_TEST_DIR)/test; \
+	for i in $$(seq 1 10); do \
+        python3 randomCodeGen_v2.py; \
+		mv output.txt random$$i.fmj; \
+    done; \
+	cd $(CURDIR)
+
+clean-random:
+	@cd $(EXTERNAL_TEST_DIR)/test; \
+	for i in $$(seq 1 10); do \
+		rm -f random$$i.fmj; \
+	done; \
+	cd $(CURDIR)
+
+test-external: clean-external clean-random gen-random
+	@echo "===== generate your src&ast ====="; \
+	cd $(EXTERNAL_TEST_DIR)/test && \
+	for file in *; do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(MAIN_EXE) "$${file%%.*}" < "$${file}" > ../yours/"$${file%%.*}".output; \
+		fi \
+	done; \
+	find $(EXTERNAL_TEST_DIR)/test -type f \( \
+		-name "*.src" -o -name "*.ast" -o -name "*.output" \
+		\) -exec mv {} $(EXTERNAL_TEST_DIR)/yours/ \; && \
+	echo "===== generate correct src&ast ====="; \
+	for file in *; do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(EXTERAL_FMJ2ST) "$${file%%.*}" < "$${file}" > ../correct/"$${file%%.*}".output; \
+		fi \
+	done; \
+	find $(EXTERNAL_TEST_DIR)/test -type f \( \
+		-name "*.ast" -o -name "*.src" -o -name "*.output" \
+		\) -exec mv {} $(EXTERNAL_TEST_DIR)/correct/ \;
+	@cd $(EXTERNAL_TEST_DIR); \
+	python3 check.py; \
+	cd $(CURDIR)
