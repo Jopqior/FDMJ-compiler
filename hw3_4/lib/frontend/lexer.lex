@@ -13,7 +13,7 @@ int line = 1;
 int pos = 1;
 
 // for error reporting
-char linebuf[500];
+char linebuf[2000];
 %}
 
 /* start conditions */

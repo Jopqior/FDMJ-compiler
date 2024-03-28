@@ -361,7 +361,7 @@ void yyerror(char *s) {
   extern int pos, line;
   extern char *yytext;
   extern int yyleng;
-  extern char linebuf[500];
+  extern char linebuf[2000];
   fprintf(stderr, "line %d,%d: %s near %s:\n%s\n", line, pos - yyleng, s, yytext, linebuf);
   fprintf(stderr, "%*s\n", pos - yyleng, "^");
 }
