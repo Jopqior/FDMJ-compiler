@@ -1,0 +1,17 @@
+public int main() {
+    return 0;
+}
+
+public class A {
+    public id(int a, bool b) {
+
+    }
+
+    public int m2(int 1a, float b) {
+        return a + b;
+    }
+
+    public B m3() {
+
+    }
+}

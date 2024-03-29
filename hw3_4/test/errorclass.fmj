@@ -1,0 +1,15 @@
+public int main() {
+    return 0;
+}
+
+class A {
+
+}
+
+class B extends A {
+    int b
+}
+
+public class C {
+
+}
