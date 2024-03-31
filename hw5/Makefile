@@ -5,16 +5,17 @@ LLI      = lli-14
 ARMCC    = arm-linux-gnueabihf-gcc
 QEMU     = qemu-arm
 
-BUILD_DIR = $(CURDIR)/build
-MAIN_EXE  = $(BUILD_DIR)/tools/main
-FMJ2AST   = $(CURDIR)/vendor/tools/fmj2ast
-TEST_DIR  = $(CURDIR)/test
+BUILD_DIR = "$(CURDIR)/build"
+MAIN_EXE  = "$(BUILD_DIR)/tools/main"
+FMJ2AST   = "$(CURDIR)/vendor/tools/fmj2ast"
+TEST_DIR  = "$(CURDIR)/test"
 
 MAKEFLAGS = --no-print-directory
 
 .PHONY: build clean veryclean rebuild test test-extra handin
 
 build:
+	echo $(CURDIR)
 	@cmake -G Ninja -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release; \
 	cd $(BUILD_DIR) && ninja
 

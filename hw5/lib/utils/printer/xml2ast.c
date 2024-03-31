@@ -317,7 +317,7 @@ A_stm xmlstm(XMLNode* stm) {
         XMLNode *left = xmlgetchildnode(stm, "left"); //expression for array address
         XMLNode *right = xmlgetchildnode(stm, "right"); //express list for a list of values
         assert(left && right);
-        return A_ArrayInit(xmlpos(pos), xmlexp(left), xmlexplist(right));
+        return A_ArrayInit(xmlpos(pos), xmlexp(left->children.data[0]), xmlexplist(right->children.data[0]));
     } else if (!strcmp(tag, "call")) {
         XMLNode *pos = XMLNode_child(stm, 0); // position
         assert(pos);
