@@ -149,8 +149,6 @@ void transA_Stm(FILE* out, A_stm s) {
     case A_arrayInit:
       transA_ArrayInit(out, s);
       break;
-    case A_callStm:
-      break;
     case A_continue:
       transA_Continue(out, s);
       break;
@@ -169,10 +167,6 @@ void transA_Stm(FILE* out, A_stm s) {
     case A_putarray:
       transA_Putarray(out, s);
       break;
-    case A_starttime:
-      break;
-    case A_stoptime:
-      break;
   }
 }
 
@@ -185,6 +179,7 @@ void transA_IfStm(FILE* out, A_stm s) {
   if (!s) return;
 
   expty ty = transA_Exp(out, s->u.if_stat.e);
+  if (!ty) return;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
     transError(
         out, s->pos,
@@ -201,6 +196,7 @@ void transA_WhileStm(FILE* out, A_stm s) {
   if (!s) return;
 
   expty ty = transA_Exp(out, s->u.while_stat.e);
+  if (!ty) return;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
     transError(
         out, s->pos,
@@ -220,6 +216,7 @@ void transA_AssignStm(FILE* out, A_stm s) {
 
   expty left = transA_Exp(out, s->u.assign.arr);
   expty right = transA_Exp(out, s->u.assign.value);
+  if (!left || !right) return;
 
   // check if the left side is a lvalue
   if (!left->location) {
@@ -250,6 +247,7 @@ void transA_ArrayInit(FILE* out, A_stm s) {
   if (!s) return;
 
   expty arr = transA_Exp(out, s->u.array_init.arr);
+  if (!arr) return;
   if (arr->ty->kind != Ty_array) {
     transError(
         out, s->pos,
@@ -268,6 +266,7 @@ void transA_ArrayInitExpList(FILE* out, A_expList el) {
   if (!el) return;
 
   expty ty = transA_Exp(out, el->head);
+  if (!ty) return;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
     transError(
         out, el->head->pos,
@@ -300,6 +299,7 @@ void transA_Return(FILE* out, A_stm s) {
   if (!s) return;
 
   expty ty = transA_Exp(out, s->u.e);
+  if (!ty) return;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
     transError(out, s->pos,
                String("Error: Return value must be of type int or float"));
@@ -310,6 +310,7 @@ void transA_Putnum(FILE* out, A_stm s) {
   if (!s) return;
 
   expty ty = transA_Exp(out, s->u.e);
+  if (!ty) return;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
     transError(
         out, s->pos,
@@ -321,6 +322,7 @@ void transA_Putch(FILE* out, A_stm s) {
   if (!s) return;
 
   expty ty = transA_Exp(out, s->u.e);
+  if (!ty) return;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
     transError(
         out, s->pos,
@@ -333,6 +335,7 @@ void transA_Putarray(FILE* out, A_stm s) {
 
   expty ty1 = transA_Exp(out, s->u.putarray.e1);
   expty ty2 = transA_Exp(out, s->u.putarray.e2);
+  if (!ty1 || !ty2) return;
   if (ty1->ty->kind != Ty_int && ty1->ty->kind != Ty_float) {
     transError(out, s->pos,
                String("Error: First argument of putarray() must be of type int "
