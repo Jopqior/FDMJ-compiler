@@ -301,8 +301,10 @@ void transA_Return(FILE* out, A_stm s) {
   expty ty = transA_Exp(out, s->u.e);
   if (!ty) return;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
-    transError(out, s->pos,
-               String("Error: Return value must be of type int or float"));
+    transError(
+        out, s->pos,
+        String(
+            "Error: Return value of main method must be of type int or float"));
   }
 }
 
@@ -502,8 +504,9 @@ expty transA_NewIntArrExp(FILE* out, A_exp e) {
   expty size = transA_Exp(out, e->u.e);
   if (!size) return NULL;
   if (size->ty->kind != Ty_int && size->ty->kind != Ty_float) {
-    transError(out, e->pos,
-               String("Error: New int array size must be of type int or float"));
+    transError(
+        out, e->pos,
+        String("Error: New int array size must be of type int or float"));
   }
 
   return Expty(FALSE, Ty_Array(Ty_Int()));
@@ -515,8 +518,9 @@ expty transA_NewFloatArrExp(FILE* out, A_exp e) {
   expty size = transA_Exp(out, e->u.e);
   if (!size) return NULL;
   if (size->ty->kind != Ty_int && size->ty->kind != Ty_float) {
-    transError(out, e->pos,
-               String("Error: New float array size must be of type int or float"));
+    transError(
+        out, e->pos,
+        String("Error: New float array size must be of type int or float"));
   }
 
   return Expty(FALSE, Ty_Array(Ty_Float()));
@@ -528,12 +532,10 @@ expty transA_NotExp(FILE* out, A_exp e) {
   expty ty = transA_Exp(out, e->u.e);
   if (!ty) return NULL;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
-    transError(out, e->pos,
-               String("Error: ! must operate on int or float"));
+    transError(out, e->pos, String("Error: ! must operate on int or float"));
   }
 
   return Expty(FALSE, Ty_Int());
-
 }
 
 expty transA_MinusExp(FILE* out, A_exp e) {
@@ -542,8 +544,7 @@ expty transA_MinusExp(FILE* out, A_exp e) {
   expty ty = transA_Exp(out, e->u.e);
   if (!ty) return NULL;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
-    transError(out, e->pos,
-               String("Error: - must operate on int or float"));
+    transError(out, e->pos, String("Error: - must operate on int or float"));
   }
 
   return Expty(FALSE, ty->ty);
