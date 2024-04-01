@@ -255,7 +255,7 @@ void transA_ArrayInit(FILE* out, A_stm s) {
   }
   if (!arr->location) {
     transError(out, s->pos,
-               String("Error: Right side of array initialization must have a "
+               String("Error: Left side of array initialization must have a "
                       "location value"));
   }
 
