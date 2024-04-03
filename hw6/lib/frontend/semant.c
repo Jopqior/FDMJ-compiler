@@ -17,7 +17,7 @@ expty Expty(bool location, Ty_ty ty) {
   return e;
 }
 
-static S_table venv;
+static S_table venv;  // for main method
 static int whileDepth = 0;
 
 static S_table cenv;
@@ -27,6 +27,8 @@ static S_symbol curMethodId;
 
 void transA_ClassDeclList(FILE* out, A_classDeclList cdl);
 void transA_ClassDecl(FILE *out, A_classDecl cd);
+
+void transA_ClassDeclListPreprocess(FILE* out, A_classDeclList cdl);
 
 void transA_MethodDeclList(FILE* out, A_methodDeclList mdl);
 void transA_MethodDecl(FILE* out, A_methodDecl md);
@@ -90,10 +92,36 @@ void transA_Prog(FILE* out, A_prog p) {
   cenv = S_empty();
   MAIN_CLASS = S_Symbol(String("0Main"));
 
+  if (p->cdl) {
+    transA_ClassDeclList(out, p->cdl);
+  }
+
   if (p->m) {
     transA_MainMethod(out, p->m);
   } else {
     transError(out, p->pos, String("Error: There's no main class"));
+  }
+}
+
+void transA_ClassDeclList(FILE* out, A_classDeclList cdl) {
+  if (!cdl) return;
+
+  transA_ClassDeclListPreprocess(out, cdl);
+}
+
+void transA_ClassDeclListPreprocess(FILE* out, A_classDeclList cdl) {
+  if (!cdl) return;
+
+  // first pass: record class names and inheritance
+  A_classDeclList cur = cdl;
+  while (cur) {
+    A_classDecl cd = cur->head;
+    if (S_look(cenv, S_Symbol(cd->id)) != NULL) {
+      transError(out, cd->pos, String("Error: Class already declared"));
+    }
+    S_symbol fa = cd->parentID ? S_Symbol(cd->parentID) : MAIN_CLASS;
+    S_enter(cenv, S_Symbol(cd->id), E_ClassEntry(cd, fa, E_transInit, NULL, NULL));
+    cur = cur->tail;
   }
 }
 
