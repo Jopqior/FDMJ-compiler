@@ -20,6 +20,20 @@ expty Expty(bool location, Ty_ty ty) {
 static S_table venv;
 static int whileDepth = 0;
 
+static S_table cenv;
+static S_symbol MAIN_CLASS;
+static S_symbol curClassId;
+static S_symbol curMethodId;
+
+void transA_ClassDeclList(FILE* out, A_classDeclList cdl);
+void transA_ClassDecl(FILE *out, A_classDecl cd);
+
+void transA_MethodDeclList(FILE* out, A_methodDeclList mdl);
+void transA_MethodDecl(FILE* out, A_methodDecl md);
+
+void transA_FormalList(FILE* out, A_formalList fl);
+void transA_Formal(FILE* out, A_formal f);
+
 void transA_MainMethod(FILE* out, A_mainMethod m);
 
 void transA_VarDeclList(FILE* out, A_varDeclList vdl);
@@ -33,6 +47,7 @@ void transA_IfStm(FILE* out, A_stm s);
 void transA_WhileStm(FILE* out, A_stm s);
 void transA_AssignStm(FILE* out, A_stm s);
 void transA_ArrayInit(FILE* out, A_stm s);
+void transA_CallStm(FILE* out, A_stm s);
 void transA_Continue(FILE* out, A_stm s);
 void transA_Break(FILE* out, A_stm s);
 void transA_Return(FILE* out, A_stm s);
@@ -45,12 +60,16 @@ void transA_ArrayInitExpList(FILE* out, A_expList el);
 expty transA_Exp(FILE* out, A_exp e);
 expty transA_OpExp(FILE* out, A_exp e);
 expty transA_ArrayExp(FILE* out, A_exp e);
+expty transA_CallExp(FILE* out, A_exp e);
+expty transA_ClassVarExp(FILE* out, A_exp e);
 expty transA_BoolConst(FILE* out, A_exp e);
 expty transA_NumConst(FILE* out, A_exp e);
 expty transA_IdExp(FILE* out, A_exp e);
+expty transA_ThisExp(FILE* out, A_exp e);
 expty transA_LengthExp(FILE* out, A_exp e);
 expty transA_NewIntArrExp(FILE* out, A_exp e);
 expty transA_NewFloatArrExp(FILE* out, A_exp e);
+expty transA_NewObjExp(FILE* out, A_exp e);
 expty transA_NotExp(FILE* out, A_exp e);
 expty transA_MinusExp(FILE* out, A_exp e);
 expty transA_EscExp(FILE* out, A_exp e);
@@ -67,6 +86,9 @@ void transError(FILE* out, A_pos pos, string msg) {
 void transA_Prog(FILE* out, A_prog p) {
   // initialize env
   venv = S_empty();
+
+  cenv = S_empty();
+  MAIN_CLASS = S_Symbol(String("0Main"));
 
   if (p->m) {
     transA_MainMethod(out, p->m);
