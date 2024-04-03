@@ -12,7 +12,7 @@ public int main() {
       if (i>=8) break;
     putarray(8,a);
     while (true) {
-      i=getint();
+      i=getnum();
       if (i) break;
       if (!i) break;
     }

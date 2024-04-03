@@ -1,6 +1,6 @@
 public int main() {
     int r;
-    return ({r=new c2().m1(10); putint(r);} r);
+    return ({r=new c2().m1(10); putnum(r);} r);
 }
 
 public class c1 {
