@@ -86,6 +86,9 @@ void transError(FILE* out, A_pos pos, string msg) {
 }
 
 void transA_Prog(FILE* out, A_prog p) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Prog...\n");
+#endif
   // initialize env
   venv = S_empty();
 
@@ -104,12 +107,18 @@ void transA_Prog(FILE* out, A_prog p) {
 }
 
 void transA_ClassDeclList(FILE* out, A_classDeclList cdl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassDeclList...\n");
+#endif
   if (!cdl) return;
 
   transA_ClassDeclListPreprocess(out, cdl);
 }
 
 void transA_ClassDeclListPreprocess(FILE* out, A_classDeclList cdl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassDeclListPreprocess...\n");
+#endif
   if (!cdl) return;
 
   // first pass: record class names and inheritance
@@ -126,6 +135,9 @@ void transA_ClassDeclListPreprocess(FILE* out, A_classDeclList cdl) {
 }
 
 void transA_MainMethod(FILE* out, A_mainMethod m) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_MainMethod...\n");
+#endif
   S_beginScope(venv);
   if (m->vdl) {
     transA_VarDeclList(out, m->vdl);
@@ -137,6 +149,9 @@ void transA_MainMethod(FILE* out, A_mainMethod m) {
 }
 
 void transA_VarDeclList(FILE* out, A_varDeclList vdl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_VarDecList...\n");
+#endif
   if (!vdl) return;
   transA_VarDecl(out, vdl->head);
   if (vdl->tail) {
@@ -145,6 +160,9 @@ void transA_VarDeclList(FILE* out, A_varDeclList vdl) {
 }
 
 void transA_VarDecl(FILE* out, A_varDecl vd) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_VarDecl...\n");
+#endif
   if (!vd) return;
 
   // check if the variable is already declared
@@ -174,6 +192,9 @@ void transA_VarDecl(FILE* out, A_varDecl vd) {
 }
 
 void transA_StmList(FILE* out, A_stmList sl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_StmList...\n");
+#endif
   if (!sl) return;
   transA_Stm(out, sl->head);
   if (sl->tail) {
@@ -182,6 +203,9 @@ void transA_StmList(FILE* out, A_stmList sl) {
 }
 
 void transA_Stm(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Stm...\n");
+#endif
   if (!s) return;
   switch (s->kind) {
     case A_nestedStm:
@@ -217,15 +241,23 @@ void transA_Stm(FILE* out, A_stm s) {
     case A_putarray:
       transA_Putarray(out, s);
       break;
+    default:
+      return;   // unreachable
   }
 }
 
 void transA_NestedStm(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NestedStm...\n");
+#endif
   if (!s) return;
   transA_StmList(out, s->u.ns);
 }
 
 void transA_IfStm(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_IfStm...\n");
+#endif
   if (!s) return;
 
   expty ty = transA_Exp(out, s->u.if_stat.e);
@@ -243,6 +275,9 @@ void transA_IfStm(FILE* out, A_stm s) {
 }
 
 void transA_WhileStm(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_WhileStm...\n");
+#endif
   if (!s) return;
 
   expty ty = transA_Exp(out, s->u.while_stat.e);
@@ -262,6 +297,9 @@ void transA_WhileStm(FILE* out, A_stm s) {
 }
 
 void transA_AssignStm(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_AssignStm...\n");
+#endif
   if (!s) return;
 
   expty left = transA_Exp(out, s->u.assign.arr);
@@ -294,6 +332,9 @@ void transA_AssignStm(FILE* out, A_stm s) {
 }
 
 void transA_ArrayInit(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ArrayInit...\n");
+#endif
   if (!s) return;
 
   expty arr = transA_Exp(out, s->u.array_init.arr);
@@ -313,6 +354,9 @@ void transA_ArrayInit(FILE* out, A_stm s) {
 }
 
 void transA_ArrayInitExpList(FILE* out, A_expList el) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ArrayInitExpList...\n");
+#endif
   if (!el) return;
 
   expty ty = transA_Exp(out, el->head);
@@ -329,6 +373,9 @@ void transA_ArrayInitExpList(FILE* out, A_expList el) {
 }
 
 void transA_Continue(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Continue...\n");
+#endif
   if (!s) return;
 
   if (whileDepth == 0) {
@@ -338,6 +385,9 @@ void transA_Continue(FILE* out, A_stm s) {
 }
 
 void transA_Break(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Break...\n");
+#endif
   if (!s) return;
 
   if (whileDepth == 0) {
@@ -346,6 +396,9 @@ void transA_Break(FILE* out, A_stm s) {
 }
 
 void transA_Return(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Return...\n");
+#endif
   if (!s) return;
 
   expty ty = transA_Exp(out, s->u.e);
@@ -359,6 +412,9 @@ void transA_Return(FILE* out, A_stm s) {
 }
 
 void transA_Putnum(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Putnum...\n");
+#endif
   if (!s) return;
 
   expty ty = transA_Exp(out, s->u.e);
@@ -371,6 +427,9 @@ void transA_Putnum(FILE* out, A_stm s) {
 }
 
 void transA_Putch(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Putch...\n");
+#endif
   if (!s) return;
 
   expty ty = transA_Exp(out, s->u.e);
@@ -383,6 +442,9 @@ void transA_Putch(FILE* out, A_stm s) {
 }
 
 void transA_Putarray(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Putarray...\n");
+#endif
   if (!s) return;
 
   expty ty1 = transA_Exp(out, s->u.putarray.e1);
@@ -401,6 +463,9 @@ void transA_Putarray(FILE* out, A_stm s) {
 }
 
 expty transA_Exp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Exp...\n");
+#endif
   if (!e) return NULL;
 
   switch (e->kind) {
@@ -446,10 +511,15 @@ expty transA_Exp(FILE* out, A_exp e) {
     case A_getarray:
       transA_Getarray(out, e);
       break;
+    default:
+      return NULL;  // unreachable
   }
 }
 
 expty transA_OpExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_OpExp...\n");
+#endif
   if (!e) return NULL;
 
   expty left = transA_Exp(out, e->u.op.left);
@@ -493,6 +563,9 @@ expty transA_OpExp(FILE* out, A_exp e) {
 }
 
 expty transA_ArrayExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ArrayExp...\n");
+#endif
   if (!e) return NULL;
 
   expty arr = transA_Exp(out, e->u.array_pos.arr);
@@ -513,18 +586,27 @@ expty transA_ArrayExp(FILE* out, A_exp e) {
 }
 
 expty transA_BoolConst(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_BoolConst...\n");
+#endif
   if (!e) return NULL;
 
   return Expty(FALSE, Ty_Int());
 }
 
 expty transA_NumConst(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NumConst...\n");
+#endif
   if (!e) return NULL;
 
   return Expty(FALSE, Ty_Float());
 }
 
 expty transA_IdExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_IdExp...\n");
+#endif
   if (!e) return NULL;
 
   E_enventry x = S_look(venv, S_Symbol(e->u.v));
@@ -536,6 +618,9 @@ expty transA_IdExp(FILE* out, A_exp e) {
 }
 
 expty transA_LengthExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_LengthExp...\n");
+#endif
   if (!e) return NULL;
 
   expty arr = transA_Exp(out, e->u.e);
@@ -549,6 +634,9 @@ expty transA_LengthExp(FILE* out, A_exp e) {
 }
 
 expty transA_NewIntArrExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NewIntArrExp...\n");
+#endif
   if (!e) return NULL;
 
   expty size = transA_Exp(out, e->u.e);
@@ -563,6 +651,9 @@ expty transA_NewIntArrExp(FILE* out, A_exp e) {
 }
 
 expty transA_NewFloatArrExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NewFloatArrExp...\n");
+#endif
   if (!e) return NULL;
 
   expty size = transA_Exp(out, e->u.e);
@@ -577,6 +668,9 @@ expty transA_NewFloatArrExp(FILE* out, A_exp e) {
 }
 
 expty transA_NotExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NotExp...\n");
+#endif
   if (!e) return NULL;
 
   expty ty = transA_Exp(out, e->u.e);
@@ -589,6 +683,9 @@ expty transA_NotExp(FILE* out, A_exp e) {
 }
 
 expty transA_MinusExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_MinusExp...\n");
+#endif
   if (!e) return NULL;
 
   expty ty = transA_Exp(out, e->u.e);
@@ -601,6 +698,9 @@ expty transA_MinusExp(FILE* out, A_exp e) {
 }
 
 expty transA_EscExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_EscExp...\n");
+#endif
   if (!e) return NULL;
 
   transA_StmList(out, e->u.escExp.ns);
@@ -609,18 +709,27 @@ expty transA_EscExp(FILE* out, A_exp e) {
 }
 
 expty transA_Getnum(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Getnum...\n");
+#endif
   if (!e) return NULL;
 
-  return Expty(FALSE, Ty_Int());
+  return Expty(FALSE, Ty_Float());
 }
 
 expty transA_Getch(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Getch...\n");
+#endif
   if (!e) return NULL;
 
   return Expty(FALSE, Ty_Int());
 }
 
 expty transA_Getarray(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Getarray...\n");
+#endif
   if (!e) return NULL;
 
   expty arr = transA_Exp(out, e->u.e);
