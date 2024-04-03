@@ -20,7 +20,7 @@ build:
 
 clean:
 	@find $(TEST_DIR) -type f \( \
-		-name "*.src" -o -name "*.ast" -o -name "*.output" \
+		-name "*.src" -o -name "*.ast" -o -name "*.output" -o -name "*.debug" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean
@@ -34,7 +34,7 @@ test: clean
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
 			$(FMJ2AST) "$${file%%.*}" < "$${file%%.*}".fmj && \
-			$(MAIN_EXE) "$${file%%.*}".2.ast > "$${file%%.*}".output; \
+			$(MAIN_EXE) "$${file%%.*}".2.ast > "$${file%%.*}".output 2> "$${file%%.*}".debug; \
 		fi \
 	done; \
 	cd $(CURDIR)
