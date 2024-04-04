@@ -91,6 +91,7 @@ void transA_Putch(FILE* out, A_stm s);
 
 void transA_ArrayInitExpList(FILE* out, A_expList el);
 bool transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl);
+bool transA_ClassTypeAssign(FILE* out, Ty_ty left, Ty_ty right);
 
 expty transA_Exp(FILE* out, A_exp e);
 expty transA_OpExp(FILE* out, A_exp e);
@@ -815,10 +816,45 @@ void transA_AssignStm(FILE* out, A_stm s) {
           String("Error: Right side of assignment must be of type float"));
     }
   }
-  if (left->ty->kind == Ty_array && right->ty->kind != Ty_array) {
-    transError(out, s->pos,
-               String("Error: Right side of assignment must be of type array"));
+  if (left->ty->kind == Ty_array) {
+    if (right->ty->kind != Ty_array) {
+      transError(
+          out, s->pos,
+          String("Error: Right side of assignment must be of type array"));
+    }
+    if (left->ty->u.array->kind != right->ty->u.array->kind) {
+      transError(out, s->pos,
+                 String("Error: Array types must match in assignment"));
+    }
   }
+  if (left->ty->kind == Ty_name) {
+    if (right->ty->kind != Ty_name) {
+      transError(
+          out, s->pos,
+          String("Error: Right side of assignment must be of type object"));
+    }
+    if (!transA_ClassTypeAssign(out, left->ty, right->ty)) {
+      transError(out, s->pos,
+                 String("Error: Object types must match in assignment"));
+    }
+  }
+}
+
+bool transA_ClassTypeAssign(FILE* out, Ty_ty left, Ty_ty right) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassTypeAssign...\n");
+#endif
+  // check if the class of the right side is a subclass of the left side
+  S_symbol leftClass = left->u.name;
+  S_symbol rightClass = right->u.name;
+  while (rightClass != MAIN_CLASS) {
+    if (leftClass == rightClass) {
+      return TRUE;
+    }
+    E_enventry ce = S_look(cenv, rightClass);
+    rightClass = ce->u.cls.fa;
+  }
+  return FALSE;
 }
 
 void transA_ArrayInit(FILE* out, A_stm s) {
