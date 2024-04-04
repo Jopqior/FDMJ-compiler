@@ -12,6 +12,7 @@ typedef char bool;
 
 void *checked_malloc(int);
 string String(char *);
+string Stringf(char *, ...);
 
 typedef struct U_boolList_ *U_boolList;
 struct U_boolList_ {
