@@ -189,7 +189,7 @@ void transA_Stm(FILE* out, A_stm s) {
       transA_Putarray(out, s);
       break;
     default:
-      return;   // unreachable
+      return;  // unreachable
   }
 }
 
@@ -272,9 +272,16 @@ void transA_AssignStm(FILE* out, A_stm s) {
           String("Error: Right side of assignment must be of type float"));
     }
   }
-  if (left->ty->kind == Ty_array && right->ty->kind != Ty_array) {
-    transError(out, s->pos,
-               String("Error: Right side of assignment must be of type array"));
+  if (left->ty->kind == Ty_array) {
+    if (right->ty->kind != Ty_array) {
+      transError(
+          out, s->pos,
+          String("Error: Right side of assignment must be of type array"));
+    }
+    if (left->ty->u.array->kind != right->ty->u.array->kind) {
+      transError(out, s->pos,
+                 String("Error: Array types must match in assignment"));
+    }
   }
 }
 
