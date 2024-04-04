@@ -15,13 +15,12 @@ MAKEFLAGS = --no-print-directory
 .PHONY: build clean veryclean rebuild test test-extra handin
 
 build:
-	echo $(CURDIR)
 	@cmake -G Ninja -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release; \
 	cd $(BUILD_DIR) && ninja
 
 clean:
 	@find $(TEST_DIR) -type f \( \
-		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
+		-name "*.ll" -o -name "*.xml" -o -name "*.output" -o -name "*.debug" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean
@@ -35,7 +34,7 @@ test: clean
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
 			$(FMJ2AST) "$${file%%.*}" < "$${file%%.*}".fmj && \
-			$(MAIN_EXE) "$${file%%.*}".2.ast > "$${file%%.*}".output; \
+			$(MAIN_EXE) "$${file%%.*}".2.ast > "$${file%%.*}".output 2> "$${file%%.*}".debug; \
 		fi \
 	done; \
 	cd $(CURDIR)
