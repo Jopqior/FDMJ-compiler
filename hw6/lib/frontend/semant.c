@@ -90,6 +90,7 @@ void transA_Putarray(FILE* out, A_stm s);
 void transA_Putch(FILE* out, A_stm s);
 
 void transA_ArrayInitExpList(FILE* out, A_expList el);
+bool transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl);
 
 expty transA_Exp(FILE* out, A_exp e);
 expty transA_OpExp(FILE* out, A_exp e);
@@ -469,7 +470,8 @@ void transA_Formal(FILE* out, A_formal f) {
       if (!S_look(cenv, S_Symbol(f->t->id))) {
         transError(out, f->pos, String("Error: Variable type not declared"));
       }
-      S_enter(venv, S_Symbol(f->id), E_VarEntry(NULL, Ty_Name(S_Symbol(f->t->id))));
+      S_enter(venv, S_Symbol(f->id),
+              E_VarEntry(NULL, Ty_Name(S_Symbol(f->t->id))));
     }
   }
 }
@@ -572,7 +574,8 @@ void transA_VarDeclCenvInit(FILE* out, A_varDecl vd, S_table env) {
       break;
     }
     case A_idType: {
-      S_enter(env, S_Symbol(vd->v), E_VarEntry(vd, Ty_Name(S_Symbol(vd->t->id))));
+      S_enter(env, S_Symbol(vd->v),
+              E_VarEntry(vd, Ty_Name(S_Symbol(vd->t->id))));
       break;
     }
   }
@@ -628,7 +631,8 @@ void transA_VarDeclClassMethods(FILE* out, A_varDecl vd) {
       if (!S_look(cenv, S_Symbol(vd->t->id))) {
         transError(out, vd->pos, String("Error: Variable type not declared"));
       }
-      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Name(S_Symbol(vd->t->id))));
+      S_enter(venv, S_Symbol(vd->v),
+              E_VarEntry(vd, Ty_Name(S_Symbol(vd->t->id))));
       break;
     }
   }
@@ -667,7 +671,8 @@ void transA_VarDeclMainMethod(FILE* out, A_varDecl vd) {
       if (!S_look(cenv, S_Symbol(vd->t->id))) {
         transError(out, vd->pos, String("Error: Variable type not declared"));
       }
-      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Name(S_Symbol(vd->t->id))));
+      S_enter(venv, S_Symbol(vd->v),
+              E_VarEntry(vd, Ty_Name(S_Symbol(vd->t->id))));
       break;
     }
   }
@@ -704,6 +709,9 @@ void transA_Stm(FILE* out, A_stm s) {
       break;
     case A_arrayInit:
       transA_ArrayInit(out, s);
+      break;
+    case A_callStm:
+      transA_CallStm(out, s);
       break;
     case A_continue:
       transA_Continue(out, s);
@@ -852,6 +860,55 @@ void transA_ArrayInitExpList(FILE* out, A_expList el) {
   if (el->tail) {
     transA_ArrayInitExpList(out, el->tail);
   }
+}
+
+void transA_CallStm(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_CallStm...\n");
+#endif
+  if (!s) return;
+
+  expty ty = transA_Exp(out, s->u.call_stat.obj);
+  if (!ty) return;
+  if (ty->ty->kind != Ty_name) {
+    transError(out, s->pos,
+               String("Error: Call statement must be called on an object"));
+  }
+
+  E_enventry ce = S_look(cenv, ty->ty->u.name);
+  S_table mtbl = ce->u.cls.mtbl;
+  E_enventry me = S_look(mtbl, S_Symbol(s->u.call_stat.fun));
+  if (!me) {
+    transError(out, s->pos,
+               Stringf("Error: Class %s has no method %s", ty->ty->u.name,
+                       s->u.call_stat.fun));
+  }
+
+  if (!transA_CallExpList(out, s->u.call_stat.el, me->u.meth.fl)) {
+    transError(
+        out, s->pos,
+        String("Error: Method call arguments do not match method declaration"));
+  }
+}
+
+bool transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_CallExpList...\n");
+#endif
+  if (!el && !fl) return TRUE;
+  if (!el || !fl) return FALSE;
+
+  expty ty = transA_Exp(out, el->head);
+  if (!ty) return FALSE;
+  if (!EqualTy(ty->ty, fl->head->ty)) {
+    return FALSE;
+  }
+
+  if (el->tail && fl->tail) {
+    return transA_CallExpList(out, el->tail, fl->tail);
+  }
+
+  return !el->tail && !fl->tail;
 }
 
 void transA_Continue(FILE* out, A_stm s) {
