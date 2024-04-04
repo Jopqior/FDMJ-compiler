@@ -5,6 +5,9 @@
 #include "symbol.h"
 #include "table.h"
 
+#define __DEBUG
+// #undef __DEBUG
+
 typedef struct expty_* expty;
 struct expty_ {
   bool location;
@@ -25,10 +28,17 @@ static S_symbol MAIN_CLASS;
 static S_symbol curClassId;
 static S_symbol curMethodId;
 
+static S_symbol dummyMethodId;
+
 void transA_ClassDeclList(FILE* out, A_classDeclList cdl);
-void transA_ClassDecl(FILE *out, A_classDecl cd);
+void transA_ClassDecl(FILE* out, A_classDecl cd);
 
 void transA_ClassDeclListPreprocess(FILE* out, A_classDeclList cdl);
+void transA_ClassDeclListCenvInit(FILE* out, A_classDeclList cdl);
+void transA_ClassDeclListCycleDetect(FILE* out, A_classDeclList cdl);
+
+void transA_ClassDeclCenvInit(FILE* out, A_classDecl cd);
+void transA_ClassDeclCycleDetect(FILE* out, A_classDecl cd);
 
 void transA_MethodDeclList(FILE* out, A_methodDeclList mdl);
 void transA_MethodDecl(FILE* out, A_methodDecl md);
@@ -38,8 +48,8 @@ void transA_Formal(FILE* out, A_formal f);
 
 void transA_MainMethod(FILE* out, A_mainMethod m);
 
-void transA_VarDeclList(FILE* out, A_varDeclList vdl);
-void transA_VarDecl(FILE* out, A_varDecl vd);
+void transA_VarDeclList(FILE* out, A_varDeclList vdl, S_table env);
+void transA_VarDecl(FILE* out, A_varDecl vd, S_table env);
 
 void transA_StmList(FILE* out, A_stmList sl);
 void transA_Stm(FILE* out, A_stm s);
@@ -94,6 +104,7 @@ void transA_Prog(FILE* out, A_prog p) {
 
   cenv = S_empty();
   MAIN_CLASS = S_Symbol(String("0Main"));
+  dummyMethodId = S_Symbol(String("0ClassVar"));
 
   if (p->cdl) {
     transA_ClassDeclList(out, p->cdl);
@@ -122,25 +133,107 @@ void transA_ClassDeclListPreprocess(FILE* out, A_classDeclList cdl) {
   if (!cdl) return;
 
   // first pass: record class names and inheritance
+  transA_ClassDeclListCenvInit(out, cdl);
+
+  // second pass: detect cycles in inheritance
+  transA_ClassDeclListCycleDetect(out, cdl);
+}
+
+void transA_ClassDeclListCenvInit(FILE* out, A_classDeclList cdl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassDeclListCenvInit...\n");
+#endif
+  if (!cdl) return;
+
   A_classDeclList cur = cdl;
   while (cur) {
     A_classDecl cd = cur->head;
-    if (S_look(cenv, S_Symbol(cd->id)) != NULL) {
-      transError(out, cd->pos, String("Error: Class already declared"));
-    }
-    S_symbol fa = cd->parentID ? S_Symbol(cd->parentID) : MAIN_CLASS;
-    S_enter(cenv, S_Symbol(cd->id), E_ClassEntry(cd, fa, E_transInit, NULL, NULL));
+    transA_ClassDeclCenvInit(out, cd);
     cur = cur->tail;
   }
+}
+
+void transA_ClassDeclCenvInit(FILE* out, A_classDecl cd) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassDeclCenvInit with class %s...\n", cd->id);
+#endif
+  if (!cd) return;
+
+  if (S_look(cenv, S_Symbol(cd->id)) != NULL) {
+    transError(out, cd->pos, String("Error: Class already declared"));
+  }
+
+  S_symbol fa = cd->parentID ? S_Symbol(cd->parentID) : MAIN_CLASS;
+
+  // init class variables
+  S_table vtbl = S_empty();
+  transA_VarDeclList(out, cd->vdl, vtbl);
+
+  S_enter(cenv, S_Symbol(cd->id),
+          E_ClassEntry(cd, fa, E_transInit, vtbl, NULL));
+}
+
+void transA_ClassDeclListCycleDetect(FILE* out, A_classDeclList cdl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassDeclListCycleDetect...\n");
+#endif
+  if (!cdl) return;
+
+  E_enventry ce = S_look(cenv, S_Symbol(cdl->head->id));
+  if (ce->u.cls.status == E_transInit) {
+    transA_ClassDeclCycleDetect(out, cdl->head);
+  }
+
+  if (cdl->tail) {
+    transA_ClassDeclListCycleDetect(out, cdl->tail);
+  }
+}
+
+void transA_ClassDeclCycleDetect(FILE* out, A_classDecl cd) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassDeclCycleDetect with class %s...\n",
+          cd->id);
+#endif
+  if (!cd) return;
+
+  E_enventry ce = S_look(cenv, S_Symbol(cd->id));
+
+  // FIND: this class is being processed
+  ce->u.cls.status = E_transFind;
+
+  if (cd->parentID) {
+    E_enventry fa = S_look(cenv, ce->u.cls.fa);
+    if (!fa) {
+      transError(out, cd->pos,
+                 Stringf("Error: Class %s's parent class %s not declared",
+                         cd->id, cd->parentID));
+    }
+
+    // there's a cycle in inheritance
+    if (fa->u.cls.status == E_transFind) {
+      transError(out, cd->pos,
+                 Stringf("Error: Class %s has a cycle in inheritance", cd->id));
+    }
+
+    // parent class is not processed yet, process it first
+    if (fa->u.cls.status == E_transInit) {
+      transA_ClassDeclCycleDetect(out, fa->u.cls.cd);
+    }
+  }
+
+  // FILL: this class is processed
+  ce->u.cls.status = E_transFill;
 }
 
 void transA_MainMethod(FILE* out, A_mainMethod m) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_MainMethod...\n");
 #endif
+  curClassId = MAIN_CLASS;
+
   S_beginScope(venv);
   if (m->vdl) {
-    transA_VarDeclList(out, m->vdl);
+    transA_VarDeclList(out, m->vdl, venv);
   }
   if (m->sl) {
     transA_StmList(out, m->sl);
@@ -148,44 +241,56 @@ void transA_MainMethod(FILE* out, A_mainMethod m) {
   S_endScope(venv);
 }
 
-void transA_VarDeclList(FILE* out, A_varDeclList vdl) {
+void transA_VarDeclList(FILE* out, A_varDeclList vdl, S_table env) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_VarDecList...\n");
 #endif
   if (!vdl) return;
-  transA_VarDecl(out, vdl->head);
+  transA_VarDecl(out, vdl->head, env);
   if (vdl->tail) {
-    transA_VarDeclList(out, vdl->tail);
+    transA_VarDeclList(out, vdl->tail, env);
   }
 }
 
-void transA_VarDecl(FILE* out, A_varDecl vd) {
+void transA_VarDecl(FILE* out, A_varDecl vd, S_table env) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_VarDecl...\n");
 #endif
   if (!vd) return;
 
   // check if the variable is already declared
-  if (S_look(venv, S_Symbol(vd->v)) != NULL) {
-    transError(out, vd->pos, String("Error: Variable already declared"));
+  if (S_look(env, S_Symbol(vd->v)) != NULL) {
+    if (curClassId == MAIN_CLASS) {
+      transError(out, vd->pos,
+                 String("Error: Variable already declared in main method"));
+    } else if (curMethodId == dummyMethodId) {
+      transError(
+          out, vd->pos,
+          Stringf("Error: Variable already decleared in class %s", curClassId));
+    } else {
+      transError(
+          out, vd->pos,
+          Stringf("Error: Variable already declared in method %s, class %s",
+                  curMethodId, curClassId));
+    }
   }
 
   // enter the variable into the environment
   switch (vd->t->t) {
     case A_intType: {
-      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Int()));
+      S_enter(env, S_Symbol(vd->v), E_VarEntry(vd, Ty_Int()));
       break;
     }
     case A_floatType: {
-      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Float()));
+      S_enter(env, S_Symbol(vd->v), E_VarEntry(vd, Ty_Float()));
       break;
     }
     case A_intArrType: {
-      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Array(Ty_Int())));
+      S_enter(env, S_Symbol(vd->v), E_VarEntry(vd, Ty_Array(Ty_Int())));
       break;
     }
     case A_floatArrType: {
-      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Array(Ty_Float())));
+      S_enter(env, S_Symbol(vd->v), E_VarEntry(vd, Ty_Array(Ty_Float())));
       break;
     }
   }
@@ -242,7 +347,7 @@ void transA_Stm(FILE* out, A_stm s) {
       transA_Putarray(out, s);
       break;
     default:
-      return;   // unreachable
+      return;  // unreachable
   }
 }
 
