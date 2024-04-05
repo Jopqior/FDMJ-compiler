@@ -19,12 +19,8 @@ int main(int argc, const char * argv[]) {
   sprintf(file, "%s", argv[1]);
   string file_src = checked_malloc(IR_MAXLEN);
   sprintf(file_src, "%s.1.src", file);
-  string file_src2 = checked_malloc(IR_MAXLEN);
-  sprintf(file_src2, "%s.1-debug.src", file);
   string file_ast = checked_malloc(IR_MAXLEN);
   sprintf(file_ast, "%s.2.ast", file);
-  string file_ast2 = checked_malloc(IR_MAXLEN);
-  sprintf(file_ast2, "%s.2-debug.ast", file);
   string file_irp = checked_malloc(IR_MAXLEN);
   sprintf(file_irp, "%s.3.irp", file);
   string file_stm = checked_malloc(IR_MAXLEN);
