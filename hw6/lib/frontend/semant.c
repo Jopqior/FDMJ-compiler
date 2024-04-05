@@ -1050,6 +1050,12 @@ expty transA_Exp(FILE* out, A_exp e) {
     case A_arrayExp:
       return transA_ArrayExp(out, e);
       break;
+    case A_callExp:
+      return transA_CallExp(out, e);
+      break;
+    case A_classVarExp:
+      return transA_ClassVarExp(out, e);
+      break;
     case A_boolConst:
       return transA_BoolConst(out, e);
       break;
@@ -1059,6 +1065,9 @@ expty transA_Exp(FILE* out, A_exp e) {
     case A_idExp:
       return transA_IdExp(out, e);
       break;
+    case A_thisExp:
+      return transA_ThisExp(out, e);
+      break;
     case A_lengthExp:
       return transA_LengthExp(out, e);
       break;
@@ -1067,6 +1076,9 @@ expty transA_Exp(FILE* out, A_exp e) {
       break;
     case A_newFloatArrExp:
       return transA_NewFloatArrExp(out, e);
+      break;
+    case A_newObjExp:
+      return transA_NewObjExp(out, e);
       break;
     case A_notExp:
       return transA_NotExp(out, e);
@@ -1160,6 +1172,62 @@ expty transA_ArrayExp(FILE* out, A_exp e) {
   return Expty(TRUE, arr->ty->u.array);
 }
 
+expty transA_CallExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_CallExp...\n");
+#endif
+  if (!e) return NULL;
+
+  expty ty = transA_Exp(out, e->u.call.obj);
+  if (!ty) return NULL;
+  if (ty->ty->kind != Ty_name) {
+    transError(out, e->pos,
+               String("Error: Call expression must be called on an object"));
+  }
+
+  E_enventry ce = S_look(cenv, ty->ty->u.name);
+  S_table mtbl = ce->u.cls.mtbl;
+  E_enventry me = S_look(mtbl, S_Symbol(e->u.call.fun));
+  if (!me) {
+    transError(out, e->pos,
+               Stringf("Error: Class %s has no method %s",
+                       S_name(ty->ty->u.name), e->u.call.fun));
+  }
+
+  if (!transA_CallExpList(out, e->u.call.el, me->u.meth.fl)) {
+    transError(
+        out, e->pos,
+        String("Error: Method call arguments do not match method declaration"));
+  }
+
+  return Expty(FALSE, me->u.meth.ret);
+}
+
+expty transA_ClassVarExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassVarExp...\n");
+#endif
+  if (!e) return NULL;
+
+  expty ty = transA_Exp(out, e->u.classvar.obj);
+  if (!ty) return NULL;
+  if (ty->ty->kind != Ty_name) {
+    transError(out, e->pos,
+               String("Error: Class variable must be accessed on an object"));
+  }
+
+  E_enventry ce = S_look(cenv, ty->ty->u.name);
+  S_table vtbl = ce->u.cls.vtbl;
+  E_enventry ve = S_look(vtbl, S_Symbol(e->u.classvar.var));
+  if (!ve) {
+    transError(out, e->pos,
+               Stringf("Error: Class %s has no variable %s",
+                       S_name(ty->ty->u.name), e->u.classvar.var));
+  }
+
+  return Expty(TRUE, ve->u.var.ty);
+}
+
 expty transA_BoolConst(FILE* out, A_exp e) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_BoolConst...\n");
@@ -1190,6 +1258,19 @@ expty transA_IdExp(FILE* out, A_exp e) {
   }
 
   return Expty(TRUE, x->u.var.ty);
+}
+
+expty transA_ThisExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ThisExp...\n");
+#endif
+  if (!e) return NULL;
+
+  if (S_Symbol(curClassId) == MAIN_CLASS) {
+    transError(out, e->pos, String("Error: 'this' cannot be used in main method"));
+  }
+
+  return Expty(TRUE, Ty_Name(S_Symbol(curClassId)));
 }
 
 expty transA_LengthExp(FILE* out, A_exp e) {
@@ -1240,6 +1321,20 @@ expty transA_NewFloatArrExp(FILE* out, A_exp e) {
   }
 
   return Expty(FALSE, Ty_Array(Ty_Float()));
+}
+
+expty transA_NewObjExp(FILE* out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NewObjExp...\n");
+#endif
+  if (!e) return NULL;
+
+  E_enventry ce = S_look(cenv, S_Symbol(e->u.v));
+  if (!ce) {
+    transError(out, e->pos, String("Error: Class not declared"));
+  }
+
+  return Expty(FALSE, Ty_Name(S_Symbol(e->u.v)));
 }
 
 expty transA_NotExp(FILE* out, A_exp e) {
