@@ -91,7 +91,6 @@ void transA_Putch(FILE* out, A_stm s);
 
 void transA_ArrayInitExpList(FILE* out, A_expList el);
 bool transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl);
-bool transA_ClassTypeAssign(FILE* out, Ty_ty left, Ty_ty right);
 
 expty transA_Exp(FILE* out, A_exp e);
 expty transA_OpExp(FILE* out, A_exp e);
@@ -113,8 +112,10 @@ expty transA_Getnum(FILE* out, A_exp e);
 expty transA_Getch(FILE* out, A_exp e);
 expty transA_Getarray(FILE* out, A_exp e);
 
-bool EqualClassMethSignature(E_enventry fa, E_enventry cur);
-bool EqualTy(Ty_ty fa, Ty_ty cur);
+bool equalClassMethSignature(E_enventry fa, E_enventry cur);
+bool equalTy(Ty_ty fa, Ty_ty cur);
+bool equalTyCast(Ty_ty param, Ty_ty arg);
+bool isParentClass(Ty_ty left, Ty_ty right);
 Ty_ty atype2tyty(A_type t);
 Ty_field f2tyf(A_formal f);
 Ty_fieldList fl2tyfl(A_formalList fl);
@@ -297,7 +298,7 @@ void transA_ClassMtblCopy(FILE* out, S_table fa, S_table cur) {
       if (meth != NULL) {
         // check if signatures are equal
         E_enventry fa_meth = b->value;
-        if (!EqualClassMethSignature(fa_meth, meth)) {
+        if (!equalClassMethSignature(fa_meth, meth)) {
           transError(out, meth->u.meth.md->pos,
                      Stringf("Error: Class %s has method %s with different "
                              "signature with parent class",
@@ -482,6 +483,9 @@ void transA_MainMethod(FILE* out, A_mainMethod m) {
   fprintf(out, "Entering transA_MainMethod...\n");
 #endif
   S_beginScope(venv);
+
+  curClassId = S_name(MAIN_CLASS);
+
   if (m->vdl) {
     transA_VarDeclListMainMethod(out, m->vdl);
   }
@@ -833,28 +837,11 @@ void transA_AssignStm(FILE* out, A_stm s) {
           out, s->pos,
           String("Error: Right side of assignment must be of type object"));
     }
-    if (!transA_ClassTypeAssign(out, left->ty, right->ty)) {
+    if (!isParentClass(left->ty, right->ty)) {
       transError(out, s->pos,
                  String("Error: Object types must match in assignment"));
     }
   }
-}
-
-bool transA_ClassTypeAssign(FILE* out, Ty_ty left, Ty_ty right) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassTypeAssign...\n");
-#endif
-  // check if the class of the right side is a subclass of the left side
-  S_symbol leftClass = left->u.name;
-  S_symbol rightClass = right->u.name;
-  while (rightClass != MAIN_CLASS) {
-    if (leftClass == rightClass) {
-      return TRUE;
-    }
-    E_enventry ce = S_look(cenv, rightClass);
-    rightClass = ce->u.cls.fa;
-  }
-  return FALSE;
 }
 
 void transA_ArrayInit(FILE* out, A_stm s) {
@@ -936,7 +923,7 @@ bool transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl) {
 
   expty ty = transA_Exp(out, el->head);
   if (!ty) return FALSE;
-  if (!EqualTy(ty->ty, fl->head->ty)) {
+  if (!equalTyCast(fl->head->ty, ty->ty)) {
     return FALSE;
   }
 
@@ -978,11 +965,18 @@ void transA_Return(FILE* out, A_stm s) {
 
   expty ty = transA_Exp(out, s->u.e);
   if (!ty) return;
-  if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
-    transError(
-        out, s->pos,
-        String(
-            "Error: Return value of main method must be of type int or float"));
+
+  // main method
+  if (S_Symbol(curClassId) == MAIN_CLASS) {
+    if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
+      transError(out, s->pos,
+                 String("Error: Return value of main method must be of type "
+                        "int or float"));
+    }
+  } else {
+    E_enventry ce = S_look(cenv, S_Symbol(curClassId));
+    S_table mtbl = ce->u.cls.mtbl;
+    E_enventry me = S_look(mtbl, S_Symbol(curMethodId));
   }
 }
 
@@ -1317,13 +1311,13 @@ expty transA_Getarray(FILE* out, A_exp e) {
   return Expty(TRUE, Ty_Int());
 }
 
-bool EqualClassMethSignature(E_enventry fa, E_enventry cur) {
+bool equalClassMethSignature(E_enventry fa, E_enventry cur) {
   if (!fa || !cur) {
     return FALSE;
   }
 
   // check if return types are equal
-  if (!EqualTy(fa->u.meth.ret, cur->u.meth.ret)) {
+  if (!equalTy(fa->u.meth.ret, cur->u.meth.ret)) {
     return FALSE;
   }
 
@@ -1331,7 +1325,7 @@ bool EqualClassMethSignature(E_enventry fa, E_enventry cur) {
   Ty_fieldList fa_fl = fa->u.meth.fl;
   Ty_fieldList cur_fl = cur->u.meth.fl;
   while (fa_fl && cur_fl) {
-    if (!EqualTy(fa_fl->head->ty, cur_fl->head->ty)) {
+    if (!equalTy(fa_fl->head->ty, cur_fl->head->ty)) {
       return FALSE;
     }
     fa_fl = fa_fl->tail;
@@ -1343,7 +1337,7 @@ bool EqualClassMethSignature(E_enventry fa, E_enventry cur) {
   return TRUE;
 }
 
-bool EqualTy(Ty_ty fa, Ty_ty cur) {
+bool equalTy(Ty_ty fa, Ty_ty cur) {
   if (!fa || !cur) {
     return FALSE;
   }
@@ -1352,12 +1346,42 @@ bool EqualTy(Ty_ty fa, Ty_ty cur) {
     return FALSE;
   }
   if (fa->kind == Ty_array) {
-    return EqualTy(fa->u.array, cur->u.array);
+    return equalTy(fa->u.array, cur->u.array);
   }
   if (fa->kind == Ty_name) {
     return fa->u.name == cur->u.name;
   }
   return TRUE;
+}
+
+bool equalTyCast(Ty_ty param, Ty_ty arg) {
+  if (!param || !arg) {
+    return FALSE;
+  }
+
+  if (param->kind == Ty_int || param->kind == Ty_float) {
+    return arg->kind == Ty_int || arg->kind == Ty_float;
+  }
+  if (param->kind == Ty_array) {
+    return arg->kind == Ty_array && equalTy(param->u.array, arg->u.array);
+  }
+  if (param->kind == Ty_name) {
+    return arg->kind == Ty_name && isParentClass(param, arg);
+  }
+}
+
+bool isParentClass(Ty_ty left, Ty_ty right) {
+  // check if the class of the right side is a subclass of the left side
+  S_symbol leftClass = left->u.name;
+  S_symbol rightClass = right->u.name;
+  while (rightClass != MAIN_CLASS) {
+    if (leftClass == rightClass) {
+      return TRUE;
+    }
+    E_enventry ce = S_look(cenv, rightClass);
+    rightClass = ce->u.cls.fa;
+  }
+  return FALSE;
 }
 
 Ty_ty atype2tyty(A_type t) {
