@@ -424,46 +424,46 @@ expty transA_Exp(FILE* out, A_exp e) {
 
   switch (e->kind) {
     case A_opExp:
-      transA_OpExp(out, e);
+      return transA_OpExp(out, e);
       break;
     case A_arrayExp:
-      transA_ArrayExp(out, e);
+      return transA_ArrayExp(out, e);
       break;
     case A_boolConst:
-      transA_BoolConst(out, e);
+      return transA_BoolConst(out, e);
       break;
     case A_numConst:
-      transA_NumConst(out, e);
+      return transA_NumConst(out, e);
       break;
     case A_idExp:
-      transA_IdExp(out, e);
+      return transA_IdExp(out, e);
       break;
     case A_lengthExp:
-      transA_LengthExp(out, e);
+      return transA_LengthExp(out, e);
       break;
     case A_newIntArrExp:
-      transA_NewIntArrExp(out, e);
+      return transA_NewIntArrExp(out, e);
       break;
     case A_newFloatArrExp:
-      transA_NewFloatArrExp(out, e);
+      return transA_NewFloatArrExp(out, e);
       break;
     case A_notExp:
-      transA_NotExp(out, e);
+      return transA_NotExp(out, e);
       break;
     case A_minusExp:
-      transA_MinusExp(out, e);
+      return transA_MinusExp(out, e);
       break;
     case A_escExp:
-      transA_EscExp(out, e);
+      return transA_EscExp(out, e);
       break;
     case A_getnum:
-      transA_Getnum(out, e);
+      return transA_Getnum(out, e);
       break;
     case A_getch:
-      transA_Getch(out, e);
+      return transA_Getch(out, e);
       break;
     case A_getarray:
-      transA_Getarray(out, e);
+      return transA_Getarray(out, e);
       break;
     default:
       return NULL;  // unreachable
