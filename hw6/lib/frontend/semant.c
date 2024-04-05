@@ -119,6 +119,7 @@ bool isParentClass(Ty_ty left, Ty_ty right);
 Ty_ty atype2tyty(A_type t);
 Ty_field f2tyf(A_formal f);
 Ty_fieldList fl2tyfl(A_formalList fl);
+string ty2str(Ty_ty t);
 
 void transError(FILE* out, A_pos pos, string msg) {
   fprintf(out, "(line:%d col:%d) %s\n", pos->line, pos->pos, msg);
@@ -977,6 +978,11 @@ void transA_Return(FILE* out, A_stm s) {
     E_enventry ce = S_look(cenv, S_Symbol(curClassId));
     S_table mtbl = ce->u.cls.mtbl;
     E_enventry me = S_look(mtbl, S_Symbol(curMethodId));
+    if (!equalTyCast(me->u.meth.ret, ty->ty)) {
+      transError(out, s->pos,
+                 Stringf("Error: Expected return type '%s', got '%s'",
+                         ty2str(me->u.meth.ret), ty2str(ty->ty)));
+    }
   }
 }
 
@@ -1413,4 +1419,21 @@ Ty_fieldList fl2tyfl(A_formalList fl) {
   if (!fl) return NULL;
 
   return Ty_FieldList(f2tyf(fl->head), fl2tyfl(fl->tail));
+}
+
+string ty2str(Ty_ty t) {
+  if (!t) return NULL;
+
+  switch (t->kind) {
+    case Ty_int:
+      return String("int");
+    case Ty_float:
+      return String("float");
+    case Ty_array:
+      return Stringf("array of %s", ty2str(t->u.array));
+    case Ty_name:
+      return Stringf("class %s", S_name(t->u.name));
+    default:
+      return NULL;  // unreachable
+  }
 }
