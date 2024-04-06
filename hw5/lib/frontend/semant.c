@@ -468,7 +468,7 @@ expty transA_OpExp(FILE* out, A_exp e) {
   if (!left) return NULL;
   if (left->ty->kind != Ty_int && left->ty->kind != Ty_float) {
     transError(
-        out, e->u.op.left->pos,
+        out, e->pos,
         String("error: left side of operator must be of type int or float"));
   }
 
@@ -476,7 +476,7 @@ expty transA_OpExp(FILE* out, A_exp e) {
   if (!right) return NULL;
   if (right->ty->kind != Ty_int && right->ty->kind != Ty_float) {
     transError(
-        out, e->u.op.right->pos,
+        out, e->pos,
         String("error: right side of operator must be of type int or float"));
   }
 
