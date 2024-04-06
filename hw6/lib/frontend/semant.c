@@ -20,14 +20,6 @@ expty Expty(bool location, Ty_ty ty) {
   return e;
 }
 
-typedef enum {
-  transA_cenvInit,
-  transA_cycleDetect,
-  transA_classVars,
-  transA_classMethods,
-  transA_mainMethod
-} transA_state;
-
 static S_table venv;  // for main method
 static int whileDepth = 0;
 
@@ -35,7 +27,6 @@ static S_table cenv;
 static S_symbol MAIN_CLASS;
 static string curClassId;
 static string curMethodId;
-static transA_state curState;
 
 void transA_ClassDeclList(FILE* out, A_classDeclList cdl);
 
@@ -50,6 +41,7 @@ void transA_ClassMtblCopy(FILE* out, S_table fa, S_table cur);
 
 void transA_ClassDeclListTypeChecking(FILE* out, A_classDeclList cdl);
 void transA_ClassDeclTypeChecking(FILE* out, A_classDecl cd);
+void transA_ClassVtblCopyToVenv(FILE* out);
 
 void transA_MethodDeclListCenvInit(FILE* out, A_methodDeclList mdl,
                                    S_table env);
@@ -336,7 +328,27 @@ void transA_ClassDeclTypeChecking(FILE* out, A_classDecl cd) {
     transA_VarDeclListClassVars(out, cd->vdl);
   }
   if (cd->mdl) {
+    S_beginScope(venv);
+    transA_ClassVtblCopyToVenv(out);
     transA_MethodDeclListClassMethods(out, cd->mdl);
+    S_endScope(venv);
+  }
+}
+
+void transA_ClassVtblCopyToVenv(FILE* out) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassVtblCopyToVenv...\n");
+#endif
+  E_enventry ce = S_look(cenv, S_Symbol(curClassId));
+  if (!ce) return;
+  S_table vtbl = ce->u.cls.vtbl;
+
+  int i;
+  binder b;
+  for (i = 0; i < TABSIZE; i++) {
+    for (b = vtbl->table[i]; b; b = b->next) {
+      TAB_enter(venv, b->key, b->value);
+    }
   }
 }
 
