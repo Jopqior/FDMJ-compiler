@@ -402,13 +402,15 @@ void transA_Putarray(FILE* out, A_stm s) {
   if (!s) return;
 
   expty ty1 = transA_Exp(out, s->u.putarray.e1);
-  expty ty2 = transA_Exp(out, s->u.putarray.e2);
-  if (!ty1 || !ty2) return;
+  if (!ty1) return;
   if (ty1->ty->kind != Ty_int && ty1->ty->kind != Ty_float) {
     transError(out, s->pos,
                String("error: first argument of putarray() must be of type int "
                       "or float"));
   }
+
+  expty ty2 = transA_Exp(out, s->u.putarray.e2);
+  if (!ty2) return;
   if (ty2->ty->kind != Ty_array) {
     transError(
         out, s->pos,
@@ -463,13 +465,15 @@ expty transA_OpExp(FILE* out, A_exp e) {
   if (!e) return NULL;
 
   expty left = transA_Exp(out, e->u.op.left);
-  expty right = transA_Exp(out, e->u.op.right);
-  if (!left || !right) return NULL;
+  if (!left) return NULL;
   if (left->ty->kind != Ty_int && left->ty->kind != Ty_float) {
     transError(
         out, e->u.op.left->pos,
         String("error: left side of operator must be of type int or float"));
   }
+
+  expty right = transA_Exp(out, e->u.op.right);
+  if (!right) return NULL;
   if (right->ty->kind != Ty_int && right->ty->kind != Ty_float) {
     transError(
         out, e->u.op.right->pos,
@@ -509,12 +513,14 @@ expty transA_ArrayExp(FILE* out, A_exp e) {
   if (!e) return NULL;
 
   expty arr = transA_Exp(out, e->u.array_pos.arr);
-  expty pos = transA_Exp(out, e->u.array_pos.arr_pos);
-  if (!arr || !pos) return NULL;
+  if (!arr) return NULL;
   if (arr->ty->kind != Ty_array) {
     transError(out, e->pos,
                String("error: left side of array access must be an array"));
   }
+
+  expty pos = transA_Exp(out, e->u.array_pos.arr_pos);
+  if (!pos) return NULL;
   if (pos->ty->kind != Ty_int && pos->ty->kind != Ty_float) {
     transError(
         out, e->pos,
