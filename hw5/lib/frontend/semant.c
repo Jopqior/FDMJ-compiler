@@ -250,9 +250,7 @@ void transA_AssignStm(FILE* out, A_stm s) {
   if (!s) return;
 
   expty left = transA_Exp(out, s->u.assign.arr);
-  expty right = transA_Exp(out, s->u.assign.value);
-  if (!left || !right) return;
-
+  if (!left) return;
   // check if the left side is a lvalue
   if (!left->location) {
     transError(
@@ -260,6 +258,8 @@ void transA_AssignStm(FILE* out, A_stm s) {
         String("error: left side of assignment must have a location value"));
   }
 
+  expty right = transA_Exp(out, s->u.assign.value);
+  if (!right) return;
   // check if the types match
   if ((left->ty->kind == Ty_int || left->ty->kind == Ty_float) &&
       (right->ty->kind != Ty_int && right->ty->kind != Ty_float)) {
