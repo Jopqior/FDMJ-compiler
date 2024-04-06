@@ -679,5 +679,5 @@ expty transA_Getarray(FILE* out, A_exp e) {
                String("error: argument of getarray() must be an array"));
   }
 
-  return Expty(TRUE, Ty_Int());
+  return Expty(FALSE, Ty_Int());
 }
