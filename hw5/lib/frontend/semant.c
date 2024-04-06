@@ -77,7 +77,7 @@ void transA_Prog(FILE* out, A_prog p) {
   if (p->m) {
     transA_MainMethod(out, p->m);
   } else {
-    transError(out, p->pos, String("Error: There's no main class"));
+    transError(out, p->pos, String("There's no main class!"));
   }
 }
 
@@ -114,7 +114,7 @@ void transA_VarDecl(FILE* out, A_varDecl vd) {
 
   // check if the variable is already declared
   if (S_look(venv, S_Symbol(vd->v)) != NULL) {
-    transError(out, vd->pos, String("Error: Variable already declared"));
+    transError(out, vd->pos, String("Variable already declared!"));
   }
 
   // enter the variable into the environment
@@ -212,7 +212,7 @@ void transA_IfStm(FILE* out, A_stm s) {
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
     transError(
         out, s->pos,
-        String("Error: If statement condition must be of type int or float"));
+        String("If statement condition must be of type int or float!"));
   }
 
   transA_Stm(out, s->u.if_stat.s1);
@@ -233,7 +233,7 @@ void transA_WhileStm(FILE* out, A_stm s) {
     transError(
         out, s->pos,
         String(
-            "Error: While statement condition must be of type int or float"));
+            "While statement condition must be of type int or float!"));
   }
 
   whileDepth++;
@@ -257,7 +257,7 @@ void transA_AssignStm(FILE* out, A_stm s) {
   if (!left->location) {
     transError(
         out, s->pos,
-        String("Error: Left side of assignment must have a location value"));
+        String("Left side of assignment must have a location value!"));
   }
 
   // check if the types match
@@ -265,22 +265,22 @@ void transA_AssignStm(FILE* out, A_stm s) {
       (right->ty->kind != Ty_int && right->ty->kind != Ty_float)) {
     if (left->ty->kind == Ty_int) {
       transError(out, s->pos,
-                 String("Error: Right side of assignment must be of type int"));
+                 String("Right side of assignment must be of type int!"));
     } else {
       transError(
           out, s->pos,
-          String("Error: Right side of assignment must be of type float"));
+          String("Right side of assignment must be of type float!"));
     }
   }
   if (left->ty->kind == Ty_array) {
     if (right->ty->kind != Ty_array) {
       transError(
           out, s->pos,
-          String("Error: Right side of assignment must be of type array"));
+          String("Right side of assignment must be of type array!"));
     }
     if (left->ty->u.array->kind != right->ty->u.array->kind) {
       transError(out, s->pos,
-                 String("Error: Array types must match in assignment"));
+                 String("Array types must match in assignment!"));
     }
   }
 }
@@ -296,12 +296,12 @@ void transA_ArrayInit(FILE* out, A_stm s) {
   if (arr->ty->kind != Ty_array) {
     transError(
         out, s->pos,
-        String("Error: Left side of array initialization must be an array"));
+        String("Left side of array initialization must be an array!"));
   }
   if (!arr->location) {
     transError(out, s->pos,
-               String("Error: Left side of array initialization must have a "
-                      "location value"));
+               String("Left side of array initialization must have a "
+                      "location value!"));
   }
 
   transA_ArrayInitExpList(out, s->u.array_init.init_values);
@@ -318,7 +318,7 @@ void transA_ArrayInitExpList(FILE* out, A_expList el) {
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
     transError(
         out, el->head->pos,
-        String("Error: Array initialization must be of type int or float"));
+        String("Array initialization must be of type int or float!"));
   }
 
   if (el->tail) {
@@ -334,7 +334,7 @@ void transA_Continue(FILE* out, A_stm s) {
 
   if (whileDepth == 0) {
     transError(out, s->pos,
-               String("Error: Continue statement outside of loop"));
+               String("Continue statement outside of loop!"));
   }
 }
 
@@ -345,7 +345,7 @@ void transA_Break(FILE* out, A_stm s) {
   if (!s) return;
 
   if (whileDepth == 0) {
-    transError(out, s->pos, String("Error: Break statement outside of loop"));
+    transError(out, s->pos, String("Break statement outside of loop!"));
   }
 }
 
@@ -361,7 +361,7 @@ void transA_Return(FILE* out, A_stm s) {
     transError(
         out, s->pos,
         String(
-            "Error: Return value of main method must be of type int or float"));
+            "Return value of main method must be of type int or float!"));
   }
 }
 
@@ -376,7 +376,7 @@ void transA_Putnum(FILE* out, A_stm s) {
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
     transError(
         out, s->pos,
-        String("Error: Argument of putnum() must be of type int or float"));
+        String("Argument of putnum() must be of type int or float!"));
   }
 }
 
@@ -391,7 +391,7 @@ void transA_Putch(FILE* out, A_stm s) {
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
     transError(
         out, s->pos,
-        String("Error: Argument of putch() must be of type int or float"));
+        String("Argument of putch() must be of type int or float!"));
   }
 }
 
@@ -406,13 +406,13 @@ void transA_Putarray(FILE* out, A_stm s) {
   if (!ty1 || !ty2) return;
   if (ty1->ty->kind != Ty_int && ty1->ty->kind != Ty_float) {
     transError(out, s->pos,
-               String("Error: First argument of putarray() must be of type int "
-                      "or float"));
+               String("First argument of putarray() must be of type int "
+                      "or float!"));
   }
   if (ty2->ty->kind != Ty_array) {
     transError(
         out, s->pos,
-        String("Error: Second argument of putarray() must be of type array"));
+        String("Second argument of putarray() must be of type array!"));
   }
 }
 
@@ -425,46 +425,32 @@ expty transA_Exp(FILE* out, A_exp e) {
   switch (e->kind) {
     case A_opExp:
       return transA_OpExp(out, e);
-      break;
     case A_arrayExp:
       return transA_ArrayExp(out, e);
-      break;
     case A_boolConst:
       return transA_BoolConst(out, e);
-      break;
     case A_numConst:
       return transA_NumConst(out, e);
-      break;
     case A_idExp:
       return transA_IdExp(out, e);
-      break;
     case A_lengthExp:
       return transA_LengthExp(out, e);
-      break;
     case A_newIntArrExp:
       return transA_NewIntArrExp(out, e);
-      break;
     case A_newFloatArrExp:
       return transA_NewFloatArrExp(out, e);
-      break;
     case A_notExp:
       return transA_NotExp(out, e);
-      break;
     case A_minusExp:
       return transA_MinusExp(out, e);
-      break;
     case A_escExp:
       return transA_EscExp(out, e);
-      break;
     case A_getnum:
       return transA_Getnum(out, e);
-      break;
     case A_getch:
       return transA_Getch(out, e);
-      break;
     case A_getarray:
       return transA_Getarray(out, e);
-      break;
     default:
       return NULL;  // unreachable
   }
@@ -482,12 +468,12 @@ expty transA_OpExp(FILE* out, A_exp e) {
   if (left->ty->kind != Ty_int && left->ty->kind != Ty_float) {
     transError(
         out, e->u.op.left->pos,
-        String("Error: Left side of operator must be of type int or float"));
+        String("Left side of operator must be of type int or float!"));
   }
   if (right->ty->kind != Ty_int && right->ty->kind != Ty_float) {
     transError(
         out, e->u.op.right->pos,
-        String("Error: Right side of operator must be of type int or float"));
+        String("Right side of operator must be of type int or float!"));
   }
 
   // return type of the operator
@@ -527,13 +513,13 @@ expty transA_ArrayExp(FILE* out, A_exp e) {
   if (!arr || !pos) return NULL;
   if (arr->ty->kind != Ty_array) {
     transError(out, e->pos,
-               String("Error: Left side of array access must be an array"));
+               String("Left side of array access must be an array!"));
   }
   if (pos->ty->kind != Ty_int && pos->ty->kind != Ty_float) {
     transError(
         out, e->pos,
         String(
-            "Error: Right side of array access must be of type int or float"));
+            "Right side of array access must be of type int or float!"));
   }
 
   return Expty(TRUE, arr->ty->u.array);
@@ -565,7 +551,7 @@ expty transA_IdExp(FILE* out, A_exp e) {
 
   E_enventry x = S_look(venv, S_Symbol(e->u.v));
   if (!x) {
-    transError(out, e->pos, String("Error: Variable not declared"));
+    transError(out, e->pos, String("Variable not declared!"));
   }
 
   return Expty(TRUE, x->u.var.ty);
@@ -581,7 +567,7 @@ expty transA_LengthExp(FILE* out, A_exp e) {
   if (!arr) return NULL;
   if (arr->ty->kind != Ty_array) {
     transError(out, e->pos,
-               String("Error: Argument of length() must be an array"));
+               String("Argument of length() must be an array!"));
   }
 
   return Expty(FALSE, Ty_Int());
@@ -598,7 +584,7 @@ expty transA_NewIntArrExp(FILE* out, A_exp e) {
   if (size->ty->kind != Ty_int && size->ty->kind != Ty_float) {
     transError(
         out, e->pos,
-        String("Error: New int array size must be of type int or float"));
+        String("New int array size must be of type int or float!"));
   }
 
   return Expty(FALSE, Ty_Array(Ty_Int()));
@@ -615,7 +601,7 @@ expty transA_NewFloatArrExp(FILE* out, A_exp e) {
   if (size->ty->kind != Ty_int && size->ty->kind != Ty_float) {
     transError(
         out, e->pos,
-        String("Error: New float array size must be of type int or float"));
+        String("New float array size must be of type int or float!"));
   }
 
   return Expty(FALSE, Ty_Array(Ty_Float()));
@@ -630,7 +616,7 @@ expty transA_NotExp(FILE* out, A_exp e) {
   expty ty = transA_Exp(out, e->u.e);
   if (!ty) return NULL;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
-    transError(out, e->pos, String("Error: ! must operate on int or float"));
+    transError(out, e->pos, String("! must operate on int or float!"));
   }
 
   return Expty(FALSE, Ty_Int());
@@ -645,7 +631,7 @@ expty transA_MinusExp(FILE* out, A_exp e) {
   expty ty = transA_Exp(out, e->u.e);
   if (!ty) return NULL;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
-    transError(out, e->pos, String("Error: - must operate on int or float"));
+    transError(out, e->pos, String("- must operate on int or float!"));
   }
 
   return Expty(FALSE, ty->ty);
@@ -690,7 +676,7 @@ expty transA_Getarray(FILE* out, A_exp e) {
   if (!arr) return NULL;
   if (arr->ty->kind != Ty_array) {
     transError(out, e->pos,
-               String("Error: Argument of getarray() must be an array"));
+               String("Argument of getarray() must be an array!"));
   }
 
   return Expty(TRUE, Ty_Int());
