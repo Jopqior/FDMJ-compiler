@@ -139,7 +139,7 @@ T_exp T_IntConst(int); // ret: T_int
 T_exp T_FloatConst(float); // ret: T_float
 T_exp T_Call(string, T_exp, T_expList, T_type); // ret: T_int or T_float (if void, use T_int), arg: T_int (ptr auto cast) or T_float
 T_exp T_ExtCall(string, T_expList, T_type); // ret: T_int or T_float (if void, use T_int), arg: T_int (ptr auto cast) or T_float
-T_exp T_Cast(T_exp); // we only cast T_float or T_int to T_int (so the result type is T_int)
+T_exp T_Cast(T_exp, T_type); // ret: T_int or T_float, arg: type to be cast
 
 T_relOp T_notRel(T_relOp);  /* a op b  ==   not(a notRel(op) b)  */
 T_relOp T_commute(T_relOp); /* a op b  ==  b commute(op) a     */

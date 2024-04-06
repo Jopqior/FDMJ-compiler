@@ -34,7 +34,7 @@ test: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}" < "$${file%%.*}".fmj && \
+			$(FMJ2AST) "$${file%%.*}" && \
 			$(MAIN_EXE) "$${file%%.*}"; \
 		fi \
 	done; \
@@ -45,7 +45,7 @@ test-extra: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}" < "$${file%%.*}".fmj && \
+			$(FMJ2AST) "$${file%%.*}" && \
 			$(MAIN_EXE) "$${file%%.*}"; \
 		fi \
 	done; \

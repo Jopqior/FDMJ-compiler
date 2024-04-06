@@ -17,6 +17,10 @@ int main(int argc, const char * argv[]) {
   // output filename
   string file = checked_malloc(IR_MAXLEN);
   sprintf(file, "%s", argv[1]);
+  string file_fmj = checked_malloc(IR_MAXLEN);
+  sprintf(file_fmj, "%s.fmj", file);
+  string file_out = checked_malloc(IR_MAXLEN);
+  sprintf(file_out, "%s.out", file);
   string file_src = checked_malloc(IR_MAXLEN);
   sprintf(file_src, "%s.1.src", file);
   string file_ast = checked_malloc(IR_MAXLEN);
@@ -41,7 +45,6 @@ int main(int argc, const char * argv[]) {
   // fclose(stdout);
 
   while (fdl) {
-    T_stm s = fdl->head->stm;
     freopen(file_irp, "a", stdout);
     fprintf(stdout, "------Original IR Tree------\n");
     printIRP_set(IRP_parentheses);

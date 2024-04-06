@@ -166,11 +166,11 @@ T_exp T_ExtCall(string id, T_expList args, T_type type) {
   return p;
 }
 
-T_exp T_Cast(T_exp exp) {
-  if (exp->type == T_int) return exp; //no need to cast
+T_exp T_Cast(T_exp exp, T_type type) {
+  if (exp->type == type) return exp; // no need to cast
   T_exp p = (T_exp) checked_malloc(sizeof * p);
   p->kind = T_CAST;
-  p->type = T_int;
+  p->type = type;
   p->u.CAST = exp;
   return p;
 }

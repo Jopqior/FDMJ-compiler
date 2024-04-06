@@ -27,6 +27,7 @@ static void pr_exp(FILE *out, T_exp exp, int d);
 
 static void indent(FILE *out, int d) {
   int i;
+  if (format==IRP_xml) return; //don't indent if XML
   for (i = 0; i <= d; i++) fprintf(out, "  ");
 }
 
@@ -125,11 +126,12 @@ static void pr_stm(FILE *out, T_stm stm, int d) {
         fprintf(out, "T_Move(\n");
         break;
       case IRP_xml:
-        fprintf(out, "<Move>\n");
+        fprintf(out, "<Move><left>\n");
         break;
     }
     pr_exp(out, stm->u.MOVE.dst, d + 1);
     if (format==IRP_parentheses) fprintf(out, ",\n");
+    else fprintf(out, "</left>\n<right>");
     pr_exp(out, stm->u.MOVE.src, d + 1);
     if (format==IRP_parentheses) fprintf(out, "\n");
     indent(out, d);
@@ -138,7 +140,7 @@ static void pr_stm(FILE *out, T_stm stm, int d) {
         fprintf(out, ")");
         break;
       case IRP_xml:
-        fprintf(out, "</Move>\n");
+        fprintf(out, "</right></Move>\n");
         break;  
     }
     break;
@@ -440,7 +442,8 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
     }
     break;
   } /* end of switch */
-  fprintf(out, ":%s", getT_type(exp->type));
+  if (format== IRP_parentheses)
+    fprintf(out, ":%s", getT_type(exp->type));
   return ;
 }
 
@@ -505,7 +508,7 @@ void printIRP_FuncDecl(FILE *out, T_funcDecl funcDecl) {
       break;
     case IRP_xml: 
       pr_stm(out, s, 0);
-      fprintf(out, "/<FuncDecl>\n"); 
+      fprintf(out, "</FuncDecl>\n"); 
       break;
   } 
 
