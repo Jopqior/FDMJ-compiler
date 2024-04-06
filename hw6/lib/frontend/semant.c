@@ -854,7 +854,9 @@ void transA_AssignStm(FILE* out, A_stm s) {
     }
     if (!isParentClass(left->ty, right->ty)) {
       transError(out, s->pos,
-                 String("Error: Object types must match in assignment"));
+                 Stringf("Error: Object types do not match in assignment, "
+                         "right side expected '%s', got '%s'",
+                         ty2str(left->ty), ty2str(right->ty)));
     }
   }
 }
@@ -1009,7 +1011,7 @@ void transA_Return(FILE* out, A_stm s) {
     E_enventry me = S_look(mtbl, S_Symbol(curMethodId));
     if (!equalTyCast(me->u.meth.ret, ty->ty)) {
       transError(out, s->pos,
-                 Stringf("Error: Expected return type '%s', got '%s'",
+                 Stringf("Error: Return type expected '%s', got '%s'",
                          ty2str(me->u.meth.ret), ty2str(ty->ty)));
     }
   }
@@ -1228,7 +1230,8 @@ expty transA_CallExp(FILE* out, A_exp e) {
   // if (!transA_CallExpList(out, e->u.call.el, me->u.meth.fl)) {
   //   transError(
   //       out, e->pos,
-  //       String("Error: Method call arguments do not match method declaration"));
+  //       String("Error: Method call arguments do not match method
+  //       declaration"));
   // }
 
   return Expty(FALSE, me->u.meth.ret);
