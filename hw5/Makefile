@@ -5,10 +5,11 @@ LLI      = lli-14
 ARMCC    = arm-linux-gnueabihf-gcc
 QEMU     = qemu-arm
 
-BUILD_DIR = $(CURDIR)/build
-MAIN_EXE  = $(BUILD_DIR)/tools/main
-FMJ2AST   = $(CURDIR)/vendor/tools/fmj2ast
-TEST_DIR  = $(CURDIR)/test
+BUILD_DIR = "$(CURDIR)/build"
+MAIN_EXE  = "$(BUILD_DIR)/tools/main"
+FMJ2AST   = "$(CURDIR)/vendor/tools/fmj2ast"
+ASTCHECK  = "$(CURDIR)/vendor/tools/astcheck"
+TEST_DIR  = "$(CURDIR)/test"
 
 MAKEFLAGS = --no-print-directory
 
@@ -20,7 +21,8 @@ build:
 
 clean:
 	@find $(TEST_DIR) -type f \( \
-		-name "*.src" -o -name "*.ast" -o -name "*.output" -o -name "*.debug" \
+		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
+		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean
@@ -33,8 +35,8 @@ test: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}" < "$${file%%.*}".fmj && \
-			$(MAIN_EXE) "$${file%%.*}".2.ast > "$${file%%.*}".output 2> "$${file%%.*}".debug; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(MAIN_EXE) "$${file%%.*}"; \
 		fi \
 	done; \
 	cd $(CURDIR)
@@ -44,8 +46,20 @@ test-extra: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}" < "$${file%%.*}".fmj && \
-			$(MAIN_EXE) "$${file%%.*}".2.ast > "$${file%%.*}".output; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(MAIN_EXE) "$${file%%.*}"; \
+		fi \
+	done; \
+	cd $(CURDIR)
+
+.PHONY: astcheck
+astcheck: clean
+	@cd $(TEST_DIR); \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(ASTCHECK) "$${file%%.*}"; \
 		fi \
 	done; \
 	cd $(CURDIR)
