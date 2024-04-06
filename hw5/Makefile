@@ -73,3 +73,34 @@ handin:
 	read filename; \
 	zip -q -r "docs/$$filename-hw5.zip" \
 	  docs/report.pdf include lib
+
+EXTERNAL_TEST_DIR = $(abspath $(CURDIR)/../../FDMJ-tests/hw05)
+.PHONY: test-external clean-external
+
+clean-external:
+	@find $(EXTERNAL_TEST_DIR)/test -type f \( \
+		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
+		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
+		\) -exec $(RM) {} \;
+	@$(RM) $(EXTERNAL_TEST_DIR)/yours/*.debug
+	@$(RM) $(EXTERNAL_TEST_DIR)/correct/*.debug
+
+test-external: clean-external
+	@cd $(EXTERNAL_TEST_DIR)/test; \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(MAIN_EXE) "$${file%%.*}" 2> ../yours/"$${file%%.*}".debug; \
+		fi \
+	done; \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(ASTCHECK) "$${file%%.*}" 2> ../correct/"$${file%%.*}".debug; \
+		fi \
+	done; \
+	cd $(EXTERNAL_TEST_DIR); \
+	python3 check.py; \
+	cd $(CURDIR)
