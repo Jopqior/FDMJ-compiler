@@ -36,8 +36,8 @@ void transA_ClassDeclCenvInit(FILE* out, A_classDecl cd);
 void transA_ClassDeclListCycleDetect(FILE* out, A_classDeclList cdl);
 void transA_ClassDeclCycleDetect(FILE* out, A_classDecl cd);
 
-void transA_ClassVtblCopy(FILE* out, S_table fa, S_table cur);
-void transA_ClassMtblCopy(FILE* out, S_table fa, S_table cur);
+void transA_ClassVtblCopyFromFa(FILE* out, S_table fa, S_table cur);
+void transA_ClassMtblCopyFromFa(FILE* out, S_table fa, S_table cur);
 
 void transA_ClassDeclListTypeChecking(FILE* out, A_classDeclList cdl);
 void transA_ClassDeclTypeChecking(FILE* out, A_classDecl cd);
@@ -82,7 +82,7 @@ void transA_Putarray(FILE* out, A_stm s);
 void transA_Putch(FILE* out, A_stm s);
 
 void transA_ArrayInitExpList(FILE* out, A_expList el);
-bool transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl);
+void transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl);
 
 expty transA_Exp(FILE* out, A_exp e);
 expty transA_OpExp(FILE* out, A_exp e);
@@ -251,17 +251,18 @@ void transA_ClassDeclCycleDetect(FILE* out, A_classDecl cd) {
 
     // copy parent class's vtbl and mtbl
     curClassId = cd->id;
-    transA_ClassVtblCopy(out, fa->u.cls.vtbl, ce->u.cls.vtbl);
-    transA_ClassMtblCopy(out, fa->u.cls.mtbl, ce->u.cls.mtbl);
+    transA_ClassVtblCopyFromFa(out, fa->u.cls.vtbl, ce->u.cls.vtbl);
+    transA_ClassMtblCopyFromFa(out, fa->u.cls.mtbl, ce->u.cls.mtbl);
   }
 
   // FILL: this class is processed
   ce->u.cls.status = E_transFill;
 }
 
-void transA_ClassVtblCopy(FILE* out, S_table fa, S_table cur) {
+void transA_ClassVtblCopyFromFa(FILE* out, S_table fa, S_table cur) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassVtblCopy with class %s...\n", curClassId);
+  fprintf(out, "Entering transA_ClassVtblCopyFromFa with class %s...\n",
+          curClassId);
 #endif
   int i;
   binder b;
@@ -279,9 +280,10 @@ void transA_ClassVtblCopy(FILE* out, S_table fa, S_table cur) {
   }
 }
 
-void transA_ClassMtblCopy(FILE* out, S_table fa, S_table cur) {
+void transA_ClassMtblCopyFromFa(FILE* out, S_table fa, S_table cur) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassMtblCopy with class %s...\n", curClassId);
+  fprintf(out, "Entering transA_ClassMtblCopyFromFa with class %s...\n",
+          curClassId);
 #endif
   int i;
   binder b;
@@ -920,31 +922,46 @@ void transA_CallStm(FILE* out, A_stm s) {
                        s->u.call_stat.fun));
   }
 
-  if (!transA_CallExpList(out, s->u.call_stat.el, me->u.meth.fl)) {
-    transError(
-        out, s->pos,
-        String("Error: Method call arguments do not match method declaration"));
-  }
+  transA_CallExpList(out, s->u.call_stat.el, me->u.meth.fl);
+  // if (!transA_CallExpList(out, s->u.call_stat.el, me->u.meth.fl)) {
+  //   transError(
+  //       out, s->pos,
+  //       String("Error: Method call arguments do not match method
+  //       declaration"));
+  // }
 }
 
-bool transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl) {
+void transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_CallExpList...\n");
 #endif
-  if (!el && !fl) return TRUE;
-  if (!el || !fl) return FALSE;
+  A_expList curEl = el;
+  Ty_fieldList curFl = fl;
 
-  expty ty = transA_Exp(out, el->head);
-  if (!ty) return FALSE;
-  if (!equalTyCast(fl->head->ty, ty->ty)) {
-    return FALSE;
+  while (curEl && curFl) {
+    expty ty = transA_Exp(out, curEl->head);
+    if (!ty) {
+      transError(out, curEl->head->pos,
+                 String("Error: Method call argument is invalid"));
+    }
+    if (!equalTyCast(curFl->head->ty, ty->ty)) {
+      transError(out, curEl->head->pos,
+                 Stringf("Error: Method call argument types do not match, "
+                         "expected '%s', got '%s'",
+                         ty2str(curFl->head->ty), ty2str(ty->ty)));
+    }
+    curEl = curEl->tail;
+    curFl = curFl->tail;
   }
 
-  if (el->tail && fl->tail) {
-    return transA_CallExpList(out, el->tail, fl->tail);
+  if (curEl) {
+    transError(out, curEl->head->pos,
+               String("Error: Too many arguments in method call"));
   }
-
-  return !el->tail && !fl->tail;
+  if (curFl) {
+    transError(out, el->head->pos,
+               String("Error: Too few arguments in method call"));
+  }
 }
 
 void transA_Continue(FILE* out, A_stm s) {
@@ -1206,11 +1223,13 @@ expty transA_CallExp(FILE* out, A_exp e) {
                        S_name(ty->ty->u.name), e->u.call.fun));
   }
 
-  if (!transA_CallExpList(out, e->u.call.el, me->u.meth.fl)) {
-    transError(
-        out, e->pos,
-        String("Error: Method call arguments do not match method declaration"));
-  }
+  transA_CallExpList(out, e->u.call.el, me->u.meth.fl);
+
+  // if (!transA_CallExpList(out, e->u.call.el, me->u.meth.fl)) {
+  //   transError(
+  //       out, e->pos,
+  //       String("Error: Method call arguments do not match method declaration"));
+  // }
 
   return Expty(FALSE, me->u.meth.ret);
 }
@@ -1279,7 +1298,8 @@ expty transA_ThisExp(FILE* out, A_exp e) {
   if (!e) return NULL;
 
   if (S_Symbol(curClassId) == MAIN_CLASS) {
-    transError(out, e->pos, String("Error: 'this' cannot be used in main method"));
+    transError(out, e->pos,
+               String("Error: 'this' cannot be used in main method"));
   }
 
   return Expty(TRUE, Ty_Name(S_Symbol(curClassId)));
