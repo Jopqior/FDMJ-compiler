@@ -330,10 +330,7 @@ void transA_ClassDeclTypeChecking(FILE* out, A_classDecl cd) {
     transA_VarDeclListClassVars(out, cd->vdl);
   }
   if (cd->mdl) {
-    S_beginScope(venv);
-    transA_ClassVtblCopyToVenv(out);
     transA_MethodDeclListClassMethods(out, cd->mdl);
-    S_endScope(venv);
   }
 }
 
