@@ -68,7 +68,7 @@ static void pr_stm(FILE *out, T_stm stm, int d) {
   case T_LABEL:
     indent(out, d);
     if (format==IRP_parentheses)
-      fprintf(out, "T_Label(Temp_namedlabel(\"%s\"))", Temp_labelstring(stm->u.LABEL));
+      fprintf(out, "T_Label(Temp_namedlabel(String(\"%s\")))", Temp_labelstring(stm->u.LABEL));
     else
         fprintf(out, "<Label>%s</Label>", Temp_labelstring(stm->u.LABEL));
     break;
@@ -77,7 +77,7 @@ static void pr_stm(FILE *out, T_stm stm, int d) {
     switch (format) {
       case IRP_parentheses:
         fprintf(out, "T_Jump(");
-        fprintf(out, "Temp_namedlabel(\"%s\")", Temp_labelstring(stm->u.JUMP.jump));
+        fprintf(out, "Temp_namedlabel(String(\"%s\"))", Temp_labelstring(stm->u.JUMP.jump));
         fprintf(out, ")");
         break;
       case IRP_xml:
@@ -97,9 +97,9 @@ static void pr_stm(FILE *out, T_stm stm, int d) {
         pr_exp(out, stm->u.CJUMP.right, d + 1);
         fprintf(out, ",\n");
         indent(out, d + 1);
-        fprintf(out, "Temp_namedlabel(\"%s\"),\n", Temp_labelstring(stm->u.CJUMP.t));
+        fprintf(out, "Temp_namedlabel(String(\"%s\")),\n", Temp_labelstring(stm->u.CJUMP.t));
         indent(out, d + 1);
-        fprintf(out, "Temp_namedlabel(\"%s\")", Temp_labelstring(stm->u.CJUMP.f));
+        fprintf(out, "Temp_namedlabel(String(\"%s\"))", Temp_labelstring(stm->u.CJUMP.f));
         fprintf(out, "\n");
         indent(out, d);
         fprintf(out, ")");
@@ -359,7 +359,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
     indent(out, d);
     switch (format) {
       case IRP_parentheses:
-        fprintf(out, "T_Name(Temp_namedlabel(\"%s\"))", Temp_labelstring(exp->u.NAME));
+        fprintf(out, "T_Name(Temp_namedlabel(String(\"%s\")))", Temp_labelstring(exp->u.NAME));
         break;
       case IRP_xml:
         fprintf(out, "<Name>%s</Name>", Temp_labelstring(exp->u.NAME));
@@ -384,7 +384,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
     indent(out, d);
     switch (format) {
       case IRP_parentheses:
-        fprintf(out, "T_Call(\"%s\",\n", exp->u.CALL.id);
+        fprintf(out, "T_Call(String(\"%s\"),\n", exp->u.CALL.id);
         break;
       case IRP_xml:
         fprintf(out, "<Call>\n<id>%s</id>\n<obj>", exp->u.CALL.id);
@@ -406,7 +406,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
     T_expList args = exp->u.ExtCALL.args;
     switch (format) {
       case IRP_parentheses: 
-        fprintf(out, "T_ExtCall(\"%s\",\n", exp->u.ExtCALL.extfun);
+        fprintf(out, "T_ExtCall(String(\"%s\"),\n", exp->u.ExtCALL.extfun);
         break;
       case IRP_xml: 
         fprintf(out, "<ExtCall><id>%s</id><args>\n", exp->u.ExtCALL.extfun);
@@ -488,7 +488,7 @@ void printIRP_FuncDecl(FILE *out, T_funcDecl funcDecl) {
   T_stm s = funcDecl->stm;
 
   switch (format) {
-    case IRP_parentheses: fprintf(out, "T_FuncDecl(\"%s\",\n", funcDecl->name); break;
+    case IRP_parentheses: fprintf(out, "T_FuncDecl(String(\"%s\"),\n", funcDecl->name); break;
     case IRP_xml: fprintf(out, "<FuncDecl>\n<name>%s</name>\n", funcDecl->name); break;
   }
 

@@ -24,8 +24,7 @@ Temp_temp Temp_newtemp(T_type type) {
   sprintf(r, "%d", temps);
   Temp_temp p = S_look(temp_table, S_Symbol(String(r)));
   if (p) {
-    temps++;
-    p->type = type;
+    p->type = type; // reuse
     return p;
   }
   p = (Temp_temp) checked_malloc(sizeof (*p));
@@ -46,7 +45,8 @@ Temp_temp Temp_namedtemp(int name, T_type type) {
   sprintf(r, "%d", name);
   Temp_temp p = S_look(temp_table, S_Symbol(String(r)));
   if (p) {
-    return p; //ignore the type mismatch, the user should check the type if needed
+    p->type = type; // reuse
+    return p;
   }
   p = (Temp_temp) checked_malloc(sizeof (*p));
   p->num = name;
@@ -59,14 +59,6 @@ Temp_temp Temp_namedtemp(int name, T_type type) {
 Temp_temp this() {
   return Temp_namedtemp(99, T_int);
 }
-
-/* this is redundant: should use: Temp_namedtemp(name, type)
-Temp_temp Temp_looktemp(int name) {
-  Temp_temp p = (Temp_temp) checked_malloc(sizeof (*p));
-  p->num = name;
-  return p;
-}
-*/
 
 Temp_tempList Temp_TempList(Temp_temp h, Temp_tempList t) {
   Temp_tempList p = (Temp_tempList) checked_malloc(sizeof (*p));

@@ -19,7 +19,6 @@ Temp_temp Temp_newtemp(T_type type);
 void Temp_resettemp();
 Temp_temp Temp_namedtemp(int name, T_type type);
 Temp_temp this();
-/* Temp_temp Temp_looktemp(int name); This is redundant: should use Temp_namedtemp(name, type) */
 
 typedef struct Temp_tempList_ *Temp_tempList;
 struct Temp_tempList_ {
