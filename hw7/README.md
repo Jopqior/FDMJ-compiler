@@ -1,5 +1,7 @@
 # Homework Assignment #7
 
-translate AST to TigerIR+
+Translate AST to TigerIR+ (part I)
 
-[TODO]Descriptions...
+This part of the assignment does the translation for FDMJ AST (without arrays and classes) to TigerIR+. Files are under repo/hw7.
+
+As usual, do all your work with the class code repository and submit to elearning the materials packaged with "make handin".
