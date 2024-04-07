@@ -19,7 +19,7 @@ void printIRP_set(IRP_format f) {
 }
 
 static string getT_type(T_type type) {
-  return type == T_int ? "int" : "float";
+  return type == T_int ? "T_int" : "T_float";
 }
 
 /* local function prototype */
@@ -416,7 +416,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
     if (format==IRP_parentheses) fprintf(out, "\n");
     else fprintf(out, "</args>");
     indent(out, d);
-    if (format==IRP_parentheses) fprintf(out, ")");
+    if (format==IRP_parentheses) fprintf(out, ",%s)", getT_type(exp->type));
     else fprintf(out, "<ret_type>%s</ret_type></ExtCall>\n", getT_type(exp->type));
     break;
   case T_CAST:
@@ -434,7 +434,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
     indent(out, d);
       switch (format) {
       case IRP_parentheses:
-        fprintf(out, ")");
+        fprintf(out, ",%s)", getT_type(exp->type));
         break;  
       case IRP_xml:
         fprintf(out, "</Cast>\n");
@@ -443,7 +443,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
     break;
   } /* end of switch */
   if (format== IRP_parentheses)
-    fprintf(out, ":%s", getT_type(exp->type));
+    fprintf(out, "/*%s*/", getT_type(exp->type));
   return ;
 }
 
