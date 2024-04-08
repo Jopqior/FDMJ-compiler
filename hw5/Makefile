@@ -96,6 +96,8 @@ clean-random:
 		\) -exec $(RM) {} \;
 
 test-external: clean-external gen-random
+	@mkdir -p $(EXTERNAL_TEST_DIR)/yours;
+	@mkdir -p $(EXTERNAL_TEST_DIR)/correct;
 	@cd $(EXTERNAL_TEST_DIR)/test; \
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
