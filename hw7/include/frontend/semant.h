@@ -9,7 +9,7 @@
 #include "tigerirp.h"
 #include "util.h"
 
-/* return T_exp and Ty_ty */
+/* structs */
 
 typedef struct expty_* expty;
 
