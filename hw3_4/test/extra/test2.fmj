@@ -1,0 +1,13 @@
+// test if
+public int main() {
+    int a = 3;
+    if (a > 4 && a <= 5 || a != a)
+        if (a / 3 == 6)
+            a = a + a;
+        else {
+            if (a == 100)
+                a = 7;
+        } 
+    else
+        a = a * a + a / a - a;
+}

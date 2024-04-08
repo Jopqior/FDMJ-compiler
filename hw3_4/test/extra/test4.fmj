@@ -1,0 +1,7 @@
+// test array
+public int main() {
+    int[] a = {2,3,3};
+    a[2] = a[1];
+    a = new int [2*3];
+    a[] = {1, 0, 2, 4, 9, 6};
+}

@@ -1,0 +1,12 @@
+// test while
+public int main() {
+    int a = 7;
+    while (a) {
+        while (a < 10) {
+            a = a - 10;
+            continue;
+        }
+        break;
+    }
+    while (a);
+}
