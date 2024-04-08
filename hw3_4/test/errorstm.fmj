@@ -1,8 +1,0 @@
-public int main() {
-    int a;
-    int b,;
-
-    a = putnum();
-    putnum();
-    return 0;
-}
