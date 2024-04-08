@@ -20,12 +20,11 @@ struct expty_ {
 
 expty ExpTy(Tr_exp exp, Ty_ty value, Ty_ty location);
 
-/* TODO: semant */
-
 /* API */
 
 T_funcDeclList transA_Prog(FILE *out, A_prog p, int arch_size);
 
+/* TODO: semant */
 // you can change anything below. definitions below are only for reference:)
 
 /* preprocess */
