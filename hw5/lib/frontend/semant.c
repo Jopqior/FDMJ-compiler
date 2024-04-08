@@ -227,7 +227,6 @@ void transA_WhileStm(FILE* out, A_stm s) {
 #endif
   if (!s) return;
 
-  whileDepth++;
   expty ty = transA_Exp(out, s->u.while_stat.e);
   if (!ty) return;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
@@ -237,6 +236,7 @@ void transA_WhileStm(FILE* out, A_stm s) {
             "error: while statement condition must be of type int or float"));
   }
 
+  whileDepth++;
   if (s->u.while_stat.s) {
     transA_Stm(out, s->u.while_stat.s);
   }
@@ -293,15 +293,15 @@ void transA_ArrayInit(FILE* out, A_stm s) {
 
   expty arr = transA_Exp(out, s->u.array_init.arr);
   if (!arr) return;
-  if (arr->ty->kind != Ty_array) {
-    transError(
-        out, s->pos,
-        String("error: left side of array initialization must be an array"));
-  }
   if (!arr->location) {
     transError(out, s->pos,
                String("error: left side of array initialization must have a "
                       "location value"));
+  }
+  if (arr->ty->kind != Ty_array) {
+    transError(
+        out, s->pos,
+        String("error: left side of array initialization must be an array"));
   }
 
   transA_ArrayInitExpList(out, s->u.array_init.init_values);
