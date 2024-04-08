@@ -6,4 +6,5 @@ build/
 *.output
 *.xml
 *.ll
+*.irp
 *.debug
