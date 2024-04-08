@@ -109,23 +109,8 @@ static T_stm unNx(Tr_exp exp) {
   switch (exp->kind) {
   case Tr_ex:
     return T_Exp(exp->u.ex);
-  case Tr_cx: {
-    Temp_temp r = Temp_newtemp(T_int);
-    Temp_label t = Temp_newlabel();
-    Temp_label f = Temp_newlabel();
-    Temp_label e = Temp_newlabel();
-    doPatch(exp->u.cx->trues, t);
-    doPatch(exp->u.cx->falses, f);
-    return
-    T_Seq(exp->u.cx->stm,
-    T_Seq(T_Label(t), 
-    T_Seq(T_Move(T_Temp(r), T_IntConst(1)),
-    T_Seq(T_Jump(e),
-    T_Seq(T_Label(f),
-    T_Seq(T_Move(T_Temp(r), T_IntConst(0)),
-    T_Seq(T_Label(e),
-    T_Exp(T_Temp(r)))))))));
-  }
+  case Tr_cx: 
+    return exp->u.cx->stm;
   case Tr_nx:
     return exp->u.nx;
   default:
