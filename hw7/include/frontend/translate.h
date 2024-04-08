@@ -8,12 +8,12 @@
 #include "util.h"
 
 /* structs */
-// See Tiger book for more details of Tr_exp:)
 
 typedef struct Tr_exp_ *Tr_exp;
 typedef struct Tr_expList_ *Tr_expList;
 
 /* TODO: translate */
+
 // you can change anything below. definitions below are only for reference:)
 
 // methods
