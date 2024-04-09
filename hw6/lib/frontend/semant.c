@@ -48,6 +48,7 @@ void transA_MethodDeclListCenvInit(FILE* out, A_methodDeclList mdl,
 void transA_MethodDeclListClassMethods(FILE* out, A_methodDeclList mdl);
 
 void transA_MethodDeclCenvInit(FILE* out, A_methodDecl md, S_table env);
+Ty_fieldList transA_Fl2Tyfl(FILE* out, A_formalList fl);
 void transA_MethodDeclClassMethods(FILE* out, A_methodDecl md);
 
 void transA_FormalList(FILE* out, A_formalList fl);
@@ -110,8 +111,8 @@ bool equalTyCast(Ty_ty param, Ty_ty arg);
 bool isParentClass(Ty_ty left, Ty_ty right);
 Ty_ty atype2tyty(A_type t);
 Ty_field f2tyf(A_formal f);
-Ty_fieldList fl2tyfl(A_formalList fl);
 string ty2str(Ty_ty t);
+A_varDecl f2vd(A_formal f);
 
 void transError(FILE* out, A_pos pos, string msg) {
   fprintf(out, "(line:%d col:%d) %s\n", pos->line, pos->pos, msg);
@@ -210,6 +211,7 @@ void transA_ClassDeclListCycleDetect(FILE* out, A_classDeclList cdl) {
 
   E_enventry ce = S_look(cenv, S_Symbol(cdl->head->id));
   if (ce->u.cls.status == E_transInit) {
+    curClassId = cdl->head->id;
     transA_ClassDeclCycleDetect(out, cdl->head);
   }
 
@@ -240,8 +242,10 @@ void transA_ClassDeclCycleDetect(FILE* out, A_classDecl cd) {
 
     // there's a cycle in inheritance
     if (fa->u.cls.status == E_transFind) {
-      transError(out, cd->pos,
-                 Stringf("error: class %s has a cycle in inheritance", cd->id));
+      E_enventry curce = S_look(cenv, S_Symbol(curClassId));
+      transError(
+          out, curce->u.cls.cd->pos,
+          Stringf("error: class %s has a cycle in inheritance", curClassId));
     }
 
     // parent class is not processed yet, process it first
@@ -391,11 +395,34 @@ void transA_MethodDeclCenvInit(FILE* out, A_methodDecl md, S_table env) {
         Stringf("error: method already declared in class %s", curClassId));
   }
 
+  curMethodId = md->id;
+
   // enter the method into the environment
   Ty_ty ret = atype2tyty(md->t);
-  Ty_fieldList fl = fl2tyfl(md->fl);
+
+  S_beginScope(venv);
+  Ty_fieldList fl = transA_Fl2Tyfl(out, md->fl);
+  S_endScope(venv);
+
   S_enter(env, S_Symbol(md->id),
           E_MethodEntry(md, S_Symbol(curClassId), ret, fl));
+}
+
+Ty_fieldList transA_Fl2Tyfl(FILE* out, A_formalList fl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Fl2Tyfl...\n");
+#endif
+  if (!fl) return NULL;
+
+  E_enventry var = S_look(venv, S_Symbol(fl->head->id));
+  if (var) {
+    transError(out, var->u.var.vd->pos,
+               Stringf("error: formal redefined in method %s, class %s",
+                       curMethodId, curClassId));
+  }
+  S_enter(venv, S_Symbol(fl->head->id), E_VarEntry(f2vd(fl->head), atype2tyty(fl->head->t)));
+
+  return Ty_FieldList(f2tyf(fl->head), transA_Fl2Tyfl(out, fl->tail));
 }
 
 void transA_MethodDeclClassMethods(FILE* out, A_methodDecl md) {
@@ -821,7 +848,7 @@ void transA_AssignStm(FILE* out, A_stm s) {
 
   expty right = transA_Exp(out, s->u.assign.value);
   if (!right) return;
-    // check if the types match
+  // check if the types match
   if ((left->ty->kind == Ty_int || left->ty->kind == Ty_float) &&
       (right->ty->kind != Ty_int && right->ty->kind != Ty_float)) {
     if (left->ty->kind == Ty_int) {
@@ -1531,12 +1558,6 @@ Ty_field f2tyf(A_formal f) {
   return Ty_Field(S_Symbol(f->id), atype2tyty(f->t));
 }
 
-Ty_fieldList fl2tyfl(A_formalList fl) {
-  if (!fl) return NULL;
-
-  return Ty_FieldList(f2tyf(fl->head), fl2tyfl(fl->tail));
-}
-
 string ty2str(Ty_ty t) {
   if (!t) return NULL;
 
@@ -1552,4 +1573,10 @@ string ty2str(Ty_ty t) {
     default:
       return NULL;  // unreachable
   }
+}
+
+A_varDecl f2vd(A_formal f) {
+  if (!f) return NULL;
+
+  return A_VarDecl(f->pos, f->t, f->id, NULL);
 }
