@@ -74,43 +74,124 @@ handin:
 	zip -q -r "docs/$$filename-hw6.zip" \
 	  docs/report.pdf include lib
 
-EXTERNAL_TEST_DIR = $(abspath $(CURDIR)/../../FDMJ-tests/hw06)
-.PHONY: test-external clean-external gen-random clean-random
+TEST_EXTERNAL_DIR=../../FDMJ-tests
+TEXT_EXTERNAL_HW=hw06
+TESTFILE_EXTERNAL_DIR=$(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/test
+TEST_EXTERNAL_BIN=$(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/bin
 
-clean-external: clean-random
-	@find $(EXTERNAL_TEST_DIR)/test -type f \( \
-		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
-		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
-		\) -exec $(RM) {} \;
-	@$(RM) $(EXTERNAL_TEST_DIR)/yours/*.debug
-	@$(RM) $(EXTERNAL_TEST_DIR)/correct/*.debug
+RUN_RANDOM_CODE_GEN := 0
+CHECK_PY_SCRIPT := check.py
+PRINT_INFO := 0
+CLEAN_RANDOM_TEST := 0
 
-gen-random:
-	@cd $(EXTERNAL_TEST_DIR); \
-	python3 randomCodeGen.py; \
-	cd $(CURDIR)
+# 如果在命令行中传递了 RANDOM=1，则启动随机代码生成
+ifdef RANDOM
+	RUN_RANDOM_CODE_GEN := $(RANDOM)
+endif
 
-clean-random:
-	@find $(EXTERNAL_TEST_DIR)/test -type f \( \
-		-name "random*.fmj" \
-		\) -exec $(RM) {} \;
+ifeq ($(RUN_RANDOM_CODE_GEN), 1)
+    RANDOM_CODE_GEN := python3 randomCodeGen_v2.py;
+endif
 
-test-external: clean-external gen-random
-	@cd $(EXTERNAL_TEST_DIR)/test; \
+# 如果在命令行中传递了 CHECK，则设置使用的检查脚本
+ifdef CHECK
+    CHECK_PY_SCRIPT := $(CHECK)
+endif
+
+# 如果在命令行中传递了 INFO，则设置是否打印额外信息
+ifdef INFO
+	PRINT_INFO := $(INFO)
+endif
+
+ifdef CLEAN_RANDOM
+	CLEAN_RANDOM_TEST := $(CLEAN_RANDOM)
+endif
+
+clean_external: 
+	@$(RM) $(TESTFILE_EXTERNAL_DIR)/bin
+	@$(RM) $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/yours
+	@$(RM) $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/correct
+	@$(RM) $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/tools
+	
+	@if [ "$(CLEAN_RANDOM_TEST)" = "1" ]; then \
+		find $(TESTFILE_EXTERNAL_DIR) -type f \( \
+			-name "*.txt" -o -name "*.ast" -o -name "*.src" -o -name "*.xml" \
+			-o -name "*.output" -o -name "gen_program_*" -o -name "myRandomTest*.fmj" \
+		\) -exec $(RM) {} \; ;\
+	else \
+		find $(TESTFILE_EXTERNAL_DIR) -type f \( \
+			-name "*.txt" -o -name "*.ast" -o -name "*.src" -o -name "*.xml" \
+			-o -name "*.output" -o -name "gen_program_*" \
+		\) -exec $(RM) {} \; ;\
+	fi
+	
+SHELL:=/bin/bash
+
+test_external: clean build clean_external
+	@mkdir -p $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/tools
+	@mkdir -p $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/yours
+	@mkdir -p $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/correct
+	@cp $(MAIN_EXE) $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/tools/main
+	@cp $(ASTCHECK) $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/tools/std
+	@cd $(TESTFILE_EXTERNAL_DIR);pwd; \
+	$(RANDOM_CODE_GEN) \
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
-			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}" && \
-			$(MAIN_EXE) "$${file%%.*}" 2> ../yours/"$${file%%.*}".debug; \
-		fi \
+			if [ $(PRINT_INFO) -eq 1 ]; then \
+				echo "[$${file%%.*}]"; \
+				echo "running fmj to ast code..."; \
+			fi; \
+			$(FMJ2AST) "$${file%%.*}"; \
+			if [ $(PRINT_INFO) -eq 1 ]; then \
+				echo "running your code..."; \
+			fi; \
+			$(MAIN_EXE) "$${file%%.*}" &> "../yours/$${file%%.*}".txt; \
+			if [ $(PRINT_INFO) -eq 1 ]; then \
+				echo "running standard code..."; \
+			fi; \
+			$(ASTCHECK) "$${file%%.*}" &> "../correct/$${file%%.*}".txt; \
+		fi; \
 	done; \
-	for file in $$(ls .); do \
-		if [ "$${file##*.}" = "fmj" ]; then \
-			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}" && \
-			$(ASTCHECK) "$${file%%.*}" 2> ../correct/"$${file%%.*}".debug; \
-		fi \
-	done; \
-	cd $(EXTERNAL_TEST_DIR); \
-	python3 check.py; \
+	python3 ../${CHECK_PY_SCRIPT}; \
 	cd $(CURDIR)
+
+# EXTERNAL_TEST_DIR = $(abspath $(CURDIR)/../../FDMJ-tests/hw06)
+# .PHONY: test_external clean_external gen_random clean_random
+
+# clean_external: clean_random
+# 	@find $(EXTERNAL_TEST_DIR)/test -type f \( \
+# 		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
+# 		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
+# 		\) -exec $(RM) {} \;
+# 	@$(RM) $(EXTERNAL_TEST_DIR)/yours/*.debug
+# 	@$(RM) $(EXTERNAL_TEST_DIR)/correct/*.debug
+
+# gen_random:
+# 	@cd $(EXTERNAL_TEST_DIR); \
+# 	python3 randomCodeGen.py; \
+# 	cd $(CURDIR)
+
+# clean_random:
+# 	@find $(EXTERNAL_TEST_DIR)/test -type f \( \
+# 		-name "random*.fmj" \
+# 		\) -exec $(RM) {} \;
+
+# test_external: clean_external
+# 	@cd $(EXTERNAL_TEST_DIR)/test; \
+# 	for file in $$(ls .); do \
+# 		if [ "$${file##*.}" = "fmj" ]; then \
+# 			echo "[$${file%%.*}]"; \
+# 			$(FMJ2AST) "$${file%%.*}" && \
+# 			$(MAIN_EXE) "$${file%%.*}" 2> ../yours/"$${file%%.*}".debug; \
+# 		fi \
+# 	done; \
+# 	for file in $$(ls .); do \
+# 		if [ "$${file##*.}" = "fmj" ]; then \
+# 			echo "[$${file%%.*}]"; \
+# 			$(FMJ2AST) "$${file%%.*}" && \
+# 			$(ASTCHECK) "$${file%%.*}" 2> ../correct/"$${file%%.*}".debug; \
+# 		fi \
+# 	done; \
+# 	cd $(EXTERNAL_TEST_DIR); \
+# 	python3 check.py; \
+# 	cd $(CURDIR)

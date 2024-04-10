@@ -483,28 +483,23 @@ void transA_Formal(FILE* out, A_formal f) {
 #endif
   if (!f) return;
 
-  // check if the variable is already declared
-  if (S_look(venv, S_Symbol(f->id))) {
-    transError(out, f->pos,
-               Stringf("error: formal redefined in method %s, class %s",
-                       curMethodId, curClassId));
-  }
+  // no need to check if the variable is already declared
 
   switch (f->t->t) {
     case A_intType: {
-      S_enter(venv, S_Symbol(f->id), E_VarEntry(NULL, Ty_Int()));
+      S_enter(venv, S_Symbol(f->id), E_VarEntry(f2vd(f), Ty_Int()));
       break;
     }
     case A_floatType: {
-      S_enter(venv, S_Symbol(f->id), E_VarEntry(NULL, Ty_Float()));
+      S_enter(venv, S_Symbol(f->id), E_VarEntry(f2vd(f), Ty_Float()));
       break;
     }
     case A_intArrType: {
-      S_enter(venv, S_Symbol(f->id), E_VarEntry(NULL, Ty_Array(Ty_Int())));
+      S_enter(venv, S_Symbol(f->id), E_VarEntry(f2vd(f), Ty_Array(Ty_Int())));
       break;
     }
     case A_floatArrType: {
-      S_enter(venv, S_Symbol(f->id), E_VarEntry(NULL, Ty_Array(Ty_Float())));
+      S_enter(venv, S_Symbol(f->id), E_VarEntry(f2vd(f), Ty_Array(Ty_Float())));
       break;
     }
     case A_idType: {
@@ -512,7 +507,7 @@ void transA_Formal(FILE* out, A_formal f) {
         transError(out, f->pos, String("error: variable type not declared"));
       }
       S_enter(venv, S_Symbol(f->id),
-              E_VarEntry(NULL, Ty_Name(S_Symbol(f->t->id))));
+              E_VarEntry(f2vd(f), Ty_Name(S_Symbol(f->t->id))));
     }
   }
 }
