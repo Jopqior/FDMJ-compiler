@@ -420,7 +420,8 @@ Ty_fieldList transA_Fl2Tyfl(FILE* out, A_formalList fl) {
                Stringf("error: formal redefined in method %s, class %s",
                        curMethodId, curClassId));
   }
-  S_enter(venv, S_Symbol(fl->head->id), E_VarEntry(f2vd(fl->head), atype2tyty(fl->head->t)));
+  S_enter(venv, S_Symbol(fl->head->id),
+          E_VarEntry(f2vd(fl->head), atype2tyty(fl->head->t)));
 
   return Ty_FieldList(f2tyf(fl->head), transA_Fl2Tyfl(out, fl->tail));
 }
@@ -809,8 +810,6 @@ void transA_WhileStm(FILE* out, A_stm s) {
 #endif
   if (!s) return;
 
-  whileDepth++;
-
   expty ty = transA_Exp(out, s->u.while_stat.e);
   if (!ty) return;
   if (ty->ty->kind != Ty_int && ty->ty->kind != Ty_float) {
@@ -820,6 +819,7 @@ void transA_WhileStm(FILE* out, A_stm s) {
             "error: while statement condition must be of type int or float"));
   }
 
+  whileDepth++;
   if (s->u.while_stat.s) {
     transA_Stm(out, s->u.while_stat.s);
   }
@@ -838,7 +838,7 @@ void transA_AssignStm(FILE* out, A_stm s) {
   if (!left->location) {
     transError(
         out, s->pos,
-        String("Error: Left side of assignment must have a location value"));
+        String("error: left side of assignment must have a location value"));
   }
 
   expty right = transA_Exp(out, s->u.assign.value);
@@ -889,15 +889,15 @@ void transA_ArrayInit(FILE* out, A_stm s) {
 
   expty arr = transA_Exp(out, s->u.array_init.arr);
   if (!arr) return;
-  if (arr->ty->kind != Ty_array) {
-    transError(
-        out, s->pos,
-        String("error: left side of array initialization must be an array"));
-  }
   if (!arr->location) {
     transError(out, s->pos,
                String("error: left side of array initialization must have a "
                       "location value"));
+  }
+  if (arr->ty->kind != Ty_array) {
+    transError(
+        out, s->pos,
+        String("error: left side of array initialization must be an array"));
   }
 
   transA_ArrayInitExpList(out, s->u.array_init.init_values);
@@ -945,12 +945,6 @@ void transA_CallStm(FILE* out, A_stm s) {
   }
 
   transA_CallExpList(out, s->u.call_stat.el, me->u.meth.fl);
-  // if (!transA_CallExpList(out, s->u.call_stat.el, me->u.meth.fl)) {
-  //   transError(
-  //       out, s->pos,
-  //       String("Error: Method call arguments do not match method
-  //       declaration"));
-  // }
 }
 
 void transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl) {
@@ -1234,13 +1228,6 @@ expty transA_CallExp(FILE* out, A_exp e) {
   }
 
   transA_CallExpList(out, e->u.call.el, me->u.meth.fl);
-
-  // if (!transA_CallExpList(out, e->u.call.el, me->u.meth.fl)) {
-  //   transError(
-  //       out, e->pos,
-  //       String("Error: Method call arguments do not match method
-  //       declaration"));
-  // }
 
   return Expty(FALSE, me->u.meth.ret);
 }
