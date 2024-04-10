@@ -1,0 +1,9 @@
+public int main() {
+    new A().m(1, new A());
+}
+
+public class A {
+    public int m(int a, int b) {
+        return 0;
+    }
+}

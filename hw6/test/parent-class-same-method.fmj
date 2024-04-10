@@ -1,0 +1,9 @@
+public int main() {}
+
+public class A {
+    public int m(int a) {}
+}
+
+public class B extends A {
+    public int m(int a, int b) {}
+}
