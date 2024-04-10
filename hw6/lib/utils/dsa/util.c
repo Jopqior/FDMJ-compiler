@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 #include "util.h"
 
@@ -21,15 +20,6 @@ string String(char *s) {
   string p = checked_malloc(strlen(s) + 1);
   strcpy(p, s);
   return p;
-}
-
-static char buf[IR_MAXLEN];
-string Stringf(char *fmt, ...) {
-  va_list argp;
-  va_start(argp, fmt);
-  vsnprintf(buf, IR_MAXLEN, fmt, argp);
-  va_end(argp);
-  return String(buf);
 }
 
 U_boolList U_BoolList(bool head, U_boolList tail) {

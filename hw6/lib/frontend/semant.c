@@ -1,6 +1,7 @@
 #include "semant.h"
 
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "symbol.h"
 #include "table.h"
@@ -8,17 +9,16 @@
 #define __DEBUG
 #undef __DEBUG
 
-typedef struct expty_* expty;
-struct expty_ {
-  bool location;
-  Ty_ty ty;
-};
+/* structs */
+
 expty Expty(bool location, Ty_ty ty) {
   expty e = checked_malloc(sizeof(*e));
   e->location = location;
   e->ty = ty;
   return e;
 }
+
+/* semant */
 
 static S_table venv;  // for main method
 static int whileDepth = 0;
@@ -27,92 +27,6 @@ static S_table cenv;
 static S_symbol MAIN_CLASS;
 static string curClassId;
 static string curMethodId;
-
-void transA_ClassDeclList(FILE* out, A_classDeclList cdl);
-
-void transA_ClassDeclListPreprocess(FILE* out, A_classDeclList cdl);
-void transA_ClassDeclListCenvInit(FILE* out, A_classDeclList cdl);
-void transA_ClassDeclCenvInit(FILE* out, A_classDecl cd);
-void transA_ClassDeclListCycleDetect(FILE* out, A_classDeclList cdl);
-void transA_ClassDeclCycleDetect(FILE* out, A_classDecl cd);
-
-void transA_ClassVtblCopyFromFa(FILE* out, S_table fa, S_table cur);
-void transA_ClassMtblCopyFromFa(FILE* out, S_table fa, S_table cur);
-
-void transA_ClassDeclListTypeChecking(FILE* out, A_classDeclList cdl);
-void transA_ClassDeclTypeChecking(FILE* out, A_classDecl cd);
-void transA_ClassVtblCopyToVenv(FILE* out);
-
-void transA_MethodDeclListCenvInit(FILE* out, A_methodDeclList mdl,
-                                   S_table env);
-void transA_MethodDeclListClassMethods(FILE* out, A_methodDeclList mdl);
-
-void transA_MethodDeclCenvInit(FILE* out, A_methodDecl md, S_table env);
-Ty_fieldList transA_Fl2Tyfl(FILE* out, A_formalList fl);
-void transA_MethodDeclClassMethods(FILE* out, A_methodDecl md);
-
-void transA_FormalList(FILE* out, A_formalList fl);
-void transA_Formal(FILE* out, A_formal f);
-
-void transA_MainMethod(FILE* out, A_mainMethod m);
-
-void transA_VarDeclListCenvInit(FILE* out, A_varDeclList vdl, S_table env);
-void transA_VarDeclListClassVars(FILE* out, A_varDeclList vdl);
-void transA_VarDeclListClassMethods(FILE* out, A_varDeclList vdl);
-void transA_VarDeclListMainMethod(FILE* out, A_varDeclList vdl);
-
-void transA_VarDeclCenvInit(FILE* out, A_varDecl vd, S_table env);
-void transA_VarDeclClassVars(FILE* out, A_varDecl vd);
-void transA_VarDeclClassMethods(FILE* out, A_varDecl vd);
-void transA_VarDeclMainMethod(FILE* out, A_varDecl vd);
-
-void transA_StmList(FILE* out, A_stmList sl);
-void transA_Stm(FILE* out, A_stm s);
-
-void transA_NestedStm(FILE* out, A_stm s);
-void transA_IfStm(FILE* out, A_stm s);
-void transA_WhileStm(FILE* out, A_stm s);
-void transA_AssignStm(FILE* out, A_stm s);
-void transA_ArrayInit(FILE* out, A_stm s);
-void transA_CallStm(FILE* out, A_stm s);
-void transA_Continue(FILE* out, A_stm s);
-void transA_Break(FILE* out, A_stm s);
-void transA_Return(FILE* out, A_stm s);
-void transA_Putnum(FILE* out, A_stm s);
-void transA_Putarray(FILE* out, A_stm s);
-void transA_Putch(FILE* out, A_stm s);
-
-void transA_ArrayInitExpList(FILE* out, A_expList el);
-void transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl);
-
-expty transA_Exp(FILE* out, A_exp e);
-expty transA_OpExp(FILE* out, A_exp e);
-expty transA_ArrayExp(FILE* out, A_exp e);
-expty transA_CallExp(FILE* out, A_exp e);
-expty transA_ClassVarExp(FILE* out, A_exp e);
-expty transA_BoolConst(FILE* out, A_exp e);
-expty transA_NumConst(FILE* out, A_exp e);
-expty transA_IdExp(FILE* out, A_exp e);
-expty transA_ThisExp(FILE* out, A_exp e);
-expty transA_LengthExp(FILE* out, A_exp e);
-expty transA_NewIntArrExp(FILE* out, A_exp e);
-expty transA_NewFloatArrExp(FILE* out, A_exp e);
-expty transA_NewObjExp(FILE* out, A_exp e);
-expty transA_NotExp(FILE* out, A_exp e);
-expty transA_MinusExp(FILE* out, A_exp e);
-expty transA_EscExp(FILE* out, A_exp e);
-expty transA_Getnum(FILE* out, A_exp e);
-expty transA_Getch(FILE* out, A_exp e);
-expty transA_Getarray(FILE* out, A_exp e);
-
-bool equalClassMethSignature(E_enventry fa, E_enventry cur);
-bool equalTy(Ty_ty fa, Ty_ty cur);
-bool equalTyCast(Ty_ty param, Ty_ty arg);
-bool isParentClass(Ty_ty left, Ty_ty right);
-Ty_ty atype2tyty(A_type t);
-Ty_field f2tyf(A_formal f);
-string ty2str(Ty_ty t);
-A_varDecl f2vd(A_formal f);
 
 void transError(FILE* out, A_pos pos, string msg) {
   fprintf(out, "(line:%d col:%d) %s\n", pos->line, pos->pos, msg);
@@ -130,56 +44,45 @@ void transA_Prog(FILE* out, A_prog p) {
   MAIN_CLASS = S_Symbol(String("0Main"));
 
   if (p->cdl) {
-    transA_ClassDeclList(out, p->cdl);
+    transPreprocess(out, p->cdl);
   }
 
-  if (p->m) {
-    transA_MainMethod(out, p->m);
-  } else {
+  if (!(p->m)) {
     transError(out, p->pos, String("error: there's no main class"));
   }
+
+  transSemant(out, p->cdl, p->m);
 }
 
-void transA_ClassDeclList(FILE* out, A_classDeclList cdl) {
+void transPreprocess(FILE* out, A_classDeclList cdl) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassDeclList...\n");
-#endif
-  if (!cdl) return;
-
-  transA_ClassDeclListPreprocess(out, cdl);
-
-  transA_ClassDeclListTypeChecking(out, cdl);
-}
-
-void transA_ClassDeclListPreprocess(FILE* out, A_classDeclList cdl) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassDeclListPreprocess...\n");
+  fprintf(out, "Entering transPreprocess...\n");
 #endif
   if (!cdl) return;
 
   // first pass: record class names and inheritance
-  transA_ClassDeclListCenvInit(out, cdl);
+  transA_ClassDeclList_basic(out, cdl);
 
   // second pass: detect cycles in inheritance
-  transA_ClassDeclListCycleDetect(out, cdl);
+  transA_ClassDeclList_extend(out, cdl);
 }
 
-void transA_ClassDeclListCenvInit(FILE* out, A_classDeclList cdl) {
+void transA_ClassDeclList_basic(FILE* out, A_classDeclList cdl) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassDeclListCenvInit...\n");
+  fprintf(out, "Entering transA_ClassDeclList_basic...\n");
 #endif
   if (!cdl) return;
 
-  transA_ClassDeclCenvInit(out, cdl->head);
+  transA_ClassDecl_basic(out, cdl->head);
 
   if (cdl->tail) {
-    transA_ClassDeclListCenvInit(out, cdl->tail);
+    transA_ClassDeclList_basic(out, cdl->tail);
   }
 }
 
-void transA_ClassDeclCenvInit(FILE* out, A_classDecl cd) {
+void transA_ClassDecl_basic(FILE* out, A_classDecl cd) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassDeclCenvInit with class %s...\n", cd->id);
+  fprintf(out, "Entering transA_ClassDecl_basic with class %s...\n", cd->id);
 #endif
   if (!cd) return;
 
@@ -193,37 +96,158 @@ void transA_ClassDeclCenvInit(FILE* out, A_classDecl cd) {
 
   // init class variables
   S_table vtbl = S_empty();
-  transA_VarDeclListCenvInit(out, cd->vdl, vtbl);
+  transA_ClassVarDeclList_basic(out, vtbl, cd->vdl);
 
   // init class methods
   S_table mtbl = S_empty();
-  transA_MethodDeclListCenvInit(out, cd->mdl, mtbl);
+  transA_MethodDeclList_basic(out, mtbl, cd->mdl);
 
   S_enter(cenv, S_Symbol(cd->id),
           E_ClassEntry(cd, fa, E_transInit, vtbl, mtbl));
 }
 
-void transA_ClassDeclListCycleDetect(FILE* out, A_classDeclList cdl) {
+void transA_ClassVarDeclList_basic(FILE* out, S_table vtbl, A_varDeclList vdl) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassDeclListCycleDetect...\n");
+  fprintf(out, "Entering transA_ClassVarDeclList_basic...\n");
+#endif
+  if (!vdl) return;
+
+  transA_ClassVarDecl_basic(out, vtbl, vdl->head);
+
+  if (vdl->tail) {
+    transA_ClassVarDeclList_basic(out, vtbl, vdl->tail);
+  }
+}
+
+void transA_ClassVarDecl_basic(FILE* out, S_table vtbl, A_varDecl vd) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassVarDecl_basic...\n");
+#endif
+  if (!vd) return;
+
+  // check if the variable is already declared
+  if (S_look(vtbl, S_Symbol(vd->v)) != NULL) {
+    transError(
+        out, vd->pos,
+        Stringf("error: variable already declared in class %s", curClassId));
+  }
+
+  // enter the variable into the environment
+  switch (vd->t->t) {
+    case A_intType: {
+      S_enter(vtbl, S_Symbol(vd->v), E_VarEntry(vd, Ty_Int()));
+      break;
+    }
+    case A_floatType: {
+      S_enter(vtbl, S_Symbol(vd->v), E_VarEntry(vd, Ty_Float()));
+      break;
+    }
+    case A_intArrType: {
+      S_enter(vtbl, S_Symbol(vd->v), E_VarEntry(vd, Ty_Array(Ty_Int())));
+      break;
+    }
+    case A_floatArrType: {
+      S_enter(vtbl, S_Symbol(vd->v), E_VarEntry(vd, Ty_Array(Ty_Float())));
+      break;
+    }
+    case A_idType: {
+      S_enter(vtbl, S_Symbol(vd->v),
+              E_VarEntry(vd, Ty_Name(S_Symbol(vd->t->id))));
+      break;
+    }
+  }
+}
+
+void transA_MethodDeclList_basic(FILE* out, S_table mtbl,
+                                 A_methodDeclList mdl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_MethodDeclList_basic...\n");
+#endif
+  if (!mdl) return;
+
+  transA_MethodDecl_basic(out, mtbl, mdl->head);
+
+  if (mdl->tail) {
+    transA_MethodDeclList_basic(out, mtbl, mdl->tail);
+  }
+}
+
+void transA_MethodDecl_basic(FILE* out, S_table mtbl, A_methodDecl md) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_MethodDecl_basic...\n");
+#endif
+  if (!md) return;
+
+  // check if the method is already declared
+  if (S_look(mtbl, S_Symbol(md->id))) {
+    transError(
+        out, md->pos,
+        Stringf("error: method already declared in class %s", curClassId));
+  }
+
+  curMethodId = md->id;
+
+  // get return type
+  Ty_ty ret = atype2tyty(md->t);
+
+  // get formal list and check if there's redefined variables
+  S_beginScope(venv);
+  Ty_fieldList fl = transA_FormalList_basic(out, md->fl);
+  S_endScope(venv);
+
+  // enter the method into the environment
+  S_enter(mtbl, S_Symbol(md->id),
+          E_MethodEntry(md, S_Symbol(curClassId), ret, fl));
+}
+
+Ty_fieldList transA_FormalList_basic(FILE* out, A_formalList fl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_FormalList_basic...\n");
+#endif
+  if (!fl) return NULL;
+
+  return Ty_FieldList(transA_Formal_basic(out, fl->head),
+                      transA_FormalList_basic(out, fl->tail));
+}
+
+Ty_field transA_Formal_basic(FILE* out, A_formal f) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Formal_basic with (line:%d col:%d)...\n",
+          f->pos->line, f->pos->pos);
+#endif
+  if (!f) return NULL;
+
+  E_enventry var = S_look(venv, S_Symbol(f->id));
+  if (var) {
+    transError(out, f->pos,
+               Stringf("error: formal redefined in method %s, class %s",
+                       curMethodId, curClassId));
+  }
+  S_enter(venv, S_Symbol(f->id), E_VarEntry(f2vd(f), atype2tyty(f->t)));
+
+  return f2tyf(f);
+}
+
+void transA_ClassDeclList_extend(FILE* out, A_classDeclList cdl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassDeclList_extend...\n");
 #endif
   if (!cdl) return;
 
   E_enventry ce = S_look(cenv, S_Symbol(cdl->head->id));
   if (ce->u.cls.status == E_transInit) {
     curClassId = cdl->head->id;
-    transA_ClassDeclCycleDetect(out, cdl->head);
+    transA_ClassDecl_extend(out, cdl->head);
   }
 
   if (cdl->tail) {
-    transA_ClassDeclListCycleDetect(out, cdl->tail);
+    transA_ClassDeclList_extend(out, cdl->tail);
   }
 }
 
-void transA_ClassDeclCycleDetect(FILE* out, A_classDecl cd) {
+void transA_ClassDecl_extend(FILE* out, A_classDecl cd) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassDeclCycleDetect with class %s...\n",
-          cd->id);
+  fprintf(out, "Entering transA_ClassDecl_extend with class %s...\n", cd->id);
 #endif
   if (!cd) return;
 
@@ -250,23 +274,22 @@ void transA_ClassDeclCycleDetect(FILE* out, A_classDecl cd) {
 
     // parent class is not processed yet, process it first
     if (fa->u.cls.status == E_transInit) {
-      transA_ClassDeclCycleDetect(out, fa->u.cls.cd);
+      transA_ClassDecl_extend(out, fa->u.cls.cd);
     }
 
     // copy parent class's vtbl and mtbl
     curClassId = cd->id;
-    transA_ClassVtblCopyFromFa(out, fa->u.cls.vtbl, ce->u.cls.vtbl);
-    transA_ClassMtblCopyFromFa(out, fa->u.cls.mtbl, ce->u.cls.mtbl);
+    transA_ClassVtbl_copy(out, fa->u.cls.vtbl, ce->u.cls.vtbl);
+    transA_ClassMtbl_copy(out, fa->u.cls.mtbl, ce->u.cls.mtbl);
   }
 
   // FILL: this class is processed
   ce->u.cls.status = E_transFill;
 }
 
-void transA_ClassVtblCopyFromFa(FILE* out, S_table fa, S_table cur) {
+void transA_ClassVtbl_copy(FILE* out, S_table fa, S_table cur) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassVtblCopyFromFa with class %s...\n",
-          curClassId);
+  fprintf(out, "Entering transA_ClassVtbl_copy with class %s...\n", curClassId);
 #endif
   int i;
   binder b;
@@ -284,10 +307,9 @@ void transA_ClassVtblCopyFromFa(FILE* out, S_table fa, S_table cur) {
   }
 }
 
-void transA_ClassMtblCopyFromFa(FILE* out, S_table fa, S_table cur) {
+void transA_ClassMtbl_copy(FILE* out, S_table fa, S_table cur) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassMtblCopyFromFa with class %s...\n",
-          curClassId);
+  fprintf(out, "Entering transA_ClassMtbl_copy with class %s...\n", curClassId);
 #endif
   int i;
   binder b;
@@ -309,126 +331,88 @@ void transA_ClassMtblCopyFromFa(FILE* out, S_table fa, S_table cur) {
   }
 }
 
-void transA_ClassDeclListTypeChecking(FILE* out, A_classDeclList cdl) {
+void transSemant(FILE* out, A_classDeclList cdl, A_mainMethod m) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassDeclListTypeChecking...\n");
+  fprintf(out, "Entering transSemant...\n");
+#endif
+  if (cdl) {
+    transA_ClassDeclList(out, cdl);
+  }
+
+  transA_MainMethod(out, m);
+}
+
+void transA_ClassDeclList(FILE* out, A_classDeclList cdl) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassDeclList...\n");
 #endif
   if (!cdl) return;
 
-  transA_ClassDeclTypeChecking(out, cdl->head);
+  transA_ClassDecl(out, cdl->head);
 
   if (cdl->tail) {
-    transA_ClassDeclListTypeChecking(out, cdl->tail);
+    transA_ClassDeclList(out, cdl->tail);
   }
 }
 
-void transA_ClassDeclTypeChecking(FILE* out, A_classDecl cd) {
+void transA_ClassDecl(FILE* out, A_classDecl cd) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassDeclTypeChecking with class %s...\n",
-          cd->id);
+  fprintf(out, "Entering transA_ClassDecl with class %s...\n", cd->id);
 #endif
   if (!cd) return;
 
   curClassId = cd->id;
   if (cd->vdl) {
-    transA_VarDeclListClassVars(out, cd->vdl);
+    transA_ClassVarDeclList(out, cd->vdl);
   }
   if (cd->mdl) {
-    transA_MethodDeclListClassMethods(out, cd->mdl);
+    transA_MethodDeclList(out, cd->mdl);
   }
 }
 
-void transA_ClassVtblCopyToVenv(FILE* out) {
+void transA_ClassVarDeclList(FILE* out, A_varDeclList vdl) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ClassVtblCopyToVenv...\n");
+  fprintf(out, "Entering transA_ClassVarDeclList...\n");
 #endif
-  E_enventry ce = S_look(cenv, S_Symbol(curClassId));
-  if (!ce) return;
-  S_table vtbl = ce->u.cls.vtbl;
+  if (!vdl) return;
 
-  int i;
-  binder b;
-  for (i = 0; i < TABSIZE; i++) {
-    for (b = vtbl->table[i]; b; b = b->next) {
-      TAB_enter(venv, b->key, b->value);
+  transA_ClassVarDecl(out, vdl->head);
+
+  if (vdl->tail) {
+    transA_ClassVarDeclList(out, vdl->tail);
+  }
+}
+
+void transA_ClassVarDecl(FILE* out, A_varDecl vd) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassVarDecl...\n");
+#endif
+  if (!vd) return;
+
+  if (vd->t->t == A_idType) {
+    E_enventry x = S_look(cenv, S_Symbol(vd->t->id));
+    if (!x) {
+      transError(out, vd->pos, String("error: variable type not declared"));
     }
   }
 }
 
-void transA_MethodDeclListCenvInit(FILE* out, A_methodDeclList mdl,
-                                   S_table env) {
+void transA_MethodDeclList(FILE* out, A_methodDeclList mdl) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_MethodDeclListCenvInit...\n");
+  fprintf(out, "Entering transA_MethodDeclList...\n");
 #endif
   if (!mdl) return;
 
-  transA_MethodDeclCenvInit(out, mdl->head, env);
+  transA_MethodDecl(out, mdl->head);
 
   if (mdl->tail) {
-    transA_MethodDeclListCenvInit(out, mdl->tail, env);
+    transA_MethodDeclList(out, mdl->tail);
   }
 }
 
-void transA_MethodDeclListClassMethods(FILE* out, A_methodDeclList mdl) {
+void transA_MethodDecl(FILE* out, A_methodDecl md) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_MethodDeclListClassMethods...\n");
-#endif
-  if (!mdl) return;
-
-  transA_MethodDeclClassMethods(out, mdl->head);
-
-  if (mdl->tail) {
-    transA_MethodDeclListClassMethods(out, mdl->tail);
-  }
-}
-
-void transA_MethodDeclCenvInit(FILE* out, A_methodDecl md, S_table env) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_MethodDeclCenvInit...\n");
-#endif
-  if (!md) return;
-
-  // check if the method is already declared
-  if (S_look(env, S_Symbol(md->id))) {
-    transError(
-        out, md->pos,
-        Stringf("error: method already declared in class %s", curClassId));
-  }
-
-  curMethodId = md->id;
-
-  // enter the method into the environment
-  Ty_ty ret = atype2tyty(md->t);
-
-  S_beginScope(venv);
-  Ty_fieldList fl = transA_Fl2Tyfl(out, md->fl);
-  S_endScope(venv);
-
-  S_enter(env, S_Symbol(md->id),
-          E_MethodEntry(md, S_Symbol(curClassId), ret, fl));
-}
-
-Ty_fieldList transA_Fl2Tyfl(FILE* out, A_formalList fl) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_Fl2Tyfl...\n");
-#endif
-  if (!fl) return NULL;
-
-  E_enventry var = S_look(venv, S_Symbol(fl->head->id));
-  if (var) {
-    transError(out, var->u.var.vd->pos,
-               Stringf("error: formal redefined in method %s, class %s",
-                       curMethodId, curClassId));
-  }
-  S_enter(venv, S_Symbol(fl->head->id),
-          E_VarEntry(f2vd(fl->head), atype2tyty(fl->head->t)));
-
-  return Ty_FieldList(f2tyf(fl->head), transA_Fl2Tyfl(out, fl->tail));
-}
-
-void transA_MethodDeclClassMethods(FILE* out, A_methodDecl md) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_MethodDeclClassMethods...\n");
+  fprintf(out, "Entering transA_MethodDecl...\n");
 #endif
   if (!md) return;
 
@@ -454,7 +438,7 @@ void transA_MethodDeclClassMethods(FILE* out, A_methodDecl md) {
 
   // check if the declared variables are valid
   if (md->vdl) {
-    transA_VarDeclListClassMethods(out, md->vdl);
+    transA_VarDeclList(out, md->vdl);
   }
 
   // check if the statements are valid
@@ -522,7 +506,7 @@ void transA_MainMethod(FILE* out, A_mainMethod m) {
   curClassId = S_name(MAIN_CLASS);
 
   if (m->vdl) {
-    transA_VarDeclListMainMethod(out, m->vdl);
+    transA_VarDeclList(out, m->vdl);
   }
   if (m->sl) {
     transA_StmList(out, m->sl);
@@ -530,163 +514,36 @@ void transA_MainMethod(FILE* out, A_mainMethod m) {
   S_endScope(venv);
 }
 
-void transA_VarDeclListCenvInit(FILE* out, A_varDeclList vdl, S_table env) {
+void transA_VarDeclList(FILE* out, A_varDeclList vdl) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_VarDeclListCenvInit...\n");
+  fprintf(out, "Entering transA_VarDeclList...\n");
 #endif
   if (!vdl) return;
 
-  transA_VarDeclCenvInit(out, vdl->head, env);
+  transA_VarDecl(out, vdl->head);
 
   if (vdl->tail) {
-    transA_VarDeclListCenvInit(out, vdl->tail, env);
+    transA_VarDeclList(out, vdl->tail);
   }
 }
 
-void transA_VarDeclListClassVars(FILE* out, A_varDeclList vdl) {
+void transA_VarDecl(FILE* out, A_varDecl vd) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_VarDeclListClassVars...\n");
-#endif
-  if (!vdl) return;
-
-  transA_VarDeclClassVars(out, vdl->head);
-
-  if (vdl->tail) {
-    transA_VarDeclListClassVars(out, vdl->tail);
-  }
-}
-
-void transA_VarDeclListClassMethods(FILE* out, A_varDeclList vdl) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_VarDeclListClassMethods...\n");
-#endif
-  if (!vdl) return;
-
-  transA_VarDeclClassMethods(out, vdl->head);
-
-  if (vdl->tail) {
-    transA_VarDeclListClassMethods(out, vdl->tail);
-  }
-}
-
-void transA_VarDeclListMainMethod(FILE* out, A_varDeclList vdl) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_VarDeclListMainMethod...\n");
-#endif
-  if (!vdl) return;
-
-  transA_VarDeclMainMethod(out, vdl->head);
-
-  if (vdl->tail) {
-    transA_VarDeclListMainMethod(out, vdl->tail);
-  }
-}
-
-void transA_VarDeclCenvInit(FILE* out, A_varDecl vd, S_table env) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_VarDeclCenvInit...\n");
-#endif
-  if (!vd) return;
-
-  // check if the variable is already declared
-  if (S_look(env, S_Symbol(vd->v)) != NULL) {
-    transError(
-        out, vd->pos,
-        Stringf("error: variable already declared in class %s", curClassId));
-  }
-
-  // enter the variable into the environment
-  switch (vd->t->t) {
-    case A_intType: {
-      S_enter(env, S_Symbol(vd->v), E_VarEntry(vd, Ty_Int()));
-      break;
-    }
-    case A_floatType: {
-      S_enter(env, S_Symbol(vd->v), E_VarEntry(vd, Ty_Float()));
-      break;
-    }
-    case A_intArrType: {
-      S_enter(env, S_Symbol(vd->v), E_VarEntry(vd, Ty_Array(Ty_Int())));
-      break;
-    }
-    case A_floatArrType: {
-      S_enter(env, S_Symbol(vd->v), E_VarEntry(vd, Ty_Array(Ty_Float())));
-      break;
-    }
-    case A_idType: {
-      S_enter(env, S_Symbol(vd->v),
-              E_VarEntry(vd, Ty_Name(S_Symbol(vd->t->id))));
-      break;
-    }
-  }
-}
-
-void transA_VarDeclClassVars(FILE* out, A_varDecl vd) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_VarDeclClassVars...\n");
-#endif
-  if (!vd) return;
-
-  if (vd->t->t == A_idType) {
-    E_enventry x = S_look(cenv, S_Symbol(vd->t->id));
-    if (!x) {
-      transError(out, vd->pos, String("error: variable type not declared"));
-    }
-  }
-}
-
-void transA_VarDeclClassMethods(FILE* out, A_varDecl vd) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_VarDeclClassMethods...\n");
+  fprintf(out, "Entering transA_VarDecl...\n");
 #endif
   if (!vd) return;
 
   // check if the variable is already declared
   if (S_look(venv, S_Symbol(vd->v)) != NULL) {
-    transError(
-        out, vd->pos,
-        Stringf("error: variable already declared in method %s, class %s",
-                curClassId, curMethodId));
-  }
-
-  // enter the variable into the environment
-  switch (vd->t->t) {
-    case A_intType: {
-      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Int()));
-      break;
+    if (MAIN_CLASS == S_Symbol(curClassId)) {
+      transError(out, vd->pos,
+                 String("error: variable already declared in main method"));
+    } else {
+      transError(
+          out, vd->pos,
+          Stringf("error: variable already declared in method %s, class %s",
+                  curClassId, curMethodId));
     }
-    case A_floatType: {
-      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Float()));
-      break;
-    }
-    case A_intArrType: {
-      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Array(Ty_Int())));
-      break;
-    }
-    case A_floatArrType: {
-      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Array(Ty_Float())));
-      break;
-    }
-    case A_idType: {
-      if (!S_look(cenv, S_Symbol(vd->t->id))) {
-        transError(out, vd->pos, String("error: variable type not declared"));
-      }
-      S_enter(venv, S_Symbol(vd->v),
-              E_VarEntry(vd, Ty_Name(S_Symbol(vd->t->id))));
-      break;
-    }
-  }
-}
-
-void transA_VarDeclMainMethod(FILE* out, A_varDecl vd) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_VarDeclMainMethod...\n");
-#endif
-
-  // check if the variable is already declared
-  if (S_look(venv, S_Symbol(vd->v)) != NULL) {
-    transError(out, vd->pos,
-               String("error: variable already declared in main method"));
   }
 
   // enter the variable into the environment
@@ -771,8 +628,14 @@ void transA_Stm(FILE* out, A_stm s) {
     case A_putarray:
       transA_Putarray(out, s);
       break;
+    case A_starttime:
+      transA_Starttime(out, s);
+      break;
+    case A_stoptime:
+      transA_Stoptime(out, s);
+      break;
     default:
-      return;  // unreachable
+      break;  // unreachable
   }
 }
 
@@ -940,44 +803,11 @@ void transA_CallStm(FILE* out, A_stm s) {
   E_enventry me = S_look(mtbl, S_Symbol(s->u.call_stat.fun));
   if (!me) {
     transError(out, s->pos,
-               Stringf("error: class %s has no method %s", ty->ty->u.name,
-                       s->u.call_stat.fun));
+               Stringf("error: class %s has no method %s",
+                       S_name(ty->ty->u.name), s->u.call_stat.fun));
   }
 
-  transA_CallExpList(out, s->u.call_stat.el, me->u.meth.fl);
-}
-
-void transA_CallExpList(FILE* out, A_expList el, Ty_fieldList fl) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transA_CallExpList...\n");
-#endif
-  A_expList curEl = el;
-  Ty_fieldList curFl = fl;
-
-  while (curEl && curFl) {
-    expty ty = transA_Exp(out, curEl->head);
-    if (!ty) {
-      transError(out, curEl->head->pos,
-                 String("error: method call argument is invalid"));
-    }
-    if (!equalTyCast(curFl->head->ty, ty->ty)) {
-      transError(out, curEl->head->pos,
-                 Stringf("error: method call argument types do not match, "
-                         "expected '%s', got '%s'",
-                         ty2str(curFl->head->ty), ty2str(ty->ty)));
-    }
-    curEl = curEl->tail;
-    curFl = curFl->tail;
-  }
-
-  if (curEl) {
-    transError(out, curEl->head->pos,
-               String("error: too many arguments in method call"));
-  }
-  if (curFl) {
-    transError(out, el->head->pos,
-               String("error: too few arguments in method call"));
-  }
+  transA_ExpList_Call(out, me->u.meth.fl, s->u.call_stat.el, s->pos);
 }
 
 void transA_Continue(FILE* out, A_stm s) {
@@ -1081,6 +911,56 @@ void transA_Putarray(FILE* out, A_stm s) {
     transError(
         out, s->pos,
         String("error: second argument of putarray() must be of type array"));
+  }
+}
+
+void transA_Starttime(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Starttime...\n");
+#endif
+  if (!s) return;
+  // do nothing
+}
+
+void transA_Stoptime(FILE* out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Stoptime...\n");
+#endif
+  if (!s) return;
+  // do nothing
+}
+
+void transA_ExpList_Call(FILE* out, Ty_fieldList fl, A_expList el, A_pos pos) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ExpList_Call...\n");
+#endif
+  if (!fl && !el) return;
+  if (!fl) {
+    transError(out, pos, String("error: too many arguments in method call"));
+  }
+  if (!el) {
+    transError(out, pos, String("error: too few arguments in method call"));
+  }
+
+  // check if the types match
+  transA_Exp_Call(out, fl->head, el->head);
+
+  transA_ExpList_Call(out, fl->tail, el->tail, pos);
+}
+
+void transA_Exp_Call(FILE* out, Ty_field f, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ExpList_Call...\n");
+#endif
+  expty ty = transA_Exp(out, e);
+  if (!ty) {
+    transError(out, e->pos, String("error: method call argument is invalid"));
+  }
+  if (!equalTyCast(f->ty, ty->ty)) {
+    transError(out, e->pos,
+               Stringf("error: method call argument types do not match, "
+                       "expected '%s', got '%s'",
+                       ty2str(f->ty), ty2str(ty->ty)));
   }
 }
 
@@ -1227,7 +1107,7 @@ expty transA_CallExp(FILE* out, A_exp e) {
                        S_name(ty->ty->u.name), e->u.call.fun));
   }
 
-  transA_CallExpList(out, e->u.call.el, me->u.meth.fl);
+  transA_ExpList_Call(out, me->u.meth.fl, e->u.call.el, e->pos);
 
   return Expty(FALSE, me->u.meth.ret);
 }
@@ -1561,4 +1441,13 @@ A_varDecl f2vd(A_formal f) {
   if (!f) return NULL;
 
   return A_VarDecl(f->pos, f->t, f->id, NULL);
+}
+
+static char buf[IR_MAXLEN];
+string Stringf(char *fmt, ...) {
+  va_list argp;
+  va_start(argp, fmt);
+  vsnprintf(buf, IR_MAXLEN, fmt, argp);
+  va_end(argp);
+  return String(buf);
 }
