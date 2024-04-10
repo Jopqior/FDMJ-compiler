@@ -308,7 +308,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
     indent(out, d);
     switch (format) {
       case IRP_parentheses:
-        fprintf(out, ")");
+        fprintf(out, ", %s)", getT_type(exp->type));
         break;
       case IRP_xml:
         fprintf(out, "</Mem>\n");
@@ -397,7 +397,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
     if (format==IRP_parentheses) fprintf(out, "\n");
     else fprintf(out, "</args>\n");
     indent(out, d);
-    if (format==IRP_parentheses) fprintf(out, ")");
+    if (format==IRP_parentheses) fprintf(out, ", %s)", getT_type(exp->type));
     else fprintf(out, "<ret_type>%s</ret_type>\n</Call>\n", getT_type(exp->type));
   }
   break;
