@@ -1,0 +1,11 @@
+// test length
+public int main() {
+    int[] a = {2,3,3};
+    int len;
+    putnum(length(a));
+    a = new int[5];
+    putnum(length(a));
+    len = getarray(a);
+    if (len != length(a))
+        putch(a[0]);
+}

@@ -50,7 +50,7 @@ Prog -> MainMethod ClassDeclList
 
 - FDMJ2024新类型：float（FDMJ2023只有int类型）
   - 复制所有int相关的语法规则将int改为float（public int main除外）
-  - 将putint与getint改为putnum与getnum，这样方便编写FDMJ程序，无需考虑输入输出的是什么类型，等到之后类型检查时再决定用libsysy里的putint还是putfloat等等
+  - 将putint与getint改为putnum与getnum，这样方便编写FDMJ程序。putnum无需考虑输出的是什么类型，等到之后类型检查时再决定用libsysy里的putint还是putfloat等等；getnum由于无法判断时int还是float，因此遇到诸如new int[getnum()]时在翻译时要加一个到int的cast。
   - 无需修改Const区分int还是float，因为在数组的初始化时，可能会遇到整型和浮点型混合的情况，此时需要隐式类型转换，得等到之后类型检查时处理，所以前期没法分得太清楚，只能都存到float里边去之后处理
 
 ## Overall Structure

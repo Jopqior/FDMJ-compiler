@@ -1,0 +1,5 @@
+// test eseq
+public int main() {
+    int a=2;
+    a = 100*({putnum(a+1);}({putch(a-1);}getnum())); 
+}
