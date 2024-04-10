@@ -127,13 +127,11 @@ clean_external:
 	
 SHELL:=/bin/bash
 
-test_external: clean build clean_external
+test_external: build clean_external
 	@mkdir -p $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/tools
 	@mkdir -p $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/yours
 	@mkdir -p $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/correct
-	@cp $(MAIN_EXE) $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/tools/main
-	@cp $(ASTCHECK) $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/tools/std
-	@cd $(TESTFILE_EXTERNAL_DIR);pwd; \
+	@cd $(TESTFILE_EXTERNAL_DIR); \
 	$(RANDOM_CODE_GEN) \
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
