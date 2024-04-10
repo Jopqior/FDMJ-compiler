@@ -79,7 +79,7 @@ void transA_Starttime(FILE* out, A_stm s);
 void transA_Stoptime(FILE* out, A_stm s);
 
 // exps
-void transA_ArrayInitExpList(FILE* out, A_expList el);
+void transA_ExpList_ArrayInit(FILE* out, A_expList el);
 void transA_ExpList_Call(FILE* out, Ty_fieldList fl, A_expList el, A_pos pos);
 void transA_Exp_Call(FILE* out, Ty_field f, A_exp e);
 expty transA_Exp(FILE* out, A_exp e);

@@ -763,12 +763,12 @@ void transA_ArrayInit(FILE* out, A_stm s) {
         String("error: left side of array initialization must be an array"));
   }
 
-  transA_ArrayInitExpList(out, s->u.array_init.init_values);
+  transA_ExpList_ArrayInit(out, s->u.array_init.init_values);
 }
 
-void transA_ArrayInitExpList(FILE* out, A_expList el) {
+void transA_ExpList_ArrayInit(FILE* out, A_expList el) {
 #ifdef __DEBUG
-  fprintf(out, "Entering transA_ArrayInitExpList...\n");
+  fprintf(out, "Entering transA_ExpList_ArrayInit...\n");
 #endif
   if (!el) return;
 
@@ -781,7 +781,7 @@ void transA_ArrayInitExpList(FILE* out, A_expList el) {
   }
 
   if (el->tail) {
-    transA_ArrayInitExpList(out, el->tail);
+    transA_ExpList_ArrayInit(out, el->tail);
   }
 }
 
