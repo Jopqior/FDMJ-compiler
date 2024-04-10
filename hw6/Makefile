@@ -90,7 +90,7 @@ ifdef RANDOM
 endif
 
 ifeq ($(RUN_RANDOM_CODE_GEN), 1)
-    RANDOM_CODE_GEN := python3 randomCodeGen_v2.py;
+    RANDOM_CODE_GEN := python3 ../randomCodeGen_v2.py;
 endif
 
 # 如果在命令行中传递了 CHECK，则设置使用的检查脚本
