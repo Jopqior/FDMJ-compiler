@@ -12,7 +12,7 @@ A_prog root;
 
 int main(int argc, const char * argv[]) {
   if (argc != 2) {
-    fprintf(stdout, "Usage: %s ASTXMLFilename\n", argv[0]);
+    fprintf(stdout, "Usage: %s fmjFilename\n", argv[0]);
     return 1;
   }
 
@@ -20,7 +20,7 @@ int main(int argc, const char * argv[]) {
   string file = checked_malloc(IR_MAXLEN);
   sprintf(file, "%s", argv[1]);
   string file_ast = checked_malloc(IR_MAXLEN);
-  sprintf(file_ast, "%s.astxml", file);
+  sprintf(file_ast, "%s.2.ast", file);
   string file_irp = checked_malloc(IR_MAXLEN);
   sprintf(file_irp, "%s.3.irp", file);
   string file_stm = checked_malloc(IR_MAXLEN);

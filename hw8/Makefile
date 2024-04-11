@@ -22,6 +22,7 @@ clean:
 	@find $(TEST_DIR) -type f \( \
 		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
 		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
+		-o -name "*.stm" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean
@@ -32,8 +33,9 @@ rebuild: veryclean build
 test: clean
 	@cd $(TEST_DIR); \
 	for file in $$(ls .); do \
-		if [ "$${file##*.}" = "astxml" ]; then \
+		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}"; \
 			$(MAIN_EXE) "$${file%%.*}"; \
 		fi \
 	done; \
