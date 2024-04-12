@@ -291,19 +291,22 @@ void transA_ClassVtbl_copy(FILE* out, S_table fa, S_table cur) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_ClassVtbl_copy with class %s...\n", curClassId);
 #endif
-  int i;
+  void *top;
   binder b;
-  for (i = 0; i < TABSIZE; i++) {
-    for (b = fa->table[i]; b; b = b->next) {
-      E_enventry var = TAB_look(cur, b->key);
-      if (var != NULL) {
-        transError(out, var->u.var.vd->pos,
-                   Stringf("error: class %s has duplicate variable names with "
-                           "parent class",
-                           curClassId));
-      }
-      TAB_enter(cur, b->key, b->value);
+
+  top = fa->top;
+  while (top) {
+    b = TAB_getBinder(fa, top);
+    E_enventry var = TAB_look(cur, b->key);
+    if (var) {
+      transError(out, var->u.var.vd->pos,
+                 Stringf("error: class %s has duplicate variable names with "
+                         "parent class",
+                         curClassId));
     }
+    TAB_enter(cur, b->key, b->value);
+
+    top = b->prevtop;
   }
 }
 
@@ -311,23 +314,27 @@ void transA_ClassMtbl_copy(FILE* out, S_table fa, S_table cur) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_ClassMtbl_copy with class %s...\n", curClassId);
 #endif
-  int i;
+  void *top;
   binder b;
-  for (i = 0; i < TABSIZE; i++) {
-    for (b = fa->table[i]; b; b = b->next) {
-      E_enventry meth = TAB_look(cur, b->key);
-      if (meth != NULL) {
-        // check if signatures are equal
-        E_enventry fa_meth = b->value;
-        if (!equalClassMethSignature(fa_meth, meth)) {
-          transError(out, meth->u.meth.md->pos,
-                     Stringf("error: class %s has method %s with different "
-                             "signature with parent class",
-                             curClassId, meth->u.meth.md->id));
-        }
+
+  top = fa->top;
+  while (top) {
+    b = TAB_getBinder(fa, top);
+    E_enventry meth = TAB_look(cur, b->key);
+    if (meth) {
+      // check if signatures are equal
+      E_enventry fa_meth = b->value;
+      if (!equalClassMethSignature(fa_meth, meth)) {
+        transError(out, meth->u.meth.md->pos,
+                   Stringf("error: class %s has method %s with different "
+                           "signature with parent class",
+                           curClassId, meth->u.meth.md->id));
       }
+    } else {
       TAB_enter(cur, b->key, b->value);
     }
+
+    top = b->prevtop;
   }
 }
 
