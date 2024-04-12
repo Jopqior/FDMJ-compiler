@@ -1,5 +1,0 @@
-// test true/false
-public int main() {
-    if(true||({putnum(23);}false))
-        while(false&&true);
-}

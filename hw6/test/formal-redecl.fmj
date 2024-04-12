@@ -1,0 +1,6 @@
+public int main() {}
+
+public class A {
+    public int m(int b, int a, float a) {
+    }
+}
