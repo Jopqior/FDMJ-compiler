@@ -1,7 +1,7 @@
 #include "semant.h"
 
-#include <stdlib.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #include "symbol.h"
 #include "table.h"
@@ -291,7 +291,7 @@ void transA_ClassVtbl_copy(FILE* out, S_table fa, S_table cur) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_ClassVtbl_copy with class %s...\n", curClassId);
 #endif
-  void *top;
+  void* top;
   binder b;
 
   top = fa->top;
@@ -314,7 +314,7 @@ void transA_ClassMtbl_copy(FILE* out, S_table fa, S_table cur) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_ClassMtbl_copy with class %s...\n", curClassId);
 #endif
-  void *top;
+  void* top;
   binder b;
 
   top = fa->top;
@@ -714,40 +714,11 @@ void transA_AssignStm(FILE* out, A_stm s) {
   expty right = transA_Exp(out, s->u.assign.value);
   if (!right) return;
   // check if the types match
-  if ((left->ty->kind == Ty_int || left->ty->kind == Ty_float) &&
-      (right->ty->kind != Ty_int && right->ty->kind != Ty_float)) {
-    if (left->ty->kind == Ty_int) {
-      transError(out, s->pos,
-                 String("error: right side of assignment must be of type int"));
-    } else {
-      transError(
-          out, s->pos,
-          String("error: right side of assignment must be of type float"));
-    }
-  }
-  if (left->ty->kind == Ty_array) {
-    if (right->ty->kind != Ty_array) {
-      transError(
-          out, s->pos,
-          String("error: right side of assignment must be of type array"));
-    }
-    if (left->ty->u.array->kind != right->ty->u.array->kind) {
-      transError(out, s->pos,
-                 String("error: array types must match in assignment"));
-    }
-  }
-  if (left->ty->kind == Ty_name) {
-    if (right->ty->kind != Ty_name) {
-      transError(
-          out, s->pos,
-          String("error: right side of assignment must be of type object"));
-    }
-    if (!isParentClass(left->ty, right->ty)) {
-      transError(out, s->pos,
-                 Stringf("error: object types do not match in assignment, "
-                         "right side expected '%s', got '%s'",
-                         ty2str(left->ty), ty2str(right->ty)));
-    }
+  if (!equalTyCast(left->ty, right->ty)) {
+    transError(
+        out, s->pos,
+        Stringf("error: right side of assignment expected '%s', got '%s'",
+                ty2str(left->ty), ty2str(right->ty)));
   }
 }
 
@@ -1451,7 +1422,7 @@ A_varDecl f2vd(A_formal f) {
 }
 
 static char buf[IR_MAXLEN];
-string Stringf(char *fmt, ...) {
+string Stringf(char* fmt, ...) {
   va_list argp;
   va_start(argp, fmt);
   vsnprintf(buf, IR_MAXLEN, fmt, argp);
