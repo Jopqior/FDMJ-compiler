@@ -1,6 +1,6 @@
 #include "translate.h"
 
-#define out stderr
+#define OUT stderr
 
 #define __DEBUG
 #undef __DEBUG
@@ -23,8 +23,7 @@ static patchList PatchList(Temp_label *head, patchList tail) {
 }
 
 void doPatch(patchList pl, Temp_label tl) {
-  for (; pl; pl = pl->tail)
-    *(pl->head) = tl;
+  for (; pl; pl = pl->tail) *(pl->head) = tl;
 }
 
 patchList joinPatch(patchList first, patchList second) {
@@ -47,7 +46,7 @@ struct Cx_ {
 };
 
 struct Tr_exp_ {
-  enum  {Tr_ex, Tr_nx, Tr_cx} kind;
+  enum { Tr_ex, Tr_nx, Tr_cx } kind;
   union {
     T_exp ex;
     T_stm nx;
@@ -82,61 +81,60 @@ static Tr_exp Tr_Cx(patchList trues, patchList falses, T_stm stm) {
 static T_exp unEx(Tr_exp exp) {
   if (!exp) return NULL;
   switch (exp->kind) {
-  case Tr_ex:
-    return exp->u.ex;
-  case Tr_cx: {
-    Temp_temp r = Temp_newtemp(T_int);
-    Temp_label t = Temp_newlabel();
-    Temp_label f = Temp_newlabel();
-    Temp_label e = Temp_newlabel();
-    doPatch(exp->u.cx->trues, t);
-    doPatch(exp->u.cx->falses, f);
-    return
-    T_Eseq(
-    T_Seq(exp->u.cx->stm,
-    T_Seq(T_Label(t),
-    T_Seq(T_Move(T_Temp(r), T_IntConst(1)),
-    T_Seq(T_Jump(e),
-    T_Seq(T_Label(f),
-    T_Seq(T_Move(T_Temp(r), T_IntConst(0)), 
-    T_Label(e))))))),
-    T_Temp(r));
-  }
-  case Tr_nx:
-    return T_Eseq(exp->u.nx, T_IntConst(0));
-  default:
-    assert(0);
+    case Tr_ex:
+      return exp->u.ex;
+    case Tr_cx: {
+      Temp_temp r = Temp_newtemp(T_int);
+      Temp_label t = Temp_newlabel();
+      Temp_label f = Temp_newlabel();
+      Temp_label e = Temp_newlabel();
+      doPatch(exp->u.cx->trues, t);
+      doPatch(exp->u.cx->falses, f);
+      return T_Eseq(
+          T_Seq(exp->u.cx->stm,
+                T_Seq(T_Label(t),
+                      T_Seq(T_Move(T_Temp(r), T_IntConst(1)),
+                            T_Seq(T_Jump(e),
+                                  T_Seq(T_Label(f),
+                                        T_Seq(T_Move(T_Temp(r), T_IntConst(0)),
+                                              T_Label(e))))))),
+          T_Temp(r));
+    }
+    case Tr_nx:
+      return T_Eseq(exp->u.nx, T_IntConst(0));
+    default:
+      assert(0);
   }
 }
 
 static T_stm unNx(Tr_exp exp) {
   if (!exp) return NULL;
   switch (exp->kind) {
-  case Tr_ex:
-    return T_Exp(exp->u.ex);
-  case Tr_cx: 
-    return exp->u.cx->stm;
-  case Tr_nx:
-    return exp->u.nx;
-  default:
-    assert(0);
+    case Tr_ex:
+      return T_Exp(exp->u.ex);
+    case Tr_cx:
+      return exp->u.cx->stm;
+    case Tr_nx:
+      return exp->u.nx;
+    default:
+      assert(0);
   }
 }
 
 static Cx unCx(Tr_exp exp) {
   if (!exp) return NULL;
   switch (exp->kind) {
-  case Tr_ex: {
-    T_stm stm = T_Cjump(T_ne, unEx(exp), T_IntConst(0), NULL, NULL);
-    patchList trues = PatchList(&stm->u.CJUMP.t, NULL);
-    patchList falses = PatchList(&stm->u.CJUMP.f, NULL);
-    Tr_exp cx = Tr_Cx(trues, falses, stm);
-    return cx->u.cx;
-  }
-  case Tr_cx:
-    return exp->u.cx;
-  default:
-    assert(0);
+    case Tr_ex: {
+      T_stm stm = T_Cjump(T_ne, unEx(exp), T_IntConst(0), NULL, NULL);
+      patchList trues = PatchList(&stm->u.CJUMP.t, NULL);
+      patchList falses = PatchList(&stm->u.CJUMP.f, NULL);
+      Tr_exp cx = Tr_Cx(trues, falses, stm);
+      return cx->u.cx;
+    }
+    case Tr_cx:
+      return exp->u.cx;
+    default:
+      assert(0);
   }
 }
 
@@ -150,7 +148,163 @@ struct Tr_expList_ {
 /* TODO: translate */
 
 // methods
+T_funcDeclList Tr_FuncDeclList(T_funcDecl fd, T_funcDeclList fdl) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_FuncDeclList...\n");
+#endif
+  if (!fd) {
+    return fdl;
+  }
+  return T_FuncDeclList(fd, fdl);
+}
+
+T_funcDecl Tr_MainMethod(Tr_exp vdl, Tr_exp sl) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_MainMethod...\n");
+#endif
+  return T_FuncDecl(String("main"), NULL, unNx(Tr_StmList(vdl, sl)));
+}
 
 // stms
+Tr_exp Tr_StmList(Tr_exp head, Tr_exp tail) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_StmList...\n");
+#endif
+  if (!head) {
+    return Tr_Nx(unNx(tail));
+  }
+  if (!tail) {
+    return Tr_Nx(unNx(head));
+  }
+  return Tr_Nx(T_Seq(unNx(head), unNx(tail)));
+}
+
+Tr_exp Tr_IfStm(Tr_exp test, Tr_exp then, Tr_exp elsee) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_IfStm...\n");
+#endif
+  /*
+  [1. then is NULL and elsee is NULL]
+      Cjump(T_ne, test, 0, e, e)
+    e:
+
+  [2. then is NULL and elsee is not NULL]
+      Cjump(T_ne, test, 0, e, f)
+    f:
+      elsee
+    e:
+
+  [3. then is not NULL and elsee is NULL]
+      Cjump(T_ne, test, 0, t, e)
+    t:
+      then
+    e:
+
+  [4. then is not NULL and elsee is not NULL]
+      Cjump(T_ne, test, 0, t, f)
+    t:
+      then
+      Jump(e)
+    f:
+      elsee
+    e:
+  */
+  if (!then && !elsee) {
+    Temp_label e = Temp_newlabel();
+
+    Cx cx = unCx(test);
+    doPatch(cx->trues, e);
+    doPatch(cx->falses, e);
+
+    return Tr_Nx(T_seq(cx->stm, T_Label(e)));
+  }
+
+  if (!then) {
+    Temp_label e = Temp_newlabel();
+    Temp_label f = Temp_newlabel();
+
+    Cx cx = unCx(test);
+    doPatch(cx->trues, e);
+    doPatch(cx->falses, f);
+
+    return Tr_Nx(
+        T_seq(cx->stm, T_Seq(T_Label(f), T_Seq(unNx(elsee), T_Label(e)))));
+  }
+
+  if (!elsee) {
+    Temp_label t = Temp_newlabel();
+    Temp_label e = Temp_newlabel();
+
+    Cx cx = unCx(test);
+    doPatch(cx->trues, t);
+    doPatch(cx->falses, e);
+
+    return Tr_Nx(
+        T_seq(cx->stm, T_Seq(T_Label(t), T_Seq(unNx(then), T_Label(e)))));
+  }
+
+  Temp_label t = Temp_newlabel();
+  Temp_label f = Temp_newlabel();
+  Temp_label e = Temp_newlabel();
+
+  Cx cx = unCx(test);
+  doPatch(cx->trues, t);
+  doPatch(cx->falses, f);
+
+  return Tr_Nx(T_seq(
+      cx->stm,
+      T_Seq(T_Label(t),
+            T_Seq(unNx(then),
+                  T_Seq(T_Jump(e),
+                        T_Seq(T_Label(f), T_Seq(unNx(elsee), T_Label(e))))))));
+}
+
+Tr_exp Tr_WhileStm(Tr_exp test, Tr_exp loop, Temp_label whiletest,
+                   Temp_label whileend) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_WhileStm...\n");
+#endif
+  /*
+  [1. loop is NULL]
+    whiletest:
+      Cjump(T_ne, test, 0, whiletest, whileend)
+    whileend:
+
+  [2. loop is not NULL]
+    whiletest:
+      Cjump(T_ne, test, 0, whileloop, whileend)
+    whileloop:
+      loop
+      Jump(whiletest)
+    whileend:
+  */
+
+  if (!loop) {
+    Cx cx = unCx(test);
+    doPatch(cx->trues, whiletest);
+    doPatch(cx->falses, whileend);
+
+    return Tr_Nx(T_Seq(T_Label(whiletest), T_Seq(cx->stm, T_Label(whileend))));
+  }
+
+  Temp_label whileloop = Temp_newlabel();
+
+  Cx cx = unCx(test);
+  doPatch(cx->trues, whileloop);
+  doPatch(cx->falses, whileend);
+
+  return Tr_Nx(T_Seq(
+      T_Label(whiletest),
+      T_Seq(cx->stm, T_Seq(T_Label(whileloop),
+                           T_Seq(unNx(loop), T_Seq(T_Jump(whiletest),
+                                                   T_Label(whileend)))))));
+}
+
+Tr_exp Tr_AssignStm(Tr_exp location, Tr_exp value) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_AssignStm...\n");
+#endif
+  return Tr_Nx(T_Move(unEx(location), unEx(value)));
+}
 
 // exps
