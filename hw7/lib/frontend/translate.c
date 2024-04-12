@@ -1,5 +1,10 @@
 #include "translate.h"
 
+#define out stderr
+
+#define __DEBUG
+#undef __DEBUG
+
 extern int SEM_ARCH_SIZE;
 
 /* patchList */
