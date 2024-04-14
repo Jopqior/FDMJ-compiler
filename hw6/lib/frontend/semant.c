@@ -500,7 +500,10 @@ void transA_Formal(FILE* out, A_formal f) {
       }
       S_enter(venv, S_Symbol(f->id),
               E_VarEntry(f2vd(f), Ty_Name(S_Symbol(f->t->id))));
+      break;
     }
+    default:
+      break; // unreachable
   }
 }
 
@@ -579,6 +582,8 @@ void transA_VarDecl(FILE* out, A_varDecl vd) {
               E_VarEntry(vd, Ty_Name(S_Symbol(vd->t->id))));
       break;
     }
+    default:
+      break; // unreachable
   }
 }
 
