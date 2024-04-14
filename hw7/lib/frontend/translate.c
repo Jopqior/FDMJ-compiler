@@ -216,7 +216,7 @@ Tr_exp Tr_IfStm(Tr_exp test, Tr_exp then, Tr_exp elsee) {
     doPatch(cx->trues, e);
     doPatch(cx->falses, e);
 
-    return Tr_Nx(T_seq(cx->stm, T_Label(e)));
+    return Tr_Nx(T_Seq(cx->stm, T_Label(e)));
   }
 
   if (!then) {
@@ -228,7 +228,7 @@ Tr_exp Tr_IfStm(Tr_exp test, Tr_exp then, Tr_exp elsee) {
     doPatch(cx->falses, f);
 
     return Tr_Nx(
-        T_seq(cx->stm, T_Seq(T_Label(f), T_Seq(unNx(elsee), T_Label(e)))));
+        T_Seq(cx->stm, T_Seq(T_Label(f), T_Seq(unNx(elsee), T_Label(e)))));
   }
 
   if (!elsee) {
@@ -240,7 +240,7 @@ Tr_exp Tr_IfStm(Tr_exp test, Tr_exp then, Tr_exp elsee) {
     doPatch(cx->falses, e);
 
     return Tr_Nx(
-        T_seq(cx->stm, T_Seq(T_Label(t), T_Seq(unNx(then), T_Label(e)))));
+        T_Seq(cx->stm, T_Seq(T_Label(t), T_Seq(unNx(then), T_Label(e)))));
   }
 
   Temp_label t = Temp_newlabel();
@@ -251,7 +251,7 @@ Tr_exp Tr_IfStm(Tr_exp test, Tr_exp then, Tr_exp elsee) {
   doPatch(cx->trues, t);
   doPatch(cx->falses, f);
 
-  return Tr_Nx(T_seq(
+  return Tr_Nx(T_Seq(
       cx->stm,
       T_Seq(T_Label(t),
             T_Seq(unNx(then),
@@ -305,6 +305,65 @@ Tr_exp Tr_AssignStm(Tr_exp location, Tr_exp value) {
   fprintf(OUT, "\tEntering Tr_AssignStm...\n");
 #endif
   return Tr_Nx(T_Move(unEx(location), unEx(value)));
+}
+
+Tr_exp Tr_Continue(Temp_label whiletest) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_Continue...\n");
+#endif
+  return Tr_Nx(T_Jump(whiletest));
+}
+
+Tr_exp Tr_Break(Temp_label whileend) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_Break...\n");
+#endif
+  return Tr_Nx(T_Jump(whileend));
+}
+
+Tr_exp Tr_Return(Tr_exp ret) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_Return...\n");
+#endif
+  return Tr_Nx(T_Return(unEx(ret)));
+}
+
+Tr_exp Tr_Putint(Tr_exp exp) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_Putint...\n");
+#endif
+  return Tr_Nx(
+      T_Exp(T_ExtCall(String("putint"), T_ExpList(unEx(exp), NULL), T_int)));
+}
+
+Tr_exp Tr_Putfloat(Tr_exp exp) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_Putfloat...\n");
+#endif
+  return Tr_Nx(
+      T_Exp(T_ExtCall(String("putfloat"), T_ExpList(unEx(exp), NULL), T_int)));
+}
+
+Tr_exp Tr_Putch(Tr_exp exp) {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_Putch...\n");
+#endif
+  return Tr_Nx(
+      T_Exp(T_ExtCall(String("putch"), T_ExpList(unEx(exp), NULL), T_int)));
+}
+
+Tr_exp Tr_Starttime() {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_Starttime...\n");
+#endif
+  return Tr_Nx(T_Exp(T_ExtCall(String("starttime"), NULL, T_int)));
+}
+
+Tr_exp Tr_Stoptime() {
+#ifdef __DEBUG
+  fprintf(OUT, "\tEntering Tr_Stoptime...\n");
+#endif
+  return Tr_Nx(T_Exp(T_ExtCall(String("stoptime"), NULL, T_int)));
 }
 
 // exps

@@ -40,7 +40,7 @@ static void loopstack_pop() {
   loopstack tmp = loopstack_head;
 }
 
-static bool loopstack_empty() { return loopstack_head == NULL; }
+static inline bool loopstack_empty() { return loopstack_head == NULL; }
 
 /* envs */
 
@@ -174,6 +174,10 @@ Tr_exp transA_Stm(FILE *out, A_stm s) {
       return transA_WhileStm(out, s);
     case A_assignStm:
       return transA_AssignStm(out, s);
+    case A_arrayInit:
+      return transA_ArrayInit(out, s);
+    case A_callStm:
+      return transA_CallStm(out, s);
     case A_continue:
       return transA_Continue(out, s);
     case A_break:
@@ -184,6 +188,8 @@ Tr_exp transA_Stm(FILE *out, A_stm s) {
       return transA_Putnum(out, s);
     case A_putch:
       return transA_Putch(out, s);
+    case A_putarray:
+      return transA_Putarray(out, s);
     case A_starttime:
       return transA_Starttime(out, s);
     case A_stoptime:
@@ -295,4 +301,165 @@ Tr_exp transA_AssignStm(FILE *out, A_stm s) {
   }
 
   return Tr_AssignStm(left->exp, right->exp);
+}
+
+Tr_exp transA_ArrayInit(FILE *out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ArrayInit...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+
+Tr_exp transA_CallStm(FILE *out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_CallStm...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+
+Tr_exp transA_Continue(FILE *out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Continue...\n");
+#endif
+  if (!s) {
+    return NULL;
+  }
+
+  if (loopstack_empty()) {
+    transError(out, s->pos, String("error: continue statement outside loop"));
+  }
+
+  return Tr_Continue(loopstack_head->whiletest);
+}
+
+Tr_exp transA_Break(FILE *out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Break...\n");
+#endif
+  if (!s) {
+    return NULL;
+  }
+
+  if (loopstack_empty()) {
+    transError(out, s->pos, String("error: break statement outside loop"));
+  }
+
+  return Tr_Break(loopstack_head->whileend);
+}
+
+Tr_exp transA_Return(FILE *out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Return...\n");
+#endif
+  if (!s) {
+    return NULL;
+  }
+
+  if (MAIN_CLASS == S_Symbol(curClassId)) {
+    expty ret = transA_Exp(out, s->u.e, Ty_Int());
+    if (!ret) {
+      return NULL;
+    }
+
+    switch (ret->value->kind) {
+      case Ty_int:
+      case Ty_float:
+        return Tr_Return(ret->exp);
+      default:
+        transError(out, s->pos,
+                   String("error: return value of main method must be of type "
+                          "int or float"));
+    }
+  }
+
+  // TODO: return statement in class method
+  return NULL;
+}
+
+Tr_exp transA_Putnum(FILE *out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Putnum...\n");
+#endif
+  if (!s) {
+    return NULL;
+  }
+
+  expty num = transA_Exp(out, s->u.e, NULL);
+  if (!num) {
+    return NULL;
+  }
+
+  switch (num->value->kind) {
+    case Ty_int:
+      return Tr_Putint(num->exp);
+    case Ty_float:
+      return Tr_Putfloat(num->exp);
+    default:
+      transError(out, s->pos,
+                 String("error: argument of putnum() must be of "
+                        "type int or float"));
+  }
+}
+
+Tr_exp transA_Putch(FILE *out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Putch...\n");
+#endif
+  if (!s) {
+    return NULL;
+  }
+
+  expty ch = transA_Exp(out, s->u.e, NULL);
+  if (!ch) {
+    return NULL;
+  }
+
+  switch (ch->value->kind) {
+    case Ty_int:
+    case Ty_float:
+      return Tr_Putch(ch->exp);
+    default:
+      transError(
+          out, s->pos,
+          String("error: argument of putch() must be of type int or float"));
+  }
+}
+
+Tr_exp transA_Putarray(FILE *out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Putarray...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+
+Tr_exp transA_Starttime(FILE *out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Starttime...\n");
+#endif
+  if (!s) {
+    return NULL;
+  }
+
+  return Tr_Starttime();
+}
+
+Tr_exp transA_Stoptime(FILE *out, A_stm s) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Stoptime...\n");
+#endif
+  if (!s) {
+    return NULL;
+  }
+
+  return Tr_Stoptime();
+}
+
+expty transA_Exp(FILE *out, A_exp e, Ty_ty type) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Exp...\n");
+#endif
+  return NULL;
 }
