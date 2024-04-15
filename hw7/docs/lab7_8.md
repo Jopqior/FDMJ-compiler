@@ -2,17 +2,21 @@
 
 # Tiger IR+ (IRP) 的设计
 
-> tiger以exp为主体，exp里可以有stm
->
-> FDMJ是以stm为主体，里边可以有exp
->
-> 我们在Tiger IR的基础上加了点东西变成Tiger IR+使之适配FDMJ
+tiger以exp为主体，exp里可以有stm；FDMJ是以stm为主体，里边可以有exp
 
-T_funcDecl、T_funcDeclList：程序以function为单位，程序用一系列function表示（a list of functions），第一个是main（约定）；每个function有函数名、参数（Temp_tempList的形式，之后到机器语言里会变成一堆栈）、语句（T_stm的形式；变量没有声明，都是Temp_temp的形式，temp可以认为是reg，有value/pointer和location，在IR里有无限个）。在FDMJ中，method和function是一个概念，在翻译过程中会消除class的概念，提取method，重命名表示不同类的method
+我们在Tiger IR的基础上加了点东西变成Tiger IR+使之适配FDMJ
 
-T_stm：seq用来拼接T_stm，使之称为一串T_stm（等价于stmList，但建议用seq，更简洁）；label、jump、cjump和跳转有关（label是jump的地方，类似于goto标签的作用）；move用来赋值；exp用来忽略T_exp的返回值让exp变成stm；return为函数返回
+## T_funcDecl、T_funcDeclList
 
-T_exp：temp和const分别转换id和num；binop用于二元运算；call和extcall分别用来调用自定义函数与libsysy函数；eseq用来给T_stm加上返回值让stm变成exp；mem用于操控内存，比如修改数组某位置的值；cast用于T_int和T_float的类型转换。每个T_exp都有类型，可能是T_int类型（int、array、class，后两者都转换为地址所以也是int），也可能是T_float类型（float）。
+程序以function为单位，程序用一系列function表示（a list of functions），第一个是main（约定）；每个function有函数名、参数（Temp_tempList的形式，之后到机器语言里会变成一堆栈）、语句（T_stm的形式；变量没有声明，都是Temp_temp的形式，temp可以认为是reg，有value/pointer和location，在IR里有无限个）。在FDMJ中，method和function是一个概念，在翻译过程中会消除class的概念，提取method，重命名表示不同类的method
+
+## T_stm
+
+seq用来拼接T_stm，使之称为一串T_stm（等价于stmList，但建议用seq，更简洁）；label、jump、cjump和跳转有关（label是jump的地方，类似于goto标签的作用）；move用来赋值；exp用来忽略T_exp的返回值让exp变成stm；return为函数返回
+
+## T_exp
+
+temp和const分别转换id和num；binop用于二元运算；call和extcall分别用来调用自定义函数与libsysy函数；eseq用来给T_stm加上返回值让stm变成exp；mem用于操控内存，比如修改数组某位置的值；cast用于T_int和T_float的类型转换。每个T_exp都有类型，可能是T_int类型（int、array、class，后两者都转换为地址所以也是int），也可能是T_float类型（float）
 
 # Translate的方法
 
