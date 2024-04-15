@@ -1,4 +1,4 @@
-# Type Checking
+# lab5_6: Type Check AST
 
 ## Types
 
@@ -16,14 +16,14 @@
     - Object (instance) variables
       - Act more like a record (e.g. class c {int a;}) in Java
       - **FDMJ only have public object variables**
-  - methods 
+  - methods
     - Java methods also have class level or object level (static method; Non-static method)
     - **FDMJ only have non-static public methods**
   - Inheritance
     - Java
       - A sub-class inherits the variables and the methods of the (super) class. This inheritance relationship is transitive.
       - Can override (public) variables and methods
-        - variables: overridden by same name. 
+        - variables: overridden by same name.
         - methods: overridden by the same name and signature (polymorphism)
     - **FDMJ**
       - 子类继承父类的变量，但不能重复声明同名变量
@@ -32,7 +32,7 @@
 
 ### Value Type (4)
 
-> In FDMJ “everything represents a value”, useful in type checking 
+> In FDMJ “everything represents a value”, useful in type checking
 
 - basic value (abbreviated as “value”)
   - 只有int或float的变量或常量才有value
@@ -43,7 +43,7 @@
   - 对象如：int[] a;（数组对象），class C;（类对象）
   - 匿名对象如：{1, 2, 3}（匿名数组对象），new C()（匿名类对象）
 - location value (of all data types, abbreviated as “location”)
-  - For a memory location (either in the stack or in heap space). 
+  - For a memory location (either in the stack or in heap space).
   - Each location is dedicated for a specific data type and holds 32 bits (for this class).
   - 只有左值（变量或对象）有location，右值（常量或匿名对象）没有location
   - 但注意匿名对象中的变量是左值（如new C().obj = 2;，虽然这样做没有意义，但是是合法的）
@@ -53,9 +53,9 @@
 
 ### Name Type (3)
 
->  FDMJ uses name equivalence 
+>  FDMJ uses name equivalence
 
-1. variable name: 
+1. variable name:
    - Associated with 1 of the three data types
    - Carries 2 values: a location value and an basic/pointer value (if defined)
    - A variable name stands for either: (e.g. variable name is a)
@@ -72,9 +72,9 @@
      - a variable of a class type (e.g. “class A o;”)
      - an anonymous variable which only has pointer value (e.g. “new A()”)
 3. method name:
-   - Is a pointer value, which is the “address” of a “function” (or a method). No location value is associated. 
-   - The exact “address” of a method 
-     - depends on the object on which it is called (also based on the inheritance hierarchy). 
+   - Is a pointer value, which is the “address” of a “function” (or a method). No location value is associated.
+   - The exact “address” of a method
+     - depends on the object on which it is called (also based on the inheritance hierarchy).
      - Or it’s determined at link time (if it’s an external function).
 
 ### Casting
@@ -147,6 +147,7 @@ Prog -> MainMethod ClassDeclList
 ## Checking
 
 ### 数据结构
+
 - Ty_ty会用到以下4种（type.h）
   - Ty_int：变量类型是整型，Ty_Int()
   - Ty_float：变量类型是浮点型，Ty_Float()
@@ -168,17 +169,18 @@ Prog -> MainMethod ClassDeclList
     - ret：Ty_ty类型，用于标识返回值类型，可能是Ty_int或Ty_array或Ty_name
     - fl：Ty_fieldList类型，用于存储方法参数列表类型，由Ty_fieldList(Ty_field(var_id, var_ty), Ty_fieldList(…))构成
 - 每个S_table中存储的只能是E_enventry的3种类型之一
-   1. cenv：类环境（class environment）
-      - class_id →  E_classEntry
-      - E_classEntry中包括
-        - vtbl：类变量环境（variable environment）
-          - var_id →  E_varEntry
-        - mtbl：类方法环境（method environment）
-          - meth_id →  E_methodEntry
-   2. venv：变量环境（variable environment）
-      - var_id →  E_varEntry
+  1. cenv：类环境（class environment）
+     - class_id →  E_classEntry
+     - E_classEntry中包括
+       - vtbl：类变量环境（variable environment）
+         - var_id →  E_varEntry
+       - mtbl：类方法环境（method environment）
+         - meth_id →  E_methodEntry
+  2. venv：变量环境（variable environment）
+     - var_id →  E_varEntry
 
 ### 流程
+
 1. 初始阶段：初始化静态全局变量（静态是为了仅在本文件中使用，全局是为了函数少传些参数）
    1. cenv：类环境
    2. venv：变量环境
@@ -206,6 +208,7 @@ Prog -> MainMethod ClassDeclList
       - 赋值给类型为class的变量时，需要检查是否为其本身或其子类
 
 注：类型检查到错的地方请用如下输出
+
 ```cpp
 void transError(FILE *out, A_pos pos, string msg) {
   fprintf(out, "(line:%d col:%d) %s\n", pos->line, pos->pos, msg);
