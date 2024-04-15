@@ -37,7 +37,7 @@ static void loopstack_pop() {
   if (!loopstack_head) {
     return;
   }
-  loopstack tmp = loopstack_head;
+  loopstack_head = loopstack_head->next;
 }
 
 static inline bool loopstack_empty() { return loopstack_head == NULL; }
@@ -64,6 +64,7 @@ T_funcDeclList transA_Prog(FILE *out, A_prog p, int arch_size) {
 #endif
   // init
   SEM_ARCH_SIZE = arch_size;
+  venv = S_empty();
   MAIN_CLASS = S_Symbol(String("0Main"));
 
   if (p->cdl) {
@@ -124,7 +125,37 @@ Tr_exp transA_VarDecl(FILE *out, A_varDecl vd) {
                String("error: variable already declared in main method"));
   }
 
-  // TODO: variable declaration
+  // enter the variable into the environment
+  Temp_temp temp;
+  switch (vd->t->t) {
+    case A_intType: {
+      temp = Temp_newtemp(T_int);
+      S_enter(venv, S_Symbol(vd->v),
+              E_VarEntry(vd, Ty_Int(), temp));
+      break;
+    }
+    case A_floatType: {
+      temp = Temp_newtemp(T_float);
+      S_enter(venv, S_Symbol(vd->v),
+              E_VarEntry(vd, Ty_Float(), temp));
+      break;
+    }
+    default:
+      break;  // Not Implemented
+  }
+
+  if (vd->elist) {
+    switch (vd->t->t) {
+      case A_intType:
+        return Tr_AssignStm(Tr_IdExp(temp), transA_Exp_NumConst(out, vd->elist->head, Ty_Int()));
+      case A_floatType:
+        return Tr_AssignStm(Tr_IdExp(temp), transA_Exp_NumConst(out, vd->elist->head, Ty_Float()));
+      default:
+        return NULL;  // Not Implemented
+    }
+  }
+
+  return NULL;
 }
 
 // main method
@@ -365,8 +396,10 @@ Tr_exp transA_Return(FILE *out, A_stm s) {
 
     switch (ret->value->kind) {
       case Ty_int:
-      case Ty_float:
         return Tr_Return(ret->exp);
+      case Ty_float: {
+        return Tr_Return(Tr_Cast(ret->exp, T_int));
+      }
       default:
         transError(out, s->pos,
                    String("error: return value of main method must be of type "
@@ -457,9 +490,332 @@ Tr_exp transA_Stoptime(FILE *out, A_stm s) {
   return Tr_Stoptime();
 }
 
+// exps
+Tr_exp transA_Exp_NumConst(FILE *out, A_exp e, Ty_ty type) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Exp_NumConst...\n");
+#endif
+  if (!e) {
+    return NULL;
+  }
+
+  switch (type->kind) {
+    case Ty_int: 
+      return Tr_Exp_NumConst(e->u.num, T_int);
+    case Ty_float:
+      return Tr_Exp_NumConst(e->u.num, T_float);
+    default:
+      return NULL;  // unreachable
+  }
+}
+
 expty transA_Exp(FILE *out, A_exp e, Ty_ty type) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_Exp...\n");
 #endif
+  if (!e) {
+    return NULL;
+  }
+
+  switch (e->kind) {
+    case A_opExp:
+      return transA_OpExp(out, e);
+    case A_arrayExp:
+      return transA_ArrayExp(out, e);
+    case A_callExp:
+      return transA_CallExp(out, e);
+    case A_classVarExp:
+      return transA_ClassVarExp(out, e);
+    case A_boolConst:
+      return transA_BoolConst(out, e);
+    case A_numConst:
+      return transA_NumConst(out, e, type);
+    case A_lengthExp:
+      return transA_LengthExp(out, e);
+    case A_idExp:
+      return transA_IdExp(out, e);
+    case A_thisExp:
+      return transA_ThisExp(out, e);
+    case A_newIntArrExp:
+      return transA_NewIntArrExp(out, e);
+    case A_newFloatArrExp:
+      return transA_NewFloatArrExp(out, e);
+    case A_newObjExp:
+      return transA_NewObjExp(out, e);
+    case A_notExp:
+      return transA_NotExp(out, e);
+    case A_minusExp:
+      return transA_MinusExp(out, e);
+    case A_escExp:
+      return transA_EscExp(out, e);
+    case A_getnum:
+      return transA_Getnum(out, e);
+    case A_getch:
+      return transA_Getch(out, e);
+    case A_getarray:
+      return transA_Getarray(out, e);
+    default:
+      transError(out, e->pos, String("error: unknown expression"));
+  }
+}
+
+expty transA_OpExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_OpExp...\n");
+#endif
+  if (!e) {
+    return NULL;
+  }
+
+  expty left = transA_Exp(out, e->u.op.left, NULL);
+  if (!left) {
+    return NULL;
+  }
+  if (left->value->kind != Ty_int && left->value->kind != Ty_float) {
+    transError(out, e->pos,
+               String("error: left side of operator must be of type int or "
+                      "float"));
+  }
+
+  expty right = transA_Exp(out, e->u.op.right, NULL);
+  if (!right) {
+    return NULL;
+  }
+  if (right->value->kind != Ty_int && right->value->kind != Ty_float) {
+    transError(out, e->pos,
+               String("error: right side of operator must be of type int or "
+                      "float"));
+  }
+
+  Tr_exp opexp = Tr_OpExp(e->u.op.oper, left->exp, right->exp);
+
+  // return type of the operator
+  switch (e->u.op.oper) {
+    case A_and:
+    case A_or:
+    case A_less:
+    case A_le:
+    case A_greater:
+    case A_ge:
+    case A_eq:
+    case A_ne:
+      return ExpTy(opexp, Ty_Int(), NULL);
+    case A_plus:
+    case A_minus:
+    case A_times:
+    case A_div: {
+      if (left->value->kind == Ty_int && right->value->kind == Ty_int) {
+        return ExpTy(opexp, Ty_Int(), NULL);
+      } else {
+        return ExpTy(opexp, Ty_Float(), NULL);
+      }
+    }
+    default:
+      return NULL;  // unreachable
+  }
+}
+
+expty transA_ArrayExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ArrayExp...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+
+expty transA_CallExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_CallExp...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+
+expty transA_ClassVarExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ClassVarExp...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+
+expty transA_BoolConst(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_BoolConst...\n");
+#endif
+  if (!e) {
+    return NULL;
+  }
+
+  return ExpTy(Tr_BoolConst(e->u.b), Ty_Int(), NULL);
+}
+
+expty transA_NumConst(FILE *out, A_exp e, Ty_ty type) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NumConst...\n");
+#endif
+  if (!e) {
+    return NULL;
+  }
+
+  float num = e->u.num;
+  bool isInt = num == (int)num;
+
+  T_type t;
+  if (!type) {
+    t = isInt ? T_int : T_float;
+  } else {
+    t = type->kind == Ty_int ? T_int : T_float;
+  }
+
+  Tr_exp exp = Tr_NumConst(num, t);
+  switch (t) {
+    case T_int:
+      return ExpTy(exp, Ty_Int(), NULL);
+    case T_float:
+      return ExpTy(exp, Ty_Float(), NULL);
+    default:
+      return NULL;  // unreachable
+  }
+}
+
+expty transA_LengthExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_LengthExp...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+expty transA_IdExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_IdExp...\n");
+#endif
+  if (!e) {
+    return NULL;
+  }
+
+  E_enventry x = S_look(venv, S_Symbol(e->u.v));
+  if (!x) {
+    transError(out, e->pos, String("error: variable not declared"));
+  }
+
+  return ExpTy(Tr_IdExp(x->u.var.tmp), x->u.var.ty, x->u.var.ty);
+}
+
+expty transA_ThisExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_ThisExp...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+
+expty transA_NewIntArrExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NewIntArrExp...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+
+expty transA_NewFloatArrExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NewFloatArrExp...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+
+expty transA_NewObjExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NewObjExp...\n");
+#endif
+  // Not Implemented
+  return NULL;
+}
+
+expty transA_NotExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_NotExp...\n");
+#endif
+  if (!e) {
+    return NULL;
+  }
+
+  expty exp = transA_Exp(out, e->u.e, NULL);
+  if (!exp) {
+    return NULL;
+  }
+  if (exp->value->kind != Ty_int && exp->value->kind != Ty_float) {
+    transError(out, e->pos, String("error: ! must operate on int or float"));
+  }
+
+  return ExpTy(Tr_NotExp(exp->exp), Ty_Int(), NULL);
+}
+
+expty transA_MinusExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_MinusExp...\n");
+#endif
+  if (!e) {
+    return NULL;
+  }
+
+  expty exp = transA_Exp(out, e->u.e, NULL);
+  if (!exp) {
+    return NULL;
+  }
+  if (exp->value->kind != Ty_int && exp->value->kind != Ty_float) {
+    transError(out, e->pos, String("error: - must operate on int or float"));
+  }
+
+  return ExpTy(Tr_MinusExp(exp->exp), exp->value, NULL);
+}
+
+expty transA_EscExp(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_EscExp...\n");
+#endif
+  if (!e) {
+    return NULL;
+  }
+
+  Tr_exp stm = transA_StmList(out, e->u.escExp.ns);
+
+  expty exp = transA_Exp(out, e->u.escExp.exp, NULL);
+  if (!exp) {
+    return NULL;
+  }
+
+  return ExpTy(Tr_EscExp(stm, exp->exp), exp->value, NULL);
+}
+
+expty transA_Getnum(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Getnum...\n");
+#endif
+  if (!e) {
+    return NULL;
+  }
+
+  return ExpTy(Tr_Getfloat(), Ty_Float(), NULL);
+}
+
+expty transA_Getch(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Getch...\n");
+#endif
+  if (!e) {
+    return NULL;
+  }
+
+  return ExpTy(Tr_Getch(), Ty_Int(), NULL);
+}
+
+expty transA_Getarray(FILE *out, A_exp e) {
+#ifdef __DEBUG
+  fprintf(out, "Entering transA_Getarray...\n");
+#endif
+  // Not Implemented
   return NULL;
 }

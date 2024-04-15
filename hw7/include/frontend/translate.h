@@ -39,6 +39,7 @@ Tr_exp Tr_Starttime();
 Tr_exp Tr_Stoptime();
 
 // exps
+Tr_exp Tr_Exp_NumConst(float num, T_type type);
 Tr_expList Tr_ExpList(Tr_exp head, Tr_expList tail);
 Tr_exp Tr_OpExp(A_binop op, Tr_exp left, Tr_exp right);
 Tr_exp Tr_ArrayExp(Tr_exp arr, Tr_exp pos, T_type type);
@@ -61,5 +62,8 @@ Tr_exp Tr_Getfloat();
 Tr_exp Tr_Getch();
 Tr_exp Tr_Getarray(Tr_exp exp);
 Tr_exp Tr_Getfarray(Tr_exp exp);
+
+// helper
+Tr_exp Tr_Cast(Tr_exp exp, T_type type);
 
 #endif
