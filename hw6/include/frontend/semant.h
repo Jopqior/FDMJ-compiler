@@ -104,14 +104,14 @@ expty transA_Getarray(FILE* out, A_exp e);
 
 /* helper functions */
 
-bool equalClassMethSignature(E_enventry fa, E_enventry cur);
-bool equalTy(Ty_ty fa, Ty_ty cur);
-bool equalTyCast(Ty_ty param, Ty_ty arg);
-bool isParentClass(Ty_ty left, Ty_ty right);
-Ty_ty atype2tyty(A_type t);
-Ty_field f2tyf(A_formal f);
-string ty2str(Ty_ty t);
-A_varDecl f2vd(A_formal f);
-string Stringf(char *, ...);
+static bool equalClassMethSignature(E_enventry fa, E_enventry cur);
+static bool equalTy(Ty_ty fa, Ty_ty cur);
+static bool equalTyCast(Ty_ty param, Ty_ty arg);
+static bool isParentClass(Ty_ty left, Ty_ty right);
+static Ty_ty atype2tyty(A_type t);
+static Ty_field f2tyf(A_formal f);
+static string ty2str(Ty_ty t);
+static A_varDecl f2vd(A_formal f);
+static string Stringf(char *, ...);
 
 #endif

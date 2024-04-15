@@ -1305,7 +1305,7 @@ expty transA_Getarray(FILE* out, A_exp e) {
   return Expty(FALSE, Ty_Int());
 }
 
-bool equalClassMethSignature(E_enventry fa, E_enventry cur) {
+static bool equalClassMethSignature(E_enventry fa, E_enventry cur) {
   if (!fa || !cur) {
     return FALSE;
   }
@@ -1331,7 +1331,7 @@ bool equalClassMethSignature(E_enventry fa, E_enventry cur) {
   return TRUE;
 }
 
-bool equalTy(Ty_ty fa, Ty_ty cur) {
+static bool equalTy(Ty_ty fa, Ty_ty cur) {
   if (!fa || !cur) {
     return FALSE;
   }
@@ -1348,7 +1348,7 @@ bool equalTy(Ty_ty fa, Ty_ty cur) {
   return TRUE;
 }
 
-bool equalTyCast(Ty_ty param, Ty_ty arg) {
+static bool equalTyCast(Ty_ty param, Ty_ty arg) {
   if (!param || !arg) {
     return FALSE;
   }
@@ -1364,7 +1364,7 @@ bool equalTyCast(Ty_ty param, Ty_ty arg) {
   }
 }
 
-bool isParentClass(Ty_ty left, Ty_ty right) {
+static bool isParentClass(Ty_ty left, Ty_ty right) {
   // check if the class of the right side is a subclass of the left side
   S_symbol leftClass = left->u.name;
   S_symbol rightClass = right->u.name;
@@ -1378,7 +1378,7 @@ bool isParentClass(Ty_ty left, Ty_ty right) {
   return FALSE;
 }
 
-Ty_ty atype2tyty(A_type t) {
+static Ty_ty atype2tyty(A_type t) {
   if (!t) return NULL;
 
   switch (t->t) {
@@ -1397,13 +1397,13 @@ Ty_ty atype2tyty(A_type t) {
   }
 }
 
-Ty_field f2tyf(A_formal f) {
+static Ty_field f2tyf(A_formal f) {
   if (!f) return NULL;
 
   return Ty_Field(S_Symbol(f->id), atype2tyty(f->t));
 }
 
-string ty2str(Ty_ty t) {
+static string ty2str(Ty_ty t) {
   if (!t) return NULL;
 
   switch (t->kind) {
@@ -1420,14 +1420,14 @@ string ty2str(Ty_ty t) {
   }
 }
 
-A_varDecl f2vd(A_formal f) {
+static A_varDecl f2vd(A_formal f) {
   if (!f) return NULL;
 
   return A_VarDecl(f->pos, f->t, f->id, NULL);
 }
 
 static char buf[IR_MAXLEN];
-string Stringf(char* fmt, ...) {
+static string Stringf(char* fmt, ...) {
   va_list argp;
   va_start(argp, fmt);
   vsnprintf(buf, IR_MAXLEN, fmt, argp);
