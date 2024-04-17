@@ -1,6 +1,0 @@
-
-define i64 @main() {
-
-  %1 = add i64 1, 2
-  ret i64 %1
-}

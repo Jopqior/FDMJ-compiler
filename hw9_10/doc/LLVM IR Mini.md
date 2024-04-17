@@ -13,7 +13,8 @@ Please note that LLVM has a variety of types. Here we only use 64 bit types (exc
 - `T` stands for i64, double, or i64*.
 - `iBOP` stands for one of the binary operations: add, sub, mul, and sdiv (for integers)
 - `fBoP` stands for one of the binary operations: fadd, fsub, fmul, fdiv (for floats)
-- `CND` stands for one of the comparison conditions: eq, ne, sgt (s stands for "signed"), sge, slt, and sle
+- `iCND` stands for one of the comparison conditions: eq, ne, sgt, sge, slt, and sle (for integers)
+- `fCND` stands for one of the comparison conditions: oeq, one, ogt, oge, olt, and ole (for floats)
 - `%L` stands for any local (may be thought as a `temp` in Tiger IR+). 
 - `OP` can be a constant or a local. (A constant is either an integer or a float, but must be correctly "typed" in an instruction, e.g., `double 1.0` is correct, while `double 1` is not.)
 
@@ -26,16 +27,15 @@ Please note that LLVM has a variety of types. Here we only use 64 bit types (exc
 | %L = fBOP double OP1, OP2                                 | perform BOP on OP1 and OP2 and store into %L, both OP1 and OP2 must be double
 | %L = load T, i64* OP, align 8                               | load the value at the location OP, with return type T        |
 | store T OP1, i64* OP2, align 8                               | store value OP1 into the location OP2                        |
-| %L = icmp CND i64 OP1, OP2                          | compare two numbers and return the one-bit result to %L, the type of %L is i1      
-| %L = fcmp CND double OP1, OP2                       | compare two numbers and return the one-bit result to %L, the type of %L is i1|
-| br i1 \<cond\>, label \<iftrue\>, label \<iffalse\> | Conditional branch, where \<cond\> is a one-bit value        |
+| %L = icmp CND i64 OP1, OP2                          | compare two numbers and return the one-bit result to %L, the type of %L is i1  (which can only be used as a \<cond\> in br)     
+| %L = fcmp CND double OP1, OP2                       | compare two numbers and return the one-bit result to %L, the type of %L is i1 (which can only be used as a \<cond\> in br)|
+| br i1 \<cond\>, label \<iftrue\>, label \<iffalse\> | Conditional branch, where \<cond\> is a one-bit value         |
 | br label \<dest\>                                   | Unconditional branch                                         |
 | %L = call T1 @func(T1 OP1, ..., Tn OPN)               | call the function @func and return a value                 |
 | call void @func(T1 OP1, ... ,Tn OPN)                  | call the function @func                                            |
 | ret T OP                                            | function return value                                        |
 | ret void                                            | function return                                              |
-| %L = getelementptr i64\*, i64\* OP1, i64 OP2                | Add offset OP2 to ptr OP1 and returns a new ptr to %L. Note that "offset" is in terms of 8 bytes (i64\*), e.g., offset=1 moves the pointer by 8 bytes. |
-| %L = sext T1 OP to T2                              | convert integers between i1 (only for  results of an icmp and fcmp) and i64                |
+| %L = getelementptr i64\*, i64\* OP1, i64 OP2                | Add offset OP2 to ptr OP1 and returns a new ptr to %L. Note that "offset" is in terms of 8 bytes (i64\*), e.g., offset=1 moves the pointer by 8 bytes. |      |
 | %L = inttoptr i64 OP to i64*                        | convert an integer OP to a ptr and return to %L              |
 | %L = ptrtoint i64* OP to i64                        | convert a ptr OP to an integer and return to %L    
 | %L = fptosi double OP to i64			              | convert a double to an integer and return to %L
