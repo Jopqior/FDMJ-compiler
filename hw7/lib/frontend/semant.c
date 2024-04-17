@@ -45,18 +45,12 @@ static inline bool loopstack_empty() { return loopstack_head == NULL; }
 /* envs */
 
 static S_table venv;
-static S_table cenv;
-static S_symbol MAIN_CLASS;
-static string curClassId;
-static string curMethodId;
 
 void transError(FILE *out, A_pos pos, string msg) {
   fprintf(out, "(line:%d col:%d) %s\n", pos->line, pos->pos, msg);
   fflush(out);
   exit(1);
 }
-
-/* TODO: semant */
 
 T_funcDeclList transA_Prog(FILE *out, A_prog p, int arch_size) {
 #ifdef __DEBUG
@@ -65,7 +59,6 @@ T_funcDeclList transA_Prog(FILE *out, A_prog p, int arch_size) {
   // init
   SEM_ARCH_SIZE = arch_size;
   venv = S_empty();
-  MAIN_CLASS = S_Symbol(String("0Main"));
 
   if (p->cdl) {
     transPreprocess(out, p->cdl);
@@ -130,14 +123,12 @@ Tr_exp transA_VarDecl(FILE *out, A_varDecl vd) {
   switch (vd->t->t) {
     case A_intType: {
       temp = Temp_newtemp(T_int);
-      S_enter(venv, S_Symbol(vd->v),
-              E_VarEntry(vd, Ty_Int(), temp));
+      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Int(), temp));
       break;
     }
     case A_floatType: {
       temp = Temp_newtemp(T_float);
-      S_enter(venv, S_Symbol(vd->v),
-              E_VarEntry(vd, Ty_Float(), temp));
+      S_enter(venv, S_Symbol(vd->v), E_VarEntry(vd, Ty_Float(), temp));
       break;
     }
     default:
@@ -147,9 +138,13 @@ Tr_exp transA_VarDecl(FILE *out, A_varDecl vd) {
   if (vd->elist) {
     switch (vd->t->t) {
       case A_intType:
-        return Tr_AssignStm(Tr_IdExp(temp), transA_Exp_NumConst(out, vd->elist->head, Ty_Int()));
+        return Tr_AssignStm(
+            Tr_IdExp(temp),
+            transA_Exp_NumConst(out, vd->elist->head, Ty_Int()));
       case A_floatType:
-        return Tr_AssignStm(Tr_IdExp(temp), transA_Exp_NumConst(out, vd->elist->head, Ty_Float()));
+        return Tr_AssignStm(
+            Tr_IdExp(temp),
+            transA_Exp_NumConst(out, vd->elist->head, Ty_Float()));
       default:
         return NULL;  // Not Implemented
     }
@@ -164,8 +159,6 @@ T_funcDecl transA_MainMethod(FILE *out, A_mainMethod main) {
   fprintf(out, "Entering transA_MainMethod...\n");
 #endif
   S_beginScope(venv);
-
-  curClassId = S_name(MAIN_CLASS);
 
   Tr_exp vdl = transA_VarDeclList(out, main->vdl);
   Tr_exp sl = transA_StmList(out, main->sl);
@@ -388,27 +381,22 @@ Tr_exp transA_Return(FILE *out, A_stm s) {
     return NULL;
   }
 
-  if (MAIN_CLASS == S_Symbol(curClassId)) {
-    expty ret = transA_Exp(out, s->u.e, Ty_Int());
-    if (!ret) {
-      return NULL;
-    }
-
-    switch (ret->value->kind) {
-      case Ty_int:
-        return Tr_Return(ret->exp);
-      case Ty_float: {
-        return Tr_Return(Tr_Cast(ret->exp, T_int));
-      }
-      default:
-        transError(out, s->pos,
-                   String("error: return value of main method must be of type "
-                          "int or float"));
-    }
+  expty ret = transA_Exp(out, s->u.e, Ty_Int());
+  if (!ret) {
+    return NULL;
   }
 
-  // TODO: return statement in class method
-  return NULL;
+  switch (ret->value->kind) {
+    case Ty_int:
+      return Tr_Return(ret->exp);
+    case Ty_float: {
+      return Tr_Return(Tr_Cast(ret->exp, T_int));
+    }
+    default:
+      transError(out, s->pos,
+                 String("error: return value of main method must be of type "
+                        "int or float"));
+  }
 }
 
 Tr_exp transA_Putnum(FILE *out, A_stm s) {
@@ -500,7 +488,7 @@ Tr_exp transA_Exp_NumConst(FILE *out, A_exp e, Ty_ty type) {
   }
 
   switch (type->kind) {
-    case Ty_int: 
+    case Ty_int:
       return Tr_Exp_NumConst(e->u.num, T_int);
     case Ty_float:
       return Tr_Exp_NumConst(e->u.num, T_float);
