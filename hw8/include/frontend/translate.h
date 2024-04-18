@@ -60,5 +60,6 @@ Tr_exp Tr_Getfloat();
 Tr_exp Tr_Getch();
 Tr_exp Tr_Getarray(Tr_exp exp);
 Tr_exp Tr_Getfarray(Tr_exp exp);
+Tr_exp Tr_Cast(Tr_exp exp, T_type type);
 
 #endif
