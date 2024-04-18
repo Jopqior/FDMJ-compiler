@@ -31,8 +31,8 @@ Please note that LLVM has a variety of types. Here we only use 64 bit types (exc
 | %L = fcmp CND double OP1, OP2                       | compare two numbers and return the one-bit result to %L, the type of %L is i1 (which can only be used as a \<cond\> in br)|
 | br i1 \<cond\>, label \<iftrue\>, label \<iffalse\> | Conditional branch, where \<cond\> is a one-bit value         |
 | br label \<dest\>                                   | Unconditional branch                                         |
-| %L = call T1 @func(T1 OP1, ..., Tn OPN)               | call the function @func and return a value                 |
-| call void @func(T1 OP1, ... ,Tn OPN)                  | call the function @func                                            |
+| %L = call T1 func(T1 OP1, ..., Tn OPN)               | call the function "func" and return a value, where "func" can be a named function (e.g., `%1=call i64* @malloc(i64 16)`) or an address (usually stored in a local, e.g., `%2=call double %x(i64 %y)`)                 |
+| call void func(T1 OP1, ... ,Tn OPN)                  | call the function but not returning anything                                            |
 | ret T OP                                            | function return value                                        |
 | ret void                                            | function return                                              |
 | %L = getelementptr i64\*, i64\* OP1, i64 OP2                | Add offset OP2 to ptr OP1 and returns a new ptr to %L. Note that "offset" is in terms of 8 bytes (i64\*), e.g., offset=1 moves the pointer by 8 bytes. |      |
