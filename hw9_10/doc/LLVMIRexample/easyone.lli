@@ -1,0 +1,4 @@
+define i64 @main() {
+  %x = add i64 1, 2
+  ret i64 %x
+}

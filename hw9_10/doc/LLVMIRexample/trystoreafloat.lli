@@ -1,0 +1,30 @@
+
+define i64 @main() {
+
+;get some space, get the pointer
+  %call = call i64* @malloc(i64 100) ; malloc aligns at 8 bytes boundary (in most systems)
+
+;move the pointer to the next "slot"
+  %call1 = getelementptr i64*, i64* %call, i64 1 ; move the pointer by 8 bytes!
+
+;store a double value there
+  store double 1234567891234.0, i64* %call1, align 8
+
+;load it back!
+  %ww = load double, i64* %call1, align 8
+
+;convert to integer
+  %zz = fptosi double %ww to i64
+
+;print it!
+  call void @putint(i64 %zz)
+  call void @putchar(i64 10)
+
+;return
+  ret i64 %zz
+}
+
+declare i64* @malloc(i64)
+declare void @putint(i64)
+declare void @putfloat(double)
+declare void @putchar(i64)
