@@ -25,6 +25,7 @@ Temp_temp Temp_newtemp(T_type type) {
   Temp_temp p = S_look(temp_table, S_Symbol(String(r)));
   if (p) {
     p->type = type; // reuse
+    temps++;
     return p;
   }
   p = (Temp_temp) checked_malloc(sizeof (*p));
