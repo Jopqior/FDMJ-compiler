@@ -1,7 +1,9 @@
 #include "semant.h"
 
+#ifndef __DEBUG
 #define __DEBUG
 #undef __DEBUG
+#endif
 
 int SEM_ARCH_SIZE;  // to be set by arch_size in transA_Prog
 
@@ -388,10 +390,8 @@ Tr_exp transA_Return(FILE *out, A_stm s) {
 
   switch (ret->value->kind) {
     case Ty_int:
-      return Tr_Return(ret->exp);
-    case Ty_float: {
-      return Tr_Return(Tr_Cast(ret->exp, T_int));
-    }
+    case Ty_float:
+      return Tr_Return(ret->exp, T_int);
     default:
       transError(out, s->pos,
                  String("error: return value of main method must be of type "
@@ -489,9 +489,9 @@ Tr_exp transA_Exp_NumConst(FILE *out, A_exp e, Ty_ty type) {
 
   switch (type->kind) {
     case Ty_int:
-      return Tr_Exp_NumConst(e->u.num, T_int);
+      return Tr_NumConst((int)(e->u.num), T_int, T_int);
     case Ty_float:
-      return Tr_Exp_NumConst(e->u.num, T_float);
+      return Tr_NumConst(e->u.num, T_float, T_float);
     default:
       return NULL;  // unreachable
   }
@@ -647,17 +647,11 @@ expty transA_NumConst(FILE *out, A_exp e, Ty_ty type) {
   }
 
   float num = e->u.num;
-  bool isInt = num == (int)num;
+  T_type origin = num == (int)num ? T_int : T_float;
+  T_type to = type == NULL ? origin : (type->kind == Ty_int ? T_int : T_float);
 
-  T_type t;
-  if (!type) {
-    t = isInt ? T_int : T_float;
-  } else {
-    t = type->kind == Ty_int ? T_int : T_float;
-  }
-
-  Tr_exp exp = Tr_NumConst(num, t);
-  switch (t) {
+  Tr_exp exp = Tr_NumConst(num, origin, to);
+  switch (to) {
     case T_int:
       return ExpTy(exp, Ty_Int(), NULL);
     case T_float:

@@ -1,7 +1,9 @@
 #include "translate.h"
 
+#ifndef __DEBUG
 #define __DEBUG
 #undef __DEBUG
+#endif
 
 extern int SEM_ARCH_SIZE;
 
@@ -328,11 +330,15 @@ Tr_exp Tr_Break(Temp_label whileend) {
   return Tr_Nx(T_Jump(whileend));
 }
 
-Tr_exp Tr_Return(Tr_exp ret) {
+Tr_exp Tr_Return(Tr_exp ret, T_type type) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_Return...\n");
 #endif
-  return Tr_Nx(T_Return(unEx(ret)));
+  T_exp e = unEx(ret);
+  if (e->type != type) {
+    return Tr_Nx(T_Return(T_Cast(e, type)));
+  }
+  return Tr_Nx(T_Return(e));
 }
 
 Tr_exp Tr_Putint(Tr_exp exp) {
@@ -374,20 +380,6 @@ Tr_exp Tr_Stoptime() {
 }
 
 // exps
-Tr_exp Tr_Exp_NumConst(float num, T_type type) {
-#ifdef __DEBUG
-  fprintf(stderr, "\tEntering Tr_Exp_NumConst...\n");
-#endif
-  switch (type) {
-    case T_int:
-      return Tr_Ex(T_IntConst((int)num));
-    case T_float:
-      return Tr_Ex(T_FloatConst(num));
-    default:
-      assert(0);
-  }
-}
-
 Tr_expList Tr_ExpList(Tr_exp head, Tr_expList tail) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_ExpList...\n");
@@ -517,24 +509,20 @@ Tr_exp Tr_BoolConst(bool b) {
   return Tr_Ex(T_IntConst(b));
 }
 
-Tr_exp Tr_NumConst(float num, T_type type) {
+Tr_exp Tr_NumConst(float num, T_type origin, T_type to) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_NumConst...\n");
 #endif
-  bool isInt = (int)num == num;
-
-  switch (type) {
-    case T_int: {
-      return isInt ? Tr_Ex(T_IntConst(num))
-                   : Tr_Ex(T_Cast(T_FloatConst(num), T_int));
-    }
-    case T_float: {
-      return isInt ? Tr_Ex(T_Cast(T_IntConst(num), T_float))
-                   : Tr_Ex(T_FloatConst(num));
-    }
-    default:
-      assert(0);
+  if (origin == T_int && to == T_int) {
+    return Tr_Ex(T_IntConst((int)num));
   }
+  if (origin == T_int) {
+    return Tr_Ex(T_Cast(T_IntConst((int)num), T_float));
+  }
+  if (to == T_int) {
+    return Tr_Ex(T_Cast(T_FloatConst(num), T_int));
+  }
+  return Tr_Ex(T_FloatConst(num));
 }
 
 Tr_exp Tr_IdExp(Temp_temp tmp) {
@@ -601,16 +589,4 @@ Tr_exp Tr_Getch() {
   fprintf(stderr, "\tEntering Tr_Getch...\n");
 #endif
   return Tr_Ex(T_ExtCall(String("getch"), NULL, T_int));
-}
-
-// helper
-Tr_exp Tr_Cast(Tr_exp exp, T_type type) {
-#ifdef __DEBUG
-  fprintf(stderr, "\tEntering Tr_Cast...\n");
-#endif
-  T_exp e = unEx(exp);
-  if (e->type != type) {
-    return Tr_Ex(T_Cast(e, type));
-  }
-  return Tr_Ex(e);
 }
