@@ -23,7 +23,6 @@ struct Ty_ty_ {
     Ty_fieldList record;
     Ty_ty array;
     S_symbol name;
-    Ty_ty ptr;
   } u;
 };
 
