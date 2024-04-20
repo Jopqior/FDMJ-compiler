@@ -30,7 +30,7 @@ Tr_exp Tr_ArrayInit(Tr_exp arr, Tr_expList init, T_type type);
 Tr_exp Tr_CallStm(string meth, Tr_exp clazz, Tr_exp thiz, Tr_expList el, T_type type);
 Tr_exp Tr_Continue(Temp_label whiletest);
 Tr_exp Tr_Break(Temp_label whileend);
-Tr_exp Tr_Return(Tr_exp ret, T_type type);
+Tr_exp Tr_Return(Tr_exp ret);
 Tr_exp Tr_Putint(Tr_exp exp);
 Tr_exp Tr_Putfloat(Tr_exp exp);
 Tr_exp Tr_Putch(Tr_exp exp);
@@ -47,7 +47,7 @@ Tr_exp Tr_ClassVarExp(Tr_exp clazz, Tr_exp offset, T_type type);
 Tr_exp Tr_ClassMethExp(Tr_exp clazz, Tr_exp offset);
 Tr_exp Tr_ClassMethLabel(Temp_label label);
 Tr_exp Tr_BoolConst(bool b);
-Tr_exp Tr_NumConst(float num, T_type origin, T_type to);
+Tr_exp Tr_NumConst(float num, T_type type);
 Tr_exp Tr_LengthExp(Tr_exp arr);
 Tr_exp Tr_IdExp(Temp_temp tmp);
 Tr_exp Tr_ThisExp(Temp_temp tmp);
@@ -61,5 +61,6 @@ Tr_exp Tr_Getfloat();
 Tr_exp Tr_Getch();
 Tr_exp Tr_Getarray(Tr_exp exp);
 Tr_exp Tr_Getfarray(Tr_exp exp);
+Tr_exp Tr_Cast(Tr_exp exp, T_type type);
 
 #endif

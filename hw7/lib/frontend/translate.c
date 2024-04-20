@@ -330,15 +330,11 @@ Tr_exp Tr_Break(Temp_label whileend) {
   return Tr_Nx(T_Jump(whileend));
 }
 
-Tr_exp Tr_Return(Tr_exp ret, T_type type) {
+Tr_exp Tr_Return(Tr_exp ret) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_Return...\n");
 #endif
-  T_exp e = unEx(ret);
-  if (e->type != type) {
-    return Tr_Nx(T_Return(T_Cast(e, type)));
-  }
-  return Tr_Nx(T_Return(e));
+  return Tr_Nx(T_Return(unEx(ret)));
 }
 
 Tr_exp Tr_Putint(Tr_exp exp) {
@@ -509,20 +505,17 @@ Tr_exp Tr_BoolConst(bool b) {
   return Tr_Ex(T_IntConst(b));
 }
 
-Tr_exp Tr_NumConst(float num, T_type origin, T_type to) {
+Tr_exp Tr_NumConst(float num, T_type type) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_NumConst...\n");
 #endif
-  if (origin == T_int && to == T_int) {
+  switch (type)
+  {
+  case T_int:
     return Tr_Ex(T_IntConst((int)num));
+  case T_float:
+    return Tr_Ex(T_FloatConst(num));
   }
-  if (origin == T_int) {
-    return Tr_Ex(T_Cast(T_IntConst((int)num), T_float));
-  }
-  if (to == T_int) {
-    return Tr_Ex(T_Cast(T_FloatConst(num), T_int));
-  }
-  return Tr_Ex(T_FloatConst(num));
 }
 
 Tr_exp Tr_IdExp(Temp_temp tmp) {
@@ -589,4 +582,15 @@ Tr_exp Tr_Getch() {
   fprintf(stderr, "\tEntering Tr_Getch...\n");
 #endif
   return Tr_Ex(T_ExtCall(String("getch"), NULL, T_int));
+}
+
+Tr_exp Tr_Cast(Tr_exp exp, T_type type) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_Cast...\n");
+#endif
+  T_exp e = unEx(exp);
+  if (e->type == type) {
+    return exp;
+  }
+  return Tr_Ex(T_Cast(e, type));
 }

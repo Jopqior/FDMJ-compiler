@@ -62,24 +62,11 @@ T_funcDeclList transA_Prog(FILE *out, A_prog p, int arch_size) {
   SEM_ARCH_SIZE = arch_size;
   venv = S_empty();
 
-  if (p->cdl) {
-    transPreprocess(out, p->cdl);
-  }
-
   if (!(p->m)) {
     transError(out, p->pos, String("error: there's no main class"));
   }
 
   return transSemant(out, p->cdl, p->m);
-}
-
-/* preprocess */
-
-void transPreprocess(FILE *out, A_classDeclList cdl) {
-#ifdef __DEBUG
-  fprintf(out, "Entering transPreprocess...\n");
-#endif
-  // TODO: preprocess
 }
 
 /* semantic analysis */
@@ -391,7 +378,7 @@ Tr_exp transA_Return(FILE *out, A_stm s) {
   switch (ret->value->kind) {
     case Ty_int:
     case Ty_float:
-      return Tr_Return(ret->exp, T_int);
+      return Tr_Return(Tr_Cast(ret->exp, T_int));
     default:
       transError(out, s->pos,
                  String("error: return value of main method must be of type "
@@ -440,7 +427,7 @@ Tr_exp transA_Putch(FILE *out, A_stm s) {
   switch (ch->value->kind) {
     case Ty_int:
     case Ty_float:
-      return Tr_Putch(ch->exp);
+      return Tr_Putch(Tr_Cast(ch->exp, T_int));
     default:
       transError(
           out, s->pos,
@@ -489,9 +476,9 @@ Tr_exp transA_Exp_NumConst(FILE *out, A_exp e, Ty_ty type) {
 
   switch (type->kind) {
     case Ty_int:
-      return Tr_NumConst((int)(e->u.num), T_int, T_int);
+      return Tr_NumConst((int)(e->u.num), T_int);
     case Ty_float:
-      return Tr_NumConst(e->u.num, T_float, T_float);
+      return Tr_NumConst(e->u.num, T_float);
     default:
       return NULL;  // unreachable
   }
@@ -650,7 +637,7 @@ expty transA_NumConst(FILE *out, A_exp e, Ty_ty type) {
   T_type origin = num == (int)num ? T_int : T_float;
   T_type to = type == NULL ? origin : (type->kind == Ty_int ? T_int : T_float);
 
-  Tr_exp exp = Tr_NumConst(num, origin, to);
+  Tr_exp exp = Tr_Cast(Tr_NumConst(num, origin), to);
   switch (to) {
     case T_int:
       return ExpTy(exp, Ty_Int(), NULL);
