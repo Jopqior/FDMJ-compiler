@@ -377,6 +377,7 @@ Tr_exp transA_Return(FILE *out, A_stm s) {
 
   switch (ret->value->kind) {
     case Ty_int:
+      return Tr_Return(ret->exp);
     case Ty_float:
       return Tr_Return(Tr_Cast(ret->exp, T_int));
     default:
@@ -426,6 +427,7 @@ Tr_exp transA_Putch(FILE *out, A_stm s) {
 
   switch (ch->value->kind) {
     case Ty_int:
+      return Tr_Putch(ch->exp);
     case Ty_float:
       return Tr_Putch(Tr_Cast(ch->exp, T_int));
     default:
@@ -637,7 +639,7 @@ expty transA_NumConst(FILE *out, A_exp e, Ty_ty type) {
   T_type origin = num == (int)num ? T_int : T_float;
   T_type to = type == NULL ? origin : (type->kind == Ty_int ? T_int : T_float);
 
-  Tr_exp exp = Tr_Cast(Tr_NumConst(num, origin), to);
+  Tr_exp exp = origin != to ? Tr_Cast(Tr_NumConst(num, origin), to) : Tr_NumConst(num, to);
   switch (to) {
     case T_int:
       return ExpTy(exp, Ty_Int(), NULL);

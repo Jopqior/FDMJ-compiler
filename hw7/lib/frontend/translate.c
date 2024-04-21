@@ -310,7 +310,7 @@ Tr_exp Tr_AssignStm(Tr_exp location, Tr_exp value) {
   T_exp loc = unEx(location);
   T_exp val = unEx(value);
 
-  if (loc->kind != val->kind) {
+  if (loc->type != val->type) {
     return Tr_Nx(T_Move(loc, T_Cast(val, loc->type)));
   }
   return Tr_Nx(T_Move(loc, val));
@@ -433,6 +433,12 @@ Tr_exp Tr_OpExp(A_binop op, Tr_exp left, Tr_exp right) {
     }
     case A_eq: {
       T_stm exp = T_Cjump(T_eq, unEx(left), unEx(right), NULL, NULL);
+      patchList trues = PatchList(&(exp->u.CJUMP.t), NULL);
+      patchList falses = PatchList(&(exp->u.CJUMP.f), NULL);
+      return Tr_Cx(trues, falses, exp);
+    }
+    case A_ne: {
+      T_stm exp = T_Cjump(T_ne, unEx(left), unEx(right), NULL, NULL);
       patchList trues = PatchList(&(exp->u.CJUMP.t), NULL);
       patchList falses = PatchList(&(exp->u.CJUMP.f), NULL);
       return Tr_Cx(trues, falses, exp);
@@ -588,9 +594,5 @@ Tr_exp Tr_Cast(Tr_exp exp, T_type type) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_Cast...\n");
 #endif
-  T_exp e = unEx(exp);
-  if (e->type == type) {
-    return exp;
-  }
-  return Tr_Ex(T_Cast(e, type));
+  return Tr_Ex(T_Cast(unEx(exp), type));
 }
