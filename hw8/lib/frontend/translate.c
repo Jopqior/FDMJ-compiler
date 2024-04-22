@@ -400,6 +400,15 @@ Tr_exp Tr_Putch(Tr_exp exp) {
       T_Exp(T_ExtCall(String("putch"), T_ExpList(unEx(exp), NULL), T_int)));
 }
 
+Tr_exp Tr_Putarray(Tr_exp pos, Tr_exp arr) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_Putarray...\n");
+#endif
+  return Tr_Nx(T_Exp(T_ExtCall(String("putarray"),
+                               T_ExpList(unEx(pos), T_ExpList(unEx(arr), NULL)),
+                               T_int)));
+}
+
 Tr_exp Tr_Starttime() {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_Starttime...\n");
@@ -543,6 +552,21 @@ Tr_exp Tr_OpExp(A_binop op, Tr_exp left, Tr_exp right) {
   }
 }
 
+Tr_exp Tr_ArrayExp(Tr_exp arr, Tr_exp pos, T_type type) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_ArrayExp...\n");
+#endif
+  T_exp a = unEx(arr);
+  T_exp p = unEx(pos);
+
+  if (p->kind == T_CONST && p->u.CONST.i == 0) {
+    return Tr_Ex(T_Mem(a, type));
+  }
+
+  return Tr_Ex(T_Mem(
+      T_Binop(T_plus, a, T_Binop(T_mul, p, T_IntConst(SEM_ARCH_SIZE))), type));
+}
+
 Tr_exp Tr_BoolConst(bool b) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_BoolConst...\n");
@@ -562,11 +586,65 @@ Tr_exp Tr_NumConst(float num, T_type type) {
   }
 }
 
+Tr_exp Tr_LengthExp(Tr_exp arr) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_LengthExp...\n");
+#endif
+  return Tr_Ex(
+      T_Mem(T_Binop(T_plus, unEx(arr), T_IntConst(-SEM_ARCH_SIZE)), T_int));
+}
+
 Tr_exp Tr_IdExp(Temp_temp tmp) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_IdExp...\n");
 #endif
   return Tr_Ex(T_Temp(tmp));
+}
+
+Tr_exp Tr_NewArrExp(Tr_exp size) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_NewArrExp...\n");
+#endif
+  T_exp s = unEx(size);
+  if (s->kind == T_CONST && s->type == T_int) {
+    Temp_temp newArr = Temp_newtemp(T_int);
+    return Tr_Ex(T_Eseq(
+        T_Seq(T_Move(T_Temp(newArr),
+                     T_Binop(T_plus,
+                             T_ExtCall(String("malloc"),
+                                       T_ExpList(T_IntConst((s->u.CONST.i + 1) *
+                                                            SEM_ARCH_SIZE),
+                                                 NULL),
+                                       T_int),
+                             T_IntConst(SEM_ARCH_SIZE))),
+              T_Move(T_Mem(T_Binop(T_plus, T_Temp(newArr),
+                                   T_IntConst(-SEM_ARCH_SIZE)),
+                           T_int),
+                     s)),
+        T_Temp(newArr)));
+  }
+
+  Temp_temp sizeTemp = Temp_newtemp(T_int);
+  Temp_temp newArr = Temp_newtemp(T_int);
+  return Tr_Ex(T_Eseq(
+      T_Seq(T_Move(T_Temp(sizeTemp), s),
+            T_Seq(T_Move(T_Temp(newArr),
+                         T_Binop(T_plus,
+                                 T_ExtCall(
+                                     String("malloc"),
+                                     T_ExpList(
+                                         T_Binop(T_mul,
+                                                 T_Binop(T_plus, T_Temp(sizeTemp),
+                                                         T_IntConst(1)),
+                                                 T_IntConst(SEM_ARCH_SIZE)),
+                                         NULL),
+                                     T_int),
+                                 T_IntConst(SEM_ARCH_SIZE))),
+                  T_Move(T_Mem(T_Binop(T_plus, T_Temp(newArr),
+                                       T_IntConst(-SEM_ARCH_SIZE)),
+                               T_int),
+                         T_Temp(sizeTemp)))),
+      T_Temp(newArr)));
 }
 
 Tr_exp Tr_NotExp(Tr_exp exp) {
@@ -626,6 +704,20 @@ Tr_exp Tr_Getch() {
   fprintf(stderr, "\tEntering Tr_Getch...\n");
 #endif
   return Tr_Ex(T_ExtCall(String("getch"), NULL, T_int));
+}
+
+Tr_exp Tr_Getarray(Tr_exp exp) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_Getarray...\n");
+#endif
+  return Tr_Ex(T_ExtCall(String("getarray"), T_ExpList(unEx(exp), NULL), T_int));
+}
+
+Tr_exp Tr_Getfarray(Tr_exp exp) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_Getfarray...\n");
+#endif
+  return Tr_Ex(T_ExtCall(String("getfarray"), T_ExpList(unEx(exp), NULL), T_int));
 }
 
 Tr_exp Tr_Cast(Tr_exp exp, T_type type) {

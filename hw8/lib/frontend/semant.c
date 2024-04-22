@@ -316,7 +316,7 @@ Tr_exp transA_AssignStm(FILE *out, A_stm s) {
         String("error: left side of assignment must have a location value"));
   }
 
-  expty right = transA_Exp(out, s->u.assign.value, left->location);
+  expty right = transA_Exp(out, s->u.assign.value, NULL);
   if (!right) {
     return NULL;
   }
@@ -495,8 +495,35 @@ Tr_exp transA_Putarray(FILE *out, A_stm s) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_Putarray...\n");
 #endif
-  // Not Implemented
-  return NULL;
+  if (!s) {
+    return NULL;
+  }
+
+  expty pos = transA_Exp(out, s->u.putarray.e1, NULL);
+  if (!pos) {
+    return NULL;
+  }
+  if (pos->value->kind != Ty_int && pos->value->kind != Ty_float) {
+    transError(out, s->pos,
+               String("error: first argument of putarray() must be of type int "
+                      "or float"));
+  }
+
+  expty array = transA_Exp(out, s->u.putarray.e2, NULL);
+  if (!array) {
+    return NULL;
+  }
+  if (array->value->kind != Ty_array) {
+    transError(
+        out, s->pos,
+        String("error: second argument of putarray() must be of type array"));
+  }
+
+  if (pos->value->kind == Ty_float) {
+    pos->exp = Tr_Cast(pos->exp, T_int);
+  }
+
+  return Tr_Putarray(pos->exp, array->exp);
 }
 
 Tr_exp transA_Starttime(FILE *out, A_stm s) {
@@ -576,7 +603,7 @@ Tr_exp transA_Exp_Num(FILE *out, A_exp e, Ty_ty type) {
     return NULL;
   }
 
-  expty num = transA_Exp(out, e, NULL);
+  expty num = transA_Exp(out, e, type);
   if (!num) {
     return NULL;
   }
@@ -710,8 +737,47 @@ expty transA_ArrayExp(FILE *out, A_exp e) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_ArrayExp...\n");
 #endif
-  // Not Implemented
-  return NULL;
+  if (!e) {
+    return NULL;
+  }
+
+  expty array = transA_Exp(out, e->u.array_pos.arr, NULL);
+  if (!array) {
+    return NULL;
+  }
+  if (array->value->kind != Ty_array) {
+    transError(out, e->pos,
+               String("error: left side of array access must be an array"));
+  }
+
+  expty pos = transA_Exp(out, e->u.array_pos.arr_pos, Ty_Int());
+  if (!pos) {
+    return NULL;
+  }
+  if (pos->value->kind != Ty_int && pos->value->kind != Ty_float) {
+    transError(
+        out, e->pos,
+        String(
+            "error: right side of array access must be of type int or float"));
+  }
+  if (pos->value->kind == Ty_float) {
+    pos->exp = Tr_Cast(pos->exp, T_int);
+  }
+
+  T_type type;
+  switch (array->value->u.array->kind) {
+    case Ty_int:
+      type = T_int;
+      break;
+    case Ty_float:
+      type = T_float;
+      break;
+    default:
+      return NULL;  // unreachable
+  }
+
+  return ExpTy(Tr_ArrayExp(array->exp, pos->exp, type), array->value->u.array,
+               array->value->u.array);
 }
 
 expty transA_CallExp(FILE *out, A_exp e) {
@@ -772,9 +838,22 @@ expty transA_LengthExp(FILE *out, A_exp e) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_LengthExp...\n");
 #endif
-  // Not Implemented
-  return NULL;
+  if (!e) {
+    return NULL;
+  }
+
+  expty array = transA_Exp(out, e->u.e, NULL);
+  if (!array) {
+    return NULL;
+  }
+  if (array->value->kind != Ty_array) {
+    transError(out, e->pos,
+               String("error: argument of length() must be an array"));
+  }
+
+  return ExpTy(Tr_LengthExp(array->exp), Ty_Int(), NULL);
 }
+
 expty transA_IdExp(FILE *out, A_exp e) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_IdExp...\n");
@@ -803,16 +882,47 @@ expty transA_NewIntArrExp(FILE *out, A_exp e) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_NewIntArrExp...\n");
 #endif
-  // Not Implemented
-  return NULL;
+  if (!e) {
+    return NULL;
+  }
+
+  expty size = transA_Exp(out, e->u.e, NULL);
+  if (!size) {
+    return NULL;
+  }
+  if (size->value->kind != Ty_int && size->value->kind != Ty_float) {
+    transError(out, e->pos,
+               String("error: argument of new int array must be of type int"));
+  }
+  if (size->value->kind == Ty_float) {
+    size->exp = Tr_Cast(size->exp, T_int);
+  }
+
+  return ExpTy(Tr_NewArrExp(size->exp), Ty_Array(Ty_Int()), NULL);
 }
 
 expty transA_NewFloatArrExp(FILE *out, A_exp e) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_NewFloatArrExp...\n");
 #endif
-  // Not Implemented
-  return NULL;
+  if (!e) {
+    return NULL;
+  }
+
+  expty size = transA_Exp(out, e->u.e, NULL);
+  if (!size) {
+    return NULL;
+  }
+  if (size->value->kind != Ty_int && size->value->kind != Ty_float) {
+    transError(out, e->pos,
+               String("error: argument of new float array must be of type "
+                      "int or float"));
+  }
+  if (size->value->kind == Ty_float) {
+    size->exp = Tr_Cast(size->exp, T_int);
+  }
+
+  return ExpTy(Tr_NewArrExp(size->exp), Ty_Array(Ty_Float()), NULL);
 }
 
 expty transA_NewObjExp(FILE *out, A_exp e) {
@@ -905,6 +1015,25 @@ expty transA_Getarray(FILE *out, A_exp e) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_Getarray...\n");
 #endif
-  // Not Implemented
-  return NULL;
+  if (!e) {
+    return NULL;
+  }
+
+  expty array = transA_Exp(out, e->u.e, NULL);
+  if (!array) {
+    return NULL;
+  }
+  if (array->value->kind != Ty_array) {
+    transError(out, e->pos,
+               String("error: argument of getarray() must be an array"));
+  }
+
+  switch (array->value->u.array->kind) {
+    case Ty_int:
+      return ExpTy(Tr_Getarray(array->exp), Ty_Int(), NULL);
+    case Ty_float:
+      return ExpTy(Tr_Getfarray(array->exp), Ty_Int(), NULL);
+    default:
+      return NULL;  // unreachable
+  }
 }

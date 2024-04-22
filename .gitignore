@@ -8,3 +8,4 @@ build/
 *.ll
 *.irp
 *.stm
+*.debug
