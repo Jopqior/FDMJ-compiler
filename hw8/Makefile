@@ -7,7 +7,8 @@ QEMU     = qemu-arm
 
 BUILD_DIR = "$(CURDIR)/build"
 MAIN_EXE  = "$(BUILD_DIR)/tools/main"
-FMJ2AST   = "$(CURDIR)/vendor/tools/fmj2ast"
+FMJ2AST   = "$(CURDIR)/../tools/fmj2ast"
+AST2IRP   = "$(CURDIR)/../tools/ast2irp"
 TEST_DIR  = "$(CURDIR)/test"
 
 MAKEFLAGS = --no-print-directory
@@ -48,6 +49,18 @@ test-extra: clean
 			echo "[$${file%%.*}]"; \
 			$(FMJ2AST) "$${file%%.*}" && \
 			$(MAIN_EXE) "$${file%%.*}"; \
+		fi \
+	done; \
+	cd $(CURDIR)
+
+.PHONY: ast2irp
+ast2irp: clean
+	@cd $(TEST_DIR); \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(AST2IRP) "$${file%%.*}"; \
 		fi \
 	done; \
 	cd $(CURDIR)

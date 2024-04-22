@@ -1,5 +1,0 @@
-// test time
-public int main() {
-    starttime();
-    stoptime();
-}
