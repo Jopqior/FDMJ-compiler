@@ -1,24 +1,24 @@
-define i32 @eighty_four(i32 %x) {
-  ret i32 %x
+define i64 @eighty_four(i64 %x) {
+  ret i64 84
 }
-define i32 @eighty_five(i32 %x) {
-  ret i32 %x
+define i64 @eighty_five(i64 %x) {
+  ret i64 85
 }
-define i32 @eighty_six(i32 %x) {
-  ret i32 %x
-}
-
-define i32 @main() {
-  %1 = call ptr @malloc(i32 24)
-  %2 = getelementptr i64*, i64*%1, i32 0
-  store ptr @eighty_four, ptr %2
-  %3 = getelementptr i64*, i64*%1, i32 1
-  store ptr @eighty_five, ptr %3
-  %4 = getelementptr i64*, i64*%1, i32 2
-  store ptr @eighty_six, ptr %4
-  %5 = load ptr, ptr %4
-  %6 = call i32 %5(double 1.9)
-  ret i32 %6
+define i64 @eighty_six(i64 %x) {
+  ret i64 86
 }
 
-declare ptr @malloc()
+define i64 @main() {
+  %1 = call i64* @malloc(i64 24)
+  %2 = getelementptr i64*, i64* %1, i64 0
+  store i64* @eighty_four, i64* %2, align 8
+  %3 = getelementptr i64*, i64* %1, i64 1
+  store i64* @eighty_five, i64* %3, align 8
+  %4 = getelementptr i64*, i64* %1, i64 2
+  store i64* @eighty_six, i64* %4, align 8
+  %5 = load i64*, i64* %2, align 8
+  %6 = call i64 %5(i64 19)
+  ret i64 %6
+}
+
+declare i64* @malloc()
