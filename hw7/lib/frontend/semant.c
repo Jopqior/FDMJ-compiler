@@ -636,11 +636,15 @@ expty transA_NumConst(FILE *out, A_exp e, Ty_ty type) {
   }
 
   float num = e->u.num;
-  T_type origin = num == (int)num ? T_int : T_float;
-  T_type to = type == NULL ? origin : (type->kind == Ty_int ? T_int : T_float);
+  T_type t;
+  if (type) {
+    t = type->kind == Ty_int ? T_int : T_float;
+  } else {
+    t = num == (int)num ? T_int : T_float;
+  }
 
-  Tr_exp exp = origin != to ? Tr_Cast(Tr_NumConst(num, origin), to) : Tr_NumConst(num, to);
-  switch (to) {
+  Tr_exp exp = Tr_NumConst(num, t);
+  switch (t) {
     case T_int:
       return ExpTy(exp, Ty_Int(), NULL);
     case T_float:

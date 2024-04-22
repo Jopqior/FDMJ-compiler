@@ -515,12 +515,11 @@ Tr_exp Tr_NumConst(float num, T_type type) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_NumConst...\n");
 #endif
-  switch (type)
-  {
-  case T_int:
-    return Tr_Ex(T_IntConst((int)num));
-  case T_float:
-    return Tr_Ex(T_FloatConst(num));
+  switch (type) {
+    case T_int:
+      return Tr_Ex(T_IntConst((int)num));
+    case T_float:
+      return Tr_Ex(T_FloatConst(num));
   }
 }
 
