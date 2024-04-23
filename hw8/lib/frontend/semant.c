@@ -684,6 +684,8 @@ T_funcDecl transA_MainMethod(FILE *out, A_mainMethod main) {
 #endif
   S_beginScope(venv);
 
+  curClassId = S_name(MAIN_CLASS);
+
   Tr_exp vdl = transA_VarDeclList(out, main->vdl);
   Tr_exp sl = transA_StmList(out, main->sl);
 
