@@ -1359,7 +1359,7 @@ expty transA_ArrayExp(FILE *out, A_exp e) {
                String("error: left side of array access must be an array"));
   }
 
-  expty pos = transA_Exp(out, e->u.array_pos.arr_pos, Ty_Int());
+  expty pos = transA_Exp(out, e->u.array_pos.arr_pos, NULL);
   if (!pos) {
     return NULL;
   }

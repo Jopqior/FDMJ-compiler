@@ -597,8 +597,12 @@ Tr_exp Tr_ArrayExp(Tr_exp arr, Tr_exp pos, T_type type) {
   T_exp a = unEx(arr);
   T_exp p = unEx(pos);
 
-  if (p->kind == T_CONST && p->u.CONST.i == 0) {
-    return Tr_Ex(T_Mem(a, type));
+  if (p->kind == T_CONST) {
+    if (p->u.CONST.i == 0) {
+      return Tr_Ex(T_Mem(a, type));
+    } else {
+      return Tr_Ex(T_Mem(T_Binop(T_plus, a, T_IntConst(p->u.CONST.i * SEM_ARCH_SIZE)), type));
+    }
   }
 
   return Tr_Ex(T_Mem(
