@@ -930,7 +930,7 @@ Tr_exp transA_CallStm(FILE *out, A_stm s) {
   int offset = offtable_look(methoff, S_Symbol(s->u.call_stat.fun));
   Tr_exp methAddr = Tr_ClassMethExp(obj->exp, offset);
 
-  return Tr_CallStm(s->u.call_stat.fun, methAddr, obj->exp, expl, ret);
+  return Tr_CallStm(s->u.call_stat.fun, obj->exp, methAddr, expl, ret);
 }
 
 Tr_exp transA_Continue(FILE *out, A_stm s) {
@@ -1425,7 +1425,7 @@ expty transA_CallExp(FILE *out, A_exp e) {
   int offset = offtable_look(methoff, S_Symbol(e->u.call.fun));
   Tr_exp methAddr = Tr_ClassMethExp(obj->exp, offset);
 
-  return ExpTy(Tr_CallExp(e->u.call.fun, methAddr, obj->exp, expl, ret),
+  return ExpTy(Tr_CallExp(e->u.call.fun, obj->exp, methAddr, expl, ret),
                me->u.meth.ret, NULL);
 }
 
@@ -1685,11 +1685,12 @@ Tr_exp transA_NewObjClassVar(FILE *out, S_table vtbl, Tr_exp tmpobj,
 
     vtop = vb->prevtop;
   }
-  
+
   return newObjStm;
 }
 
-Tr_exp transA_NewObjClassMeth(FILE *out, S_table mtbl, Tr_exp tmpobj, Tr_exp newObjStm) {
+Tr_exp transA_NewObjClassMeth(FILE *out, S_table mtbl, Tr_exp tmpobj,
+                              Tr_exp newObjStm) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_NewObjClassMeth...\n");
 #endif
@@ -1702,7 +1703,8 @@ Tr_exp transA_NewObjClassMeth(FILE *out, S_table mtbl, Tr_exp tmpobj, Tr_exp new
     // get label of the method
     S_symbol from = meth->u.meth.from;
     S_symbol name = mb->key;
-    Tr_exp methLabel = Tr_ClassMethLabel(Temp_namedlabel(S_name(S_link(from, name))));
+    Tr_exp methLabel =
+        Tr_ClassMethLabel(Temp_namedlabel(S_name(S_link(from, name))));
 
     // get offset of the method
     int offset = offtable_look(methoff, mb->key);

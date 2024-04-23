@@ -385,12 +385,12 @@ Tr_exp Tr_ArrayInit(Tr_exp arr, Tr_expList init, T_type type) {
   return Tr_Nx(T_Seq(initArr, T_Move(unEx(arr), T_Temp(newArr))));
 }
 
-Tr_exp Tr_CallStm(string meth, Tr_exp methaddr, Tr_exp thiz, Tr_expList el,
+Tr_exp Tr_CallStm(string meth, Tr_exp clazz, Tr_exp thiz, Tr_expList el,
                   T_type type) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_CallStm...\n");
 #endif
-  return Tr_Nx(T_Exp(unEx(Tr_CallExp(meth, methaddr, thiz, el, type))));
+  return Tr_Nx(T_Exp(unEx(Tr_CallExp(meth, clazz, thiz, el, type))));
 }
 
 Tr_exp Tr_Continue(Temp_label whiletest) {
@@ -601,7 +601,8 @@ Tr_exp Tr_ArrayExp(Tr_exp arr, Tr_exp pos, T_type type) {
     if (p->u.CONST.i == 0) {
       return Tr_Ex(T_Mem(a, type));
     } else {
-      return Tr_Ex(T_Mem(T_Binop(T_plus, a, T_IntConst(p->u.CONST.i * SEM_ARCH_SIZE)), type));
+      return Tr_Ex(T_Mem(
+          T_Binop(T_plus, a, T_IntConst(p->u.CONST.i * SEM_ARCH_SIZE)), type));
     }
   }
 
@@ -609,13 +610,17 @@ Tr_exp Tr_ArrayExp(Tr_exp arr, Tr_exp pos, T_type type) {
       T_Binop(T_plus, a, T_Binop(T_mul, p, T_IntConst(SEM_ARCH_SIZE))), type));
 }
 
-Tr_exp Tr_CallExp(string meth, Tr_exp methaddr, Tr_exp thiz, Tr_expList el,
+Tr_exp Tr_CallExp(string meth, Tr_exp clazz, Tr_exp thiz, Tr_expList el,
                   T_type type) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_CallExp...\n");
 #endif
-  return Tr_Ex(T_Call(meth, unEx(methaddr),
-                      T_ExpList(unEx(thiz), unTrExpList(el)), type));
+  T_exp obj = unEx(clazz);
+  if (obj->kind == T_ESEQ) {
+    obj = obj->u.ESEQ.exp;
+  }
+
+  return Tr_Ex(T_Call(meth, unEx(thiz), T_ExpList(obj, unTrExpList(el)), type));
 }
 
 Tr_exp Tr_ClassVarExp(Tr_exp clazz, int offset, T_type type) {
