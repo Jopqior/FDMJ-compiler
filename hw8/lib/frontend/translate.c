@@ -145,6 +145,13 @@ struct Tr_expList_ {
   Tr_expList tail;
 };
 
+/* helper functions */
+
+static T_expList unTrExpList(Tr_expList el) {
+  if (!el) return NULL;
+  return T_ExpList(unEx(el->head), unTrExpList(el->tail));
+}
+
 /* TODO: translate */
 
 // methods
@@ -158,11 +165,34 @@ T_funcDeclList Tr_FuncDeclList(T_funcDecl fd, T_funcDeclList fdl) {
   return T_FuncDeclList(fd, fdl);
 }
 
+T_funcDeclList Tr_ChainFuncDeclList(T_funcDeclList first,
+                                    T_funcDeclList second) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_ChainFuncDeclList...\n");
+#endif
+  if (!first) {
+    return second;
+  }
+  if (!second) {
+    return first;
+  }
+  return T_FuncDeclList(first->head, Tr_ChainFuncDeclList(first->tail, second));
+}
+
 T_funcDecl Tr_MainMethod(Tr_exp vdl, Tr_exp sl) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_MainMethod...\n");
 #endif
   return T_FuncDecl(String("main"), NULL, unNx(Tr_StmList(vdl, sl)));
+}
+
+T_funcDecl Tr_ClassMethod(string name, Temp_tempList paras, Tr_exp vdl,
+                          Tr_exp sl) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_ClassMethod...\n");
+#endif
+  return T_FuncDecl(name, Temp_TempList(this(), paras),
+                    unNx(Tr_StmList(vdl, sl)));
 }
 
 // stms
@@ -353,6 +383,14 @@ Tr_exp Tr_ArrayInit(Tr_exp arr, Tr_expList init, T_type type) {
   }
 
   return Tr_Nx(T_Seq(initArr, T_Move(unEx(arr), T_Temp(newArr))));
+}
+
+Tr_exp Tr_CallStm(string meth, Tr_exp methaddr, Tr_exp thiz, Tr_expList el,
+                  T_type type) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_CallStm...\n");
+#endif
+  return Tr_Nx(T_Exp(unEx(Tr_CallExp(meth, methaddr, thiz, el, type))));
 }
 
 Tr_exp Tr_Continue(Temp_label whiletest) {
@@ -567,6 +605,44 @@ Tr_exp Tr_ArrayExp(Tr_exp arr, Tr_exp pos, T_type type) {
       T_Binop(T_plus, a, T_Binop(T_mul, p, T_IntConst(SEM_ARCH_SIZE))), type));
 }
 
+Tr_exp Tr_CallExp(string meth, Tr_exp methaddr, Tr_exp thiz, Tr_expList el,
+                  T_type type) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_CallExp...\n");
+#endif
+  return Tr_Ex(T_Call(meth, unEx(methaddr),
+                      T_ExpList(unEx(thiz), unTrExpList(el)), type));
+}
+
+Tr_exp Tr_ClassVarExp(Tr_exp clazz, int offset, T_type type) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_ClassVarExp...\n");
+#endif
+  if (offset == 0) {
+    return Tr_Ex(T_Mem(unEx(clazz), type));
+  }
+  return Tr_Ex(T_Mem(
+      T_Binop(T_plus, unEx(clazz), T_IntConst(offset * SEM_ARCH_SIZE)), type));
+}
+
+Tr_exp Tr_ClassMethExp(Tr_exp clazz, int offset) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_ClassMethExp...\n");
+#endif
+  if (offset == 0) {
+    return Tr_Ex(T_Mem(unEx(clazz), T_int));
+  }
+  return Tr_Ex(T_Mem(
+      T_Binop(T_plus, unEx(clazz), T_IntConst(offset * SEM_ARCH_SIZE)), T_int));
+}
+
+Tr_exp Tr_ClassMethLabel(Temp_label label) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_ClassMethLabel...\n");
+#endif
+  return Tr_Ex(T_Name(label));
+}
+
 Tr_exp Tr_BoolConst(bool b) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_BoolConst...\n");
@@ -601,6 +677,13 @@ Tr_exp Tr_IdExp(Temp_temp tmp) {
   return Tr_Ex(T_Temp(tmp));
 }
 
+Tr_exp Tr_ThisExp(Temp_temp tmp) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_ThisExp...\n");
+#endif
+  return Tr_Ex(T_Temp(tmp));
+}
+
 Tr_exp Tr_NewArrExp(Tr_exp size) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_NewArrExp...\n");
@@ -627,24 +710,42 @@ Tr_exp Tr_NewArrExp(Tr_exp size) {
   Temp_temp sizeTemp = Temp_newtemp(T_int);
   Temp_temp newArr = Temp_newtemp(T_int);
   return Tr_Ex(T_Eseq(
-      T_Seq(T_Move(T_Temp(sizeTemp), s),
-            T_Seq(T_Move(T_Temp(newArr),
-                         T_Binop(T_plus,
-                                 T_ExtCall(
-                                     String("malloc"),
-                                     T_ExpList(
-                                         T_Binop(T_mul,
-                                                 T_Binop(T_plus, T_Temp(sizeTemp),
-                                                         T_IntConst(1)),
-                                                 T_IntConst(SEM_ARCH_SIZE)),
-                                         NULL),
-                                     T_int),
-                                 T_IntConst(SEM_ARCH_SIZE))),
-                  T_Move(T_Mem(T_Binop(T_plus, T_Temp(newArr),
-                                       T_IntConst(-SEM_ARCH_SIZE)),
-                               T_int),
-                         T_Temp(sizeTemp)))),
+      T_Seq(
+          T_Move(T_Temp(sizeTemp), s),
+          T_Seq(T_Move(T_Temp(newArr),
+                       T_Binop(T_plus,
+                               T_ExtCall(
+                                   String("malloc"),
+                                   T_ExpList(
+                                       T_Binop(T_mul,
+                                               T_Binop(T_plus, T_Temp(sizeTemp),
+                                                       T_IntConst(1)),
+                                               T_IntConst(SEM_ARCH_SIZE)),
+                                       NULL),
+                                   T_int),
+                               T_IntConst(SEM_ARCH_SIZE))),
+                T_Move(T_Mem(T_Binop(T_plus, T_Temp(newArr),
+                                     T_IntConst(-SEM_ARCH_SIZE)),
+                             T_int),
+                       T_Temp(sizeTemp)))),
       T_Temp(newArr)));
+}
+
+Tr_exp Tr_NewObjAlloc(Tr_exp tmpobj, int size) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_NewObjAlloc...\n");
+#endif
+  return Tr_Nx(T_Move(
+      unEx(tmpobj),
+      T_ExtCall(String("malloc"),
+                T_ExpList(T_IntConst(size * SEM_ARCH_SIZE), NULL), T_int)));
+}
+
+Tr_exp Tr_NewObjTemp(Temp_temp tmp) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_NewObjTemp...\n");
+#endif
+  return Tr_Ex(T_Temp(tmp));
 }
 
 Tr_exp Tr_NotExp(Tr_exp exp) {
@@ -710,14 +811,16 @@ Tr_exp Tr_Getarray(Tr_exp exp) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_Getarray...\n");
 #endif
-  return Tr_Ex(T_ExtCall(String("getarray"), T_ExpList(unEx(exp), NULL), T_int));
+  return Tr_Ex(
+      T_ExtCall(String("getarray"), T_ExpList(unEx(exp), NULL), T_int));
 }
 
 Tr_exp Tr_Getfarray(Tr_exp exp) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_Getfarray...\n");
 #endif
-  return Tr_Ex(T_ExtCall(String("getfarray"), T_ExpList(unEx(exp), NULL), T_int));
+  return Tr_Ex(
+      T_ExtCall(String("getfarray"), T_ExpList(unEx(exp), NULL), T_int));
 }
 
 Tr_exp Tr_Cast(Tr_exp exp, T_type type) {

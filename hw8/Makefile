@@ -24,6 +24,7 @@ clean:
 		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
 		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
 		-o -name "*.stm" \
+		-o -name "*.debug" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean
@@ -36,7 +37,7 @@ test: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}"; \
+			$(FMJ2AST) "$${file%%.*}" && \
 			$(MAIN_EXE) "$${file%%.*}"; \
 		fi \
 	done; \
