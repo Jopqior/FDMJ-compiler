@@ -7,7 +7,8 @@ QEMU     = qemu-arm
 
 BUILD_DIR = "$(CURDIR)/build"
 MAIN_EXE  = "$(BUILD_DIR)/tools/main"
-FMJ2AST   = "$(CURDIR)/vendor/tools/fmj2ast"
+FMJ2AST   = "$(CURDIR)/../tools/fmj2ast"
+AST2IRP   = "$(CURDIR)/../tools/ast2irp"
 TEST_DIR  = "$(CURDIR)/test"
 
 MAKEFLAGS = --no-print-directory
@@ -35,7 +36,7 @@ test: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}"; \
+			$(FMJ2AST) "$${file%%.*}" && \
 			$(MAIN_EXE) "$${file%%.*}"; \
 		fi \
 	done; \
@@ -52,6 +53,18 @@ test-extra: clean
 	done; \
 	cd $(CURDIR)
 
+.PHONY: ast2irp
+ast2irp: clean
+	@cd $(TEST_DIR); \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(AST2IRP) "$${file%%.*}"; \
+		fi \
+	done; \
+	cd $(CURDIR)
+
 handin:
 	@if [ ! -f docs/report.pdf ]; then \
 		echo "请先在docs文件夹下攥写报告, 并转换为'report.pdf'"; \
@@ -59,5 +72,5 @@ handin:
 	fi; \
 	echo "请输入'学号-姓名' (例如: 12345678910-某个人)"; \
 	read filename; \
-	zip -q -r "docs/$$filename-hw7.zip" \
+	zip -q -r "docs/$$filename-hw8.zip" \
 	  docs/report.pdf include lib
