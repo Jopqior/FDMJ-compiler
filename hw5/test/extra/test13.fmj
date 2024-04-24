@@ -1,0 +1,5 @@
+public int main() {
+    int i=0;
+    float[] a = {2.3, 4.5, 6.7};
+    while (({a[i]=i; i=i+1; break;} i)<8); // break
+}

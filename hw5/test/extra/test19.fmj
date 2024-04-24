@@ -1,0 +1,4 @@
+public int main() {
+    float[] a={1,2};
+    return a[a>0]; //incompatible type
+}

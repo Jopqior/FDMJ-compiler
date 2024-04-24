@@ -1,0 +1,6 @@
+public int main() {
+    float[] a;
+    int b;
+    a=new float[10];
+    return b[2]; // wrong []
+}

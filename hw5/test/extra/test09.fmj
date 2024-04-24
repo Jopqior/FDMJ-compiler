@@ -1,0 +1,7 @@
+public int main() {
+    float[] a;
+    int[] b;
+    a=new float[10];
+    b=new int[20];
+    return a[b];//wrong index
+}

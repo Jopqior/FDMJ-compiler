@@ -1,0 +1,9 @@
+public int main() {
+    int[] a;
+    float[] b;
+    a=new int[10];
+    b=new float[20];
+    b[2]=a[3];
+    if (b) // if exp
+        b[0]=1;
+}

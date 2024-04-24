@@ -1,0 +1,6 @@
+public int main() {
+    float[] a;
+    int b;
+    a=new float[getnum()];
+    b=!a;// wrong !
+}
