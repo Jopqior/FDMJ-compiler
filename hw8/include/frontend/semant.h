@@ -125,6 +125,7 @@ expty transA_Getch(FILE *out, A_exp e);
 expty transA_Getarray(FILE *out, A_exp e);
 
 /* helper functions */
+
 static string Stringf(char *, ...);
 static void offtable_enter(S_table t, S_symbol key, int off);
 static int offtable_look(S_table t, S_symbol key);

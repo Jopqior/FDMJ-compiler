@@ -385,12 +385,12 @@ Tr_exp Tr_ArrayInit(Tr_exp arr, Tr_expList init, T_type type) {
   return Tr_Nx(T_Seq(initArr, T_Move(unEx(arr), T_Temp(newArr))));
 }
 
-Tr_exp Tr_CallStm(string meth, Tr_exp clazz, Tr_exp thiz, Tr_expList el,
+Tr_exp Tr_CallStm(string meth, Tr_exp thiz, Tr_exp methAddr, Tr_expList el,
                   T_type type) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_CallStm...\n");
 #endif
-  return Tr_Nx(T_Exp(unEx(Tr_CallExp(meth, clazz, thiz, el, type))));
+  return Tr_Nx(T_Exp(unEx(Tr_CallExp(meth, thiz, methAddr, el, type))));
 }
 
 Tr_exp Tr_Continue(Temp_label whiletest) {
@@ -610,39 +610,39 @@ Tr_exp Tr_ArrayExp(Tr_exp arr, Tr_exp pos, T_type type) {
       T_Binop(T_plus, a, T_Binop(T_mul, p, T_IntConst(SEM_ARCH_SIZE))), type));
 }
 
-Tr_exp Tr_CallExp(string meth, Tr_exp clazz, Tr_exp thiz, Tr_expList el,
+Tr_exp Tr_CallExp(string meth, Tr_exp thiz, Tr_exp methAddr, Tr_expList el,
                   T_type type) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_CallExp...\n");
 #endif
-  T_exp obj = unEx(clazz);
+  T_exp obj = unEx(thiz);
   while (obj && obj->kind == T_ESEQ) {
     obj = obj->u.ESEQ.exp;
   }
 
-  return Tr_Ex(T_Call(meth, unEx(thiz), T_ExpList(obj, unTrExpList(el)), type));
+  return Tr_Ex(T_Call(meth, unEx(methAddr), T_ExpList(obj, unTrExpList(el)), type));
 }
 
-Tr_exp Tr_ClassVarExp(Tr_exp clazz, int offset, T_type type) {
+Tr_exp Tr_ClassVarExp(Tr_exp thiz, int offset, T_type type) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_ClassVarExp...\n");
 #endif
   if (offset == 0) {
-    return Tr_Ex(T_Mem(unEx(clazz), type));
+    return Tr_Ex(T_Mem(unEx(thiz), type));
   }
   return Tr_Ex(T_Mem(
-      T_Binop(T_plus, unEx(clazz), T_IntConst(offset * SEM_ARCH_SIZE)), type));
+      T_Binop(T_plus, unEx(thiz), T_IntConst(offset * SEM_ARCH_SIZE)), type));
 }
 
-Tr_exp Tr_ClassMethExp(Tr_exp clazz, int offset) {
+Tr_exp Tr_ClassMethExp(Tr_exp thiz, int offset) {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_ClassMethExp...\n");
 #endif
   if (offset == 0) {
-    return Tr_Ex(T_Mem(unEx(clazz), T_int));
+    return Tr_Ex(T_Mem(unEx(thiz), T_int));
   }
   return Tr_Ex(T_Mem(
-      T_Binop(T_plus, unEx(clazz), T_IntConst(offset * SEM_ARCH_SIZE)), T_int));
+      T_Binop(T_plus, unEx(thiz), T_IntConst(offset * SEM_ARCH_SIZE)), T_int));
 }
 
 Tr_exp Tr_ClassMethLabel(Temp_label label) {
