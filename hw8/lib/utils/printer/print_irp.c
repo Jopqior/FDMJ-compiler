@@ -12,6 +12,9 @@
 #include "tigerirp.h"
 #include "print_irp.h"
 
+#define __PRING_IRP_DEBUG
+#undef __PRING_IRP_DEBUG
+
 static IRP_format format=IRP_parentheses;
 
 void printIRP_set(IRP_format f) {
@@ -39,7 +42,15 @@ static char rel_oper[][12] = {
   "T_eq", "T_ne", "T_lt", "T_gt", "T_le", "T_ge"
 };
 
+static char stm_kind[][12] = {
+  "T_SEQ", "T_LABEL", "T_JUMP", "T_CJUMP", "T_MOVE", "T_EXP", "T_RETURN"
+};
+
 static void pr_stm(FILE *out, T_stm stm, int d) {
+  if (!stm) { return ; } 
+#ifdef __PRING_IRP_DEBUG
+  printf("---Entering pr_stm: %s\n", stm_kind[stm->kind]);
+#endif
   switch (stm->kind) {
   case T_SEQ:
     indent(out, d);
@@ -189,6 +200,9 @@ static void pr_stm(FILE *out, T_stm stm, int d) {
     }
     break;
   }
+#ifdef __PRING_IRP_DEBUG
+  printf("---Exiting pr_stm: %s\n", stm_kind[stm->kind]);
+#endif
 }
 
 static void pr_temp(FILE *out, Temp_temp t, int d) {
@@ -263,7 +277,15 @@ static void pr_explist(FILE *out, T_expList el, int d) {
   return ;
 }
 
+static char exp_kind[][12] = {
+  "T_BINOP", "T_MEM", "T_TEMP", "T_ESEQ", "T_NAME", "T_CONST", "T_CALL", "T_ExtCALL", "T_CAST"
+};
+
 static void pr_exp(FILE *out, T_exp exp, int d) {
+  if (!exp) { return ; }
+#ifdef __PRING_IRP_DEBUG
+  fprintf(stderr, "---Entering pr_exp: %s\n", exp_kind[exp->kind]);
+#endif
   switch (exp->kind) {
   case T_BINOP:
     indent(out, d);
@@ -322,7 +344,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
         fprintf(out, "T_Temp(");
         break;
       case IRP_xml:
-        fprintf(out, "<Temp><type>%s</type>\n", getT_type(exp->type));
+        fprintf(out, "<Temp>\n");
         break;
     }
     pr_temp(out, exp->u.TEMP, d+1);
@@ -437,6 +459,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
         fprintf(out, ",%s)", getT_type(exp->type));
         break;  
       case IRP_xml:
+        fprintf(out, "<type>%s</type>", getT_type(exp->type));
         fprintf(out, "</Cast>\n");
         break;
     }
@@ -444,6 +467,9 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
   } /* end of switch */
   if (format== IRP_parentheses)
     fprintf(out, "/*%s*/", getT_type(exp->type));
+#ifdef __PRING_IRP_DEBUG
+  fprintf(stderr, "---Exiting pr_exp: %s\n", exp_kind[exp->kind]);
+#endif
   return ;
 }
 

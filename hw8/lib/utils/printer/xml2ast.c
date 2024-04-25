@@ -8,7 +8,16 @@
 
 void node_out(FILE* file, XMLNode* node, int indent, int times);
 
-string onlyid(string s) {
+static A_expList xmlexplist(XMLNode* expList);
+static A_exp xmlexp(XMLNode* exp);
+static A_stmList xmlstmlist(XMLNode* stmList);
+static A_stm xmlstm(XMLNode* stmList);
+static A_varDeclList xmlvardecllist(XMLNode* varDeclList);
+static A_classDeclList xmlclassdecllist(XMLNode* node);
+static A_methodDeclList xmlmethoddecllist(XMLNode* node);
+static A_formalList xmlformallist(XMLNode* node);
+
+static string onlyid(string s) {
     char *ss = String(s);
     int i = 0, j=0;
     while (s[i] != '\0') {
@@ -23,7 +32,7 @@ string onlyid(string s) {
     return String(ss);
 }
 
-XMLNode* xmlgetchildnode(XMLNode* node, string tag) {
+static XMLNode* xmlgetchildnode(XMLNode* node, string tag) {
     if (!node || node->children.size ==0) return NULL;
     //fprintf(stderr, "looking for: xmlgetchildnode: %s\n", tag);
     XMLNodeList* list = XMLNode_children(node, tag);
@@ -32,7 +41,7 @@ XMLNode* xmlgetchildnode(XMLNode* node, string tag) {
     return  XMLNodeList_at(list, 0);
 }
 
-A_pos xmlpos(XMLNode* node) {
+static A_pos xmlpos(XMLNode* node) {
     assert(node && node->children.size >0);
     XMLNode *line = xmlgetchildnode(node, "line");
     XMLNode *col= xmlgetchildnode(node, "col");
@@ -41,7 +50,7 @@ A_pos xmlpos(XMLNode* node) {
     return A_Pos(atoi(onlyid(line->inner_text)), atoi(onlyid(col->inner_text)));
 }
 
-A_type xmltype(XMLNode* pos, string s) {
+static A_type xmltype(XMLNode* pos, string s) {
     A_pos p = xmlpos(pos);
 
     string t = onlyid(s);
@@ -63,7 +72,7 @@ A_type xmltype(XMLNode* pos, string s) {
     return NULL;
 }
 
-A_varDecl xmlvardecl(XMLNode* varDecl) {
+static A_varDecl xmlvardecl(XMLNode* varDecl) {
     assert(varDecl);
     XMLNode *pos = xmlgetchildnode(varDecl, "pos");
     assert(pos);
@@ -88,7 +97,7 @@ A_varDecl xmlvardecl(XMLNode* varDecl) {
     return NULL;
 }
 
-A_varDeclList xmlvardecllist(XMLNode* varDeclList) {
+static A_varDeclList xmlvardecllist(XMLNode* varDeclList) {
     if ( !varDeclList || varDeclList->children.size == 0) return NULL;
     XMLNode *v = xmlgetchildnode(varDeclList, "varDecl");
     XMLNode *l = xmlgetchildnode(varDeclList, "varDeclList");
@@ -96,7 +105,7 @@ A_varDeclList xmlvardecllist(XMLNode* varDeclList) {
     return A_VarDeclList(xmlvardecl(v), xmlvardecllist(l));
 }
 
-A_exp xmlexp(XMLNode* exp) {
+static A_exp xmlexp(XMLNode* exp) {
     assert(exp && exp->children.size > 0);
 
     string tag = onlyid(exp->tag);
@@ -258,7 +267,7 @@ A_exp xmlexp(XMLNode* exp) {
     return NULL;
 }
 
-A_expList xmlexplist(XMLNode* expList) {
+static A_expList xmlexplist(XMLNode* expList) {
     if (!expList || expList->children.size == 0) return NULL;
     XMLNode *e = XMLNode_child(expList, 0);
     XMLNode *l = xmlgetchildnode(expList, "expList");
@@ -266,7 +275,7 @@ A_expList xmlexplist(XMLNode* expList) {
     return A_ExpList(xmlexp(e), xmlexplist(l));
 }
 
-A_stm xmlstm(XMLNode* stm) {
+static A_stm xmlstm(XMLNode* stm) {
     assert(stm);
     string tag = onlyid(stm->tag);
 
@@ -379,7 +388,7 @@ A_stm xmlstm(XMLNode* stm) {
     return NULL;
 }
 
-A_stmList xmlstmlist(XMLNode* stmList) {
+static A_stmList xmlstmlist(XMLNode* stmList) {
     if (!stmList || stmList->children.size == 0) return NULL;
     XMLNode *s = XMLNode_child(stmList, 0);
     XMLNode *l = xmlgetchildnode(stmList, "stmList");
@@ -387,7 +396,7 @@ A_stmList xmlstmlist(XMLNode* stmList) {
 }
 
 
-A_formal xmlformal(XMLNode* node) {
+static A_formal xmlformal(XMLNode* node) {
     assert(node && !strcmp(node->tag, "formal"));
     XMLNode *pos = xmlgetchildnode(node, "pos");
     XMLNode *t = xmlgetchildnode(node, "type");
@@ -396,7 +405,7 @@ A_formal xmlformal(XMLNode* node) {
     return A_Formal(xmlpos(pos), xmltype(pos, String(onlyid(t->inner_text))), String(onlyid(id->inner_text)));
 }
 
-A_formalList xmlformallist(XMLNode* node) {
+static A_formalList xmlformallist(XMLNode* node) {
     if (!node || node->children.size == 0) return NULL;
     assert(!strcmp(node->tag, "formalList"));
     XMLNode *f = xmlgetchildnode(node, "formal");
@@ -405,7 +414,7 @@ A_formalList xmlformallist(XMLNode* node) {
     return A_FormalList(xmlformal(f), xmlformallist(l));
 }   
 
-A_methodDecl xmlmethoddecl(XMLNode* node) {
+static A_methodDecl xmlmethoddecl(XMLNode* node) {
     assert(node);
     XMLNode *pos = xmlgetchildnode(node, "pos");
     XMLNode *t = xmlgetchildnode(node, "type");
@@ -430,7 +439,7 @@ A_methodDecl xmlmethoddecl(XMLNode* node) {
             String(onlyid(n->inner_text)), xmlformallist(f), xmlvardecllist(vl), xmlstmlist(sl));
 }
 
-A_methodDeclList xmlmethoddecllist(XMLNode* node) {
+static A_methodDeclList xmlmethoddecllist(XMLNode* node) {
     if (!node || node->children.size ==0) return NULL;
     XMLNode *m = xmlgetchildnode(node, "methodDecl");
     XMLNode *l = xmlgetchildnode(node, "methodDeclList");
@@ -438,7 +447,7 @@ A_methodDeclList xmlmethoddecllist(XMLNode* node) {
     return A_MethodDeclList(xmlmethoddecl(m), xmlmethoddecllist(l));
 }
 
-A_mainMethod xmlmainmethod(XMLNode* node) { 
+static A_mainMethod xmlmainmethod(XMLNode* node) { 
     assert(node);
     XMLNode *pos = xmlgetchildnode(node, "pos");
     XMLNode *v = xmlgetchildnode(node, "varDeclList");
@@ -446,7 +455,7 @@ A_mainMethod xmlmainmethod(XMLNode* node) {
     return A_MainMethod(xmlpos(pos), xmlvardecllist(v), xmlstmlist(l));
 }
 
-A_classDecl xmlclassdecl(XMLNode* node) {
+static A_classDecl xmlclassdecl(XMLNode* node) {
     string pname=NULL;
     assert(node);
     XMLNode *pos = xmlgetchildnode(node, "pos");
@@ -460,7 +469,7 @@ A_classDecl xmlclassdecl(XMLNode* node) {
     return A_ClassDecl(xmlpos(pos), String(onlyid(id->inner_text)), pname, xmlvardecllist(vdl), xmlmethoddecllist(mdl));
 }
 
-A_classDeclList xmlclassdecllist(XMLNode* node) {
+static A_classDeclList xmlclassdecllist(XMLNode* node) {
     if (!node || node->children.size == 0) return NULL;
     XMLNode *c = xmlgetchildnode(node, "classDecl");
     XMLNode *l = xmlgetchildnode(node, "classDeclList");
