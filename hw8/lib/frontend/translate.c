@@ -616,7 +616,7 @@ Tr_exp Tr_CallExp(string meth, Tr_exp clazz, Tr_exp thiz, Tr_expList el,
   fprintf(stderr, "\tEntering Tr_CallExp...\n");
 #endif
   T_exp obj = unEx(clazz);
-  if (obj->kind == T_ESEQ) {
+  while (obj && obj->kind == T_ESEQ) {
     obj = obj->u.ESEQ.exp;
   }
 
