@@ -134,7 +134,7 @@ void transA_ClassDecl_basic(FILE *out, A_classDecl cd) {
 
   // init class methods
   S_table mtbl = S_empty();
-  transA_MethodDeclList_basic(out, mtbl, S_Symbol(cd->id), cd->mdl);
+  transA_MethodDeclList_basic(out, mtbl, cd->mdl);
 
   S_enter(cenv, S_Symbol(cd->id),
           E_ClassEntry(cd, fa, E_transInit, vtbl, mtbl));
@@ -199,22 +199,21 @@ void transA_ClassVarDecl_basic(FILE *out, S_table vtbl, A_varDecl vd) {
   }
 }
 
-void transA_MethodDeclList_basic(FILE *out, S_table mtbl, S_symbol classid,
+void transA_MethodDeclList_basic(FILE *out, S_table mtbl,
                                  A_methodDeclList mdl) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_MethodDeclList_basic...\n");
 #endif
   if (!mdl) return;
 
-  transA_MethodDecl_basic(out, mtbl, classid, mdl->head);
+  transA_MethodDecl_basic(out, mtbl, mdl->head);
 
   if (mdl->tail) {
-    transA_MethodDeclList_basic(out, mtbl, classid, mdl->tail);
+    transA_MethodDeclList_basic(out, mtbl, mdl->tail);
   }
 }
 
-void transA_MethodDecl_basic(FILE *out, S_table mtbl, S_symbol classid,
-                             A_methodDecl md) {
+void transA_MethodDecl_basic(FILE *out, S_table mtbl, A_methodDecl md) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_MethodDecl_basic...\n");
 #endif
@@ -431,7 +430,7 @@ T_funcDeclList transA_ClassDecl(FILE *out, A_classDecl cd) {
 
   // init class variables
   if (cd->vdl) {
-    transA_ClassVarDeclList(out, ce->u.cls.vtbl, cd->vdl);
+    transA_ClassVarDeclList(out, cd->vdl);
   }
 
   // init class methods
@@ -440,20 +439,20 @@ T_funcDeclList transA_ClassDecl(FILE *out, A_classDecl cd) {
   return methods;
 }
 
-void transA_ClassVarDeclList(FILE *out, S_table vtbl, A_varDeclList vdl) {
+void transA_ClassVarDeclList(FILE *out, A_varDeclList vdl) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_ClassVarDeclList...\n");
 #endif
   if (!vdl) return;
 
-  transA_ClassVarDecl(out, vtbl, vdl->head);
+  transA_ClassVarDecl(out, vdl->head);
 
   if (vdl->tail) {
-    transA_ClassVarDeclList(out, vtbl, vdl->tail);
+    transA_ClassVarDeclList(out, vdl->tail);
   }
 }
 
-void transA_ClassVarDecl(FILE *out, S_table vtbl, A_varDecl vd) {
+void transA_ClassVarDecl(FILE *out, A_varDecl vd) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_ClassVarDecl...\n");
 #endif
@@ -507,7 +506,7 @@ T_funcDecl transA_MethodDecl(FILE *out, S_table mtbl, A_methodDecl md) {
   S_beginScope(venv);
 
   // check if the formal list is declared, and add them to the environment
-  Temp_tempList fl = transA_FormalList(out, meth->u.meth.fl, md->fl, md->pos);
+  Temp_tempList fl = transA_FormalList(out, md->fl);
 
   // get method body
   Tr_exp vdl = transA_VarDeclList(out, md->vdl);
@@ -520,8 +519,7 @@ T_funcDecl transA_MethodDecl(FILE *out, S_table mtbl, A_methodDecl md) {
                         fl, vdl, sl);
 }
 
-Temp_tempList transA_FormalList(FILE *out, Ty_fieldList fieldList,
-                                A_formalList fl, A_pos pos) {
+Temp_tempList transA_FormalList(FILE *out, A_formalList fl) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_FormalList with method %s...\n",
           S_name(S_link(S_Symbol(curClassId), S_Symbol(curMethodId))));
@@ -530,12 +528,12 @@ Temp_tempList transA_FormalList(FILE *out, Ty_fieldList fieldList,
     return NULL;
   }
 
-  Temp_temp curTemp = transA_Formal(out, fieldList->head, fl->head);
-  Temp_tempList rest = transA_FormalList(out, fieldList->tail, fl->tail, pos);
+  Temp_temp curTemp = transA_Formal(out, fl->head);
+  Temp_tempList rest = transA_FormalList(out, fl->tail);
   return Temp_TempList(curTemp, rest);
 }
 
-Temp_temp transA_Formal(FILE *out, Ty_field field, A_formal f) {
+Temp_temp transA_Formal(FILE *out, A_formal f) {
 #ifdef __DEBUG
   fprintf(out, "Entering transA_Formal...\n");
 #endif
