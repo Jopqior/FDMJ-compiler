@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"util.h": "c",
+			"print_irp.h": "c",
+			"xml2ast.h": "c",
+			"getopt.h": "c"
+		}
+	}
+}
