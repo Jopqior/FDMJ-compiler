@@ -390,7 +390,13 @@ Tr_exp Tr_CallStm(string meth, Tr_exp thiz, Tr_exp methAddr, Tr_expList el,
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_CallStm...\n");
 #endif
-  return Tr_Nx(T_Exp(unEx(Tr_CallExp(meth, thiz, methAddr, el, type))));
+  T_exp obj = unEx(thiz);
+  while (obj && obj->kind == T_ESEQ) {
+    obj = obj->u.ESEQ.exp;
+  }
+
+  return Tr_Nx(T_Exp(
+      T_Call(meth, unEx(methAddr), T_ExpList(obj, unTrExpList(el)), type)));
 }
 
 Tr_exp Tr_Continue(Temp_label whiletest) {
@@ -620,7 +626,12 @@ Tr_exp Tr_CallExp(string meth, Tr_exp thiz, Tr_exp methAddr, Tr_expList el,
     obj = obj->u.ESEQ.exp;
   }
 
-  return Tr_Ex(T_Call(meth, unEx(methAddr), T_ExpList(obj, unTrExpList(el)), type));
+  Temp_temp tmp = Temp_newtemp(T_int);
+
+  return Tr_Ex(
+      T_Eseq(T_Move(T_Temp(tmp), T_Call(meth, unEx(methAddr),
+                                        T_ExpList(obj, unTrExpList(el)), type)),
+             T_Temp(tmp)));
 }
 
 Tr_exp Tr_ClassVarExp(Tr_exp thiz, int offset, T_type type) {
