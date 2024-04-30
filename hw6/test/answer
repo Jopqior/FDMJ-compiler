@@ -1,0 +1,26 @@
+[hw6test00]
+(line:3 col:1) Cyclic class extend!
+[hw6test01]
+(line:7 col:29) Redeclared class variable!
+[hw6test02]
+[hw6test03]
+(line:8 col:12) Undefined class method!
+[hw6test04]
+(line:8 col:5) Main method should return a num!
+[hw6test05]
+(line:31 col:5) Undefined class variable!
+[hw6test06]
+(line:21 col:5) Uncompatible class type!
+[hw6test07]
+(line:10 col:9) Uncompatible class type!
+[hw6test08]
+(line:3 col:5) Uncompatible class type!
+[hw6test09]
+[hw6test10]
+(line:19 col:21) Uncompatible type!
+[hw6test11]
+(line:12 col:22) Undefined variable!
+[hw6test12]
+(line:19 col:9) Undefined variable!
+[try]
+(line:3 col:27) Break must be inside while!
