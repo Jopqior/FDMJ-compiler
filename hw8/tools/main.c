@@ -37,14 +37,20 @@ int main(int argc, const char * argv[]) {
   // fflush(stdout);
   // fclose(stdout);
 
+  freopen(file_irp, "a", stdout);
+  printIRP_set(IRP_parentheses);
+  printIRP_FuncDeclList(stdout, fdl);
+  fflush(stdout);
+  fclose(stdout);
+
   while (fdl) {
-    freopen(file_irp, "a", stdout);
-    fprintf(stdout, "------Original IR Tree------\n");
-    printIRP_set(IRP_parentheses);
-    printIRP_FuncDecl(stdout, fdl->head);
-    fprintf(stdout, "\n\n");
-    fflush(stdout);
-    fclose(stdout);
+    // freopen(file_irp, "a", stdout);
+    // fprintf(stdout, "------Original IR Tree------\n");
+    // printIRP_set(IRP_parentheses);
+    // printIRP_FuncDecl(stdout, fdl->head);
+    // fprintf(stdout, "\n\n");
+    // fflush(stdout);
+    // fclose(stdout);
 
     freopen(file_stm, "a", stdout);
     fprintf(stdout, "-----Function %s------\n", fdl->head->name);
