@@ -6,6 +6,7 @@ set(LIBS
   vendor_lxml
   backend_llvm
 )
+add_dependencies(${LIBS} vendor_libsysy)
 
 set(main "main")
 add_executable(${main} main.c)
