@@ -1,6 +1,6 @@
 .DS_Store
-.vscode/
-build/
+.vscode
+build
 *.src
 *.ast
 *.output
