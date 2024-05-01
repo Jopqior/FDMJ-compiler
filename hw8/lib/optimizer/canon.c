@@ -34,6 +34,8 @@ static bool isNop(T_stm x) {
 }
 
 static T_stm seq(T_stm x, T_stm y) {
+  if (!x) return y;
+  if (!y) return x;
   if (isNop(x)) return y;
   if (isNop(y)) return x;
   return T_Seq(x, y);
@@ -132,6 +134,7 @@ static struct stmExp do_exp(T_exp exp) {
 
 /* processes stm so that it contains no ESEQ nodes */
 static T_stm do_stm(T_stm stm) {
+  if (!stm) return NULL;
   switch (stm->kind) {
   case T_SEQ:
     return seq(do_stm(stm->u.SEQ.left), do_stm(stm->u.SEQ.right));

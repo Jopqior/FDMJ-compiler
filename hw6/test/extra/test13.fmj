@@ -1,0 +1,10 @@
+public int main() {
+    int x;
+}
+
+public class c1 {
+    int x;
+    public int a(int x) {
+        return this.y;
+    }
+}

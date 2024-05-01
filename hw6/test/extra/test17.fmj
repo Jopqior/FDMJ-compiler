@@ -1,0 +1,16 @@
+public int main() { 
+    class c2 my_class;
+    float [] fa;
+    my_class = new c2();
+    return ({fa[0]=my_class.a(my_class);} fa[0]);
+}
+
+public class c1 {
+    int x=1;
+}
+
+public class c2 {
+    public float[] a(class c1 x) {
+        return new float[x.x];
+    }
+}

@@ -1,0 +1,12 @@
+public int main() { 
+    int y;
+    int x;
+    return new c1().a(1,1);
+}
+
+public class c1 {
+    int x;
+    public int a(int x, int x) {
+        return 3;
+    }
+}

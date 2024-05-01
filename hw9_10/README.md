@@ -12,6 +12,6 @@ The input should be a TigerIR+ XML file, generated from fmj2ast+ast2irp code giv
 
 3) You are supposed to supply the code for llvmbody() in the lib/backend/llvm/llvmgen.c file. This function is to translate a **basic block** of TigerIR+ tree into an AS_instrList. Currently, the function returns a correct AS_instrList for testing purposes (you should remove this AS_instrList when you are done).
 
-4) You submission will be graded by inspecting the \*.6.ins files from some test fmj source code. **Some of test fmj sources will be FDMJ-SLP code (having "putint" replaced with "putnum"). In this case, the main method will only have one block. And the generated LLVM IR code will be tested by running with llvm-link + lli. (The llvm-link is to link the putint and putch functions given by the \*.c code in hw9_10/vendor/libsysy folder).**
+4) You submission will be graded by inspecting the \*.6.ins files from some test fmj source code. **Some of test fmj sources will be those with no variables redefine (i.e., assigned to different values at different places). The generated LLVM IR code of such sources will be tested by running with llvm-link + lli. (The llvm-link is to link the putint, putch and other functions given by the \*.c code in hw9_10/vendor/libsysy folder).**
 
 As usual, do all your work with the class code repository and submit to elearning the materials packaged with "make handin".

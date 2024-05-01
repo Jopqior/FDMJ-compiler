@@ -1,0 +1,16 @@
+public int main() { 
+    return 0;
+}
+
+public class c1 {
+    int x;
+    public int a(int x) {
+        return 3;
+    }
+}
+
+public class c2 extends c1 {
+    public float a(int x) {
+        return 1;
+    }
+}
