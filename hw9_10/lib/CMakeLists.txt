@@ -1,3 +1,3 @@
 add_subdirectory(optimizer)
 add_subdirectory(utils)
-add_subdirectory(llvm)
+add_subdirectory(backend)

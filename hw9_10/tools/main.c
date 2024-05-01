@@ -48,7 +48,7 @@ int main(int argc, const char * argv[]) {
   if (XMLDocument_load(&doc, file_irp)) {
     if (!doc.root) {
       fprintf(stderr, "Error: Invalid TigerIR+ XML file\n");
-      exit -1;
+      return -1;
     }
     if (doc.root->children.size == 0) {
       fprintf(stderr, "Error: Nothing in the TigerIR+ XML file\n");
@@ -112,7 +112,7 @@ int main(int argc, const char * argv[]) {
 
     //Making LLVM IR function header. See llvmgen.h for the function prototype, and llvmgen.c for the implementation
     //fprintf(stderr, "Instruction selection for function: %s\n", fdl->head->name);
-    AS_instrList prologil = llvmprolog(fdl->head->name, fdl->head->args, T_int); //add the prolog of the function
+    AS_instrList prologil = llvmprolog(fdl->head->name, fdl->head->args, fdl->head->ret_type); //add the prolog of the function
     AS_blockList bodybl = NULL; //making an empty body
     for (C_stmListList sll = b.stmLists; sll; sll = sll->tail) { // for each basic block we do the instruction selection
 
