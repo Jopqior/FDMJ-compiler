@@ -1,0 +1,11 @@
+// test shortcut condition
+public int main() {
+    int a = 10;
+    int b = 20;
+    if (a > 10 || a < b || false)
+        a = b;
+    else
+        if (a > 5 && ({a=10;}a < 20))
+            a = b - 1;
+    return a;
+}

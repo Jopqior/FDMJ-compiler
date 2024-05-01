@@ -1,0 +1,5 @@
+// test return
+public int main() {
+    float a = 12.34;
+    return a;
+}
