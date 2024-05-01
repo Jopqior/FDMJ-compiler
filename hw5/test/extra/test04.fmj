@@ -1,3 +1,0 @@
-public int main() {
-    return length(20); // wrong call
-}
