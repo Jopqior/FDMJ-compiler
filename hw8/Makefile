@@ -7,8 +7,8 @@ QEMU     = qemu-arm
 
 BUILD_DIR = "$(CURDIR)/build"
 MAIN_EXE  = "$(BUILD_DIR)/tools/main"
-FMJ2AST   = "$(CURDIR)/../tools/fmj2ast"
-AST2IRP   = "$(CURDIR)/../tools/ast2irp"
+FMJ2AST   = "$(CURDIR)/vendor/tools/fmj2ast"
+AST2IRP   = "$(CURDIR)/vendor/tools/ast2irp"
 TEST_DIR  = "$(CURDIR)/test"
 
 MAKEFLAGS = --no-print-directory
