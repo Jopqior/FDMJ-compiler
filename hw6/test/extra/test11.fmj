@@ -1,0 +1,13 @@
+public int main() {
+    class c2 my_class;
+    my_class = new c1();
+}
+
+public class c1 {
+    public int a(int x) {
+        return 2;
+    }
+}
+
+public class c2 {
+}

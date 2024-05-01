@@ -1,0 +1,10 @@
+public int main() {
+    int[] b;
+    return new c1().a(b);
+}
+
+public class c1 {
+    public int a(int x) {
+        return 2;
+    }
+}
