@@ -38,8 +38,9 @@ static Temp_labelList LL(Temp_label l, Temp_labelList ll) {
 /* ********************************************************/
 /* YOU ARE TO IMPLEMENT THE FOLLOWING FUNCTION FOR HW9_10 */
 /* ********************************************************/
-static char relOp_codes[][4] = {"eq",  "ne",  "slt", "sgt", "sle",
-                                "sge", "ult", "ule", "ugt", "uge"};
+static char relOp_codes[2][10][4] = {
+    {"eq", "ne", "slt", "sgt", "sle", "sge", "ult", "ule", "ugt", "uge"},
+    {"oeq", "one", "olt", "ogt", "ole", "oge", "ult", "ule", "ugt", "uge"}};
 static char binOp_codes[2][10][5] = {
     {"add", "sub", "mul", "sdiv", "and", "or", "shl", "lshr", "ashr", "xor"},
     {"fadd", "fsub", "fmul", "fdiv", "and", "or", "shl", "lshr", "ashr",
@@ -175,9 +176,10 @@ static void munchCjumpStm(T_stm s) {
 
   T_exp left = s->u.CJUMP.left;
   T_exp right = s->u.CJUMP.right;
-  string relop = String(relOp_codes[s->u.CJUMP.op]);
 
   if (left->type == T_int && right->type == T_int) {
+    string relop = String(relOp_codes[T_int][s->u.CJUMP.op]);
+
     // emit icmp instruction
     if (left->kind == T_CONST && right->kind == T_CONST) {
       emit(AS_Oper(Stringf("%%`d0 = icmp %s i64 %d, %d", relop, left->u.CONST.i,
@@ -197,6 +199,7 @@ static void munchCjumpStm(T_stm s) {
           TL(munchExp(left, NULL), TL(munchExp(right, NULL), NULL)), NULL));
     }
   } else {
+    string relop = String(relOp_codes[T_float][s->u.CJUMP.op]);
     // emit fcmp instruction
     if (left->kind == T_CONST && right->kind == T_CONST) {
       float leftConst =
