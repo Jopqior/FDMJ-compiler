@@ -1,11 +1,12 @@
 /* IR+ for 2024 with types */
 #include "tigerirp.h"
 
-T_funcDecl T_FuncDecl(string name, Temp_tempList tl, T_stm s) {
+T_funcDecl T_FuncDecl(string name, Temp_tempList tl, T_stm s, T_type type) {
   T_funcDecl p = (T_funcDecl) checked_malloc (sizeof * p);
   p->name = name;
   p->args = tl;
   p->stm = s;
+  p->ret_type = type;
   return p;
 }
 
