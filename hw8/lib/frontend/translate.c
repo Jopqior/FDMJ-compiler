@@ -626,7 +626,7 @@ Tr_exp Tr_CallExp(string meth, Tr_exp thiz, Tr_exp methAddr, Tr_expList el,
     obj = obj->u.ESEQ.exp;
   }
 
-  Temp_temp tmp = Temp_newtemp(T_int);
+  Temp_temp tmp = Temp_newtemp(type);
 
   return Tr_Ex(
       T_Eseq(T_Move(T_Temp(tmp), T_Call(meth, unEx(methAddr),
