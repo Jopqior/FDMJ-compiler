@@ -9,6 +9,7 @@ BUILD_DIR = "$(CURDIR)/build"
 MAIN_EXE  = "$(BUILD_DIR)/tools/main"
 FMJ2AST   = "$(CURDIR)/vendor/tools/fmj2ast"
 AST2IRP   = "$(CURDIR)/vendor/tools/ast2irp"
+IRP2LLVM = "$(CURDIR)/vendor/tools/irp2llvm"
 TEST_DIR  = "$(CURDIR)/test"
 
 MAKEFLAGS = --no-print-directory
@@ -50,6 +51,17 @@ test-extra: clean
 			echo "[$${file%%.*}]"; \
 			$(FMJ2AST) "$${file%%.*}" && \
 			$(MAIN_EXE) "$${file%%.*}"; \
+		fi \
+	done; \
+	cd $(CURDIR)
+irp2llvm:clean
+	@cd $(TEST_DIR); \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(AST2IRP) -f xml "$${file%%.*}" && \
+			$(IRP2LLVM) "$${file%%.*}"; \
 		fi \
 	done; \
 	cd $(CURDIR)

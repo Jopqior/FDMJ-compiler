@@ -44,6 +44,7 @@ struct T_funcDecl_ {
   string name;
   Temp_tempList args;
   T_stm stm;
+  T_type ret_type;
 };
 struct T_funcDeclList_ {
   T_funcDecl head;
@@ -120,7 +121,7 @@ T_expList T_ExpList (T_exp head, T_expList tail);
 T_stmList T_StmList (T_stm head, T_stmList tail);
 
 T_funcDeclList T_FuncDeclList(T_funcDecl, T_funcDeclList);
-T_funcDecl T_FuncDecl(string, Temp_tempList, T_stm);
+T_funcDecl T_FuncDecl(string, Temp_tempList, T_stm, T_type);
 
 T_stm T_Seq(T_stm left, T_stm right);
 T_stm T_Label(Temp_label);
