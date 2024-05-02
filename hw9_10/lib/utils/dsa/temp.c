@@ -51,6 +51,7 @@ Temp_temp Temp_namedtemp(int name, T_type type) {
   }
   p = (Temp_temp) checked_malloc(sizeof (*p));
   p->num = name;
+  if (name >= temps) temps = name + 1; // keep track of the highest number
   p->type = type;
   Temp_enter(Temp_name(), p, String(r));
   S_enter(temp_table, S_Symbol(String(r)), p);
