@@ -1,6 +1,7 @@
 #include "llvmgen.h"
 
 #include <stdarg.h>
+#include <string.h>
 
 #include "temp.h"
 #include "util.h"
@@ -39,6 +40,10 @@ static Temp_labelList LL(Temp_label l, Temp_labelList ll) {
 /* ********************************************************/
 static char relOp_codes[][4] = {"eq",  "ne",  "slt", "sgt", "sle",
                                 "sge", "ult", "ule", "ugt", "uge"};
+static char binOp_codes[2][10][5] = {
+    {"add", "sub", "mul", "sdiv", "and", "or", "shl", "lshr", "ashr", "xor"},
+    {"fadd", "fsub", "fmul", "fdiv", "and", "or", "shl", "lshr", "ashr",
+     "xor"}};
 
 static void munchStm(T_stm s);
 static void munchSeqStm(T_stm s);
@@ -52,12 +57,13 @@ static void munchReturnStm(T_stm s);
 static Temp_temp munchExp(T_exp e);
 static void munchExp_givendst(T_exp e, Temp_temp dst);
 static void munchBinOpExp(T_exp e, Temp_temp dst);
-static void munchMemExp(T_exp e, Temp_temp dst);
+static void munchMemExp_load(T_exp e, Temp_temp dst);
 static Temp_temp munchTempExp(T_exp e);
 static void munchNameExp(T_exp e, Temp_temp dst);
 static void munchConstExp(T_exp e, Temp_temp dst);
 static void munchCallExp(T_exp e, Temp_temp dst);
 static void munchExtCallExp(T_exp e, Temp_temp dst);
+static Temp_tempList munchArgs(T_expList args);
 static void munchCastExp(T_exp e, Temp_temp dst);
 
 static string Stringf(char *fmt, ...);
@@ -228,30 +234,30 @@ static void munchMoveStm(T_stm s) {
     Temp_temp dstPtr = Temp_newtemp(T_int);
     if (dst->u.MEM->kind == T_CONST) {
       emit(AS_Oper(
-          Stringf("%%`d0 = inttoptr i64 %d to i64*", dst->u.MEM->u.CONST.i),
+          Stringf("%%`d0 = inttoptr i64 %d to ptr", dst->u.MEM->u.CONST.i),
           TL(dstPtr, NULL), NULL, NULL));
     } else {
       Temp_temp base = munchExp(dst->u.MEM);
-      emit(AS_Oper("%%`d0 = inttoptr i64 %%`s0 to i64*", TL(dstPtr, NULL),
+      emit(AS_Oper("%%`d0 = inttoptr i64 %%`s0 to ptr", TL(dstPtr, NULL),
                    TL(base, NULL), NULL));
     }
 
     if (src->type == T_int) {
       if (src->kind == T_CONST) {
-        emit(AS_Oper(
-            Stringf("store i64 %d, i64* %%`s0, align 8", src->u.CONST.i), NULL,
-            TL(dstPtr, NULL), NULL));
+        emit(
+            AS_Oper(Stringf("store i64 %d, ptr %%`s0, align 8", src->u.CONST.i),
+                    NULL, TL(dstPtr, NULL), NULL));
       } else {
-        emit(AS_Oper("store i64 %%`s0, i64* %%`s1, align 8", NULL,
+        emit(AS_Oper("store i64 %%`s0, ptr %%`s1, align 8", NULL,
                      TL(munchExp(src), TL(dstPtr, NULL)), NULL));
       }
     } else {
       if (src->kind == T_CONST) {
         emit(AS_Oper(
-            Stringf("store double %f, i64* %%`s0, align 8", src->u.CONST.f),
+            Stringf("store double %f, ptr %%`s0, align 8", src->u.CONST.f),
             NULL, TL(dstPtr, NULL), NULL));
       } else {
-        emit(AS_Oper("store double %%`s0, i64* %%`s1, align 8", NULL,
+        emit(AS_Oper("store double %%`s0, ptr %%`s1, align 8", NULL,
                      TL(munchExp(src), TL(dstPtr, NULL)), NULL));
       }
     }
@@ -265,20 +271,20 @@ static void munchMoveStm(T_stm s) {
     Temp_temp srcPtr = Temp_newtemp(T_int);
     if (src->u.MEM->kind == T_CONST) {
       emit(AS_Oper(
-          Stringf("%%`d0 = inttoptr i64 %d to i64*", src->u.MEM->u.CONST.i),
+          Stringf("%%`d0 = inttoptr i64 %d to ptr", src->u.MEM->u.CONST.i),
           TL(srcPtr, NULL), NULL, NULL));
     } else {
       Temp_temp base = munchExp(src->u.MEM);
-      emit(AS_Oper("%%`d0 = inttoptr i64 %%`s0 to i64*", TL(srcPtr, NULL),
+      emit(AS_Oper("%%`d0 = inttoptr i64 %%`s0 to ptr", TL(srcPtr, NULL),
                    TL(base, NULL), NULL));
     }
 
     if (dst->type == T_int) {
-      emit(AS_Oper("%%`d0 = load i64, i64* %%`s0, align 8", TL(dstTemp, NULL),
+      emit(AS_Oper("%%`d0 = load i64, ptr %%`s0, align 8", TL(dstTemp, NULL),
                    TL(srcPtr, NULL), NULL));
     } else {
-      emit(AS_Oper("%%`d0 = load double, i64* %%`s0, align 8",
-                   TL(dstTemp, NULL), TL(srcPtr, NULL), NULL));
+      emit(AS_Oper("%%`d0 = load double, ptr %%`s0, align 8", TL(dstTemp, NULL),
+                   TL(srcPtr, NULL), NULL));
     }
   } else {
     switch (src->kind) {
@@ -336,6 +342,7 @@ static void munchReturnStm(T_stm s) {
 static Temp_temp munchExp(T_exp e) {
   assert(e && e->type != T_ESEQ);
 
+  Temp_temp t;
   switch (e->kind) {
     case T_BINOP: {
       Temp_temp t = Temp_newtemp(e->type);
@@ -344,7 +351,7 @@ static Temp_temp munchExp(T_exp e) {
     }
     case T_MEM: {
       Temp_temp t = Temp_newtemp(e->type);
-      munchMemExp(e, t);
+      munchMemExp_load(e, t);
       return t;
     }
     case T_TEMP:
@@ -378,6 +385,234 @@ static Temp_temp munchExp(T_exp e) {
       fprintf(stderr, "munchExp: invalid exp kind\n");
       assert(0);
     }
+  }
+}
+
+static void munchBinOpExp(T_exp e, Temp_temp dst) {
+#ifdef LLVMGEN_DEBUG
+  fprintf(stderr, "munchBinOpExp: e->type=%d, e->u.BINOP.op=%d\n", e->type,
+          e->u.BINOP.op);
+#endif
+  assert(e && e->kind == T_BINOP);
+
+  T_exp left = e->u.BINOP.left;
+  T_exp right = e->u.BINOP.right;
+  string binop = String(binOp_codes[e->type][e->u.BINOP.op]);
+
+  switch (e->type) {
+    case T_int: {
+      if (left->kind == T_CONST && right->kind == T_CONST) {
+        emit(AS_Oper(Stringf("%%`d0 = %s i64 %d, %d", binop, left->u.CONST.i,
+                             right->u.CONST.i),
+                     TL(dst, NULL), NULL, NULL));
+      } else if (left->kind == T_CONST) {
+        emit(
+            AS_Oper(Stringf("%%`d0 = %s i64 %d, %%`s0", binop, left->u.CONST.i),
+                    TL(dst, NULL), TL(munchExp(right), NULL), NULL));
+      } else if (right->kind == T_CONST) {
+        emit(AS_Oper(
+            Stringf("%%`d0 = %s i64 %%`s0, %d", binop, right->u.CONST.i),
+            TL(dst, NULL), TL(munchExp(left), NULL), NULL));
+      } else {
+        emit(AS_Oper(Stringf("%%`d0 = %s i64 %%`s0, %%`s1", binop),
+                     TL(dst, NULL),
+                     TL(munchExp(left), TL(munchExp(right), NULL)), NULL));
+      }
+
+      break;
+    }
+    case T_float: {
+      if (left->kind == T_CONST && right->kind == T_CONST) {
+        float leftConst =
+            left->type == T_int ? (float)left->u.CONST.i : left->u.CONST.f;
+        float rightConst =
+            right->type == T_int ? (float)right->u.CONST.i : right->u.CONST.f;
+        emit(AS_Oper(
+            Stringf("%%`d0 = %s double %f, %f", binop, leftConst, rightConst),
+            TL(dst, NULL), NULL, NULL));
+      } else if (left->kind == T_CONST) {
+        float leftConst =
+            left->type == T_int ? (float)left->u.CONST.i : left->u.CONST.f;
+        Temp_temp rightTemp = munchExp(right);
+        if (rightTemp->type == T_int) {
+          Temp_temp floatTemp = Temp_newtemp(T_float);
+          emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
+                       TL(floatTemp, NULL), TL(rightTemp, NULL), NULL));
+          rightTemp = floatTemp;
+        }
+        emit(AS_Oper(Stringf("%%`d0 = %s double %f, %%`s0", binop, leftConst),
+                     TL(dst, NULL), TL(rightTemp, NULL), NULL));
+      } else if (right->kind == T_CONST) {
+        Temp_temp leftTemp = munchExp(left);
+        if (leftTemp->type == T_int) {
+          Temp_temp floatTemp = Temp_newtemp(T_float);
+          emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
+                       TL(floatTemp, NULL), TL(leftTemp, NULL), NULL));
+          leftTemp = floatTemp;
+        }
+        float rightConst =
+            right->type == T_int ? (float)right->u.CONST.i : right->u.CONST.f;
+        emit(AS_Oper(Stringf("%%`d0 = %s double %%`s0, %f", binop, rightConst),
+                     TL(dst, NULL), TL(leftTemp, NULL), NULL));
+      } else {
+        Temp_temp leftTemp = munchExp(left);
+        if (leftTemp->type == T_int) {
+          Temp_temp floatTemp = Temp_newtemp(T_float);
+          emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
+                       TL(floatTemp, NULL), TL(leftTemp, NULL), NULL));
+          leftTemp = floatTemp;
+        }
+        Temp_temp rightTemp = munchExp(right);
+        if (rightTemp->type == T_int) {
+          Temp_temp floatTemp = Temp_newtemp(T_float);
+          emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
+                       TL(floatTemp, NULL), TL(rightTemp, NULL), NULL));
+          rightTemp = floatTemp;
+        }
+        emit(AS_Oper(Stringf("%%`d0 = %s double %%`s0, %%`s1", binop),
+                     TL(dst, NULL), TL(leftTemp, TL(rightTemp, NULL)), NULL));
+      }
+
+      break;
+    }
+    default:
+      assert(0);
+  }
+}
+
+static void munchMemExp_load(T_exp e, Temp_temp dst) {
+#ifdef LLVMGEN_DEBUG
+  fprintf(stderr, "munchMemExp_load: e->u.MEM->kind:%d\n", e->u.Mem->kind);
+#endif
+  assert(e && e->kind == T_MEM);
+
+  Temp_temp srcPtr = Temp_newtemp(e->type);
+  if (e->u.MEM->kind == T_CONST) {
+    emit(AS_Oper(Stringf("%%`d0 = inttoptr i64 %d to ptr", e->u.MEM->u.CONST.i),
+                 TL(srcPtr, NULL), NULL, NULL));
+  } else {
+    Temp_temp base = munchExp(e->u.MEM);
+    emit(AS_Oper("%%`d0 = inttoptr i64 %%`s0 to ptr", TL(srcPtr, NULL),
+                 TL(base, NULL), NULL));
+  }
+
+  if (dst->type == T_int) {
+    emit(AS_Oper("%%`d0 = load i64, ptr %%`s0, align 8", TL(dst, NULL),
+                 TL(srcPtr, NULL), NULL));
+  } else {
+    emit(AS_Oper("%%`d0 = load double, ptr %%`s0, align 8", TL(dst, NULL),
+                 TL(srcPtr, NULL), NULL));
+  }
+}
+
+static Temp_temp munchTempExp(T_exp e) {
+  assert(e && e->kind == T_TEMP);
+  return e->u.TEMP;
+}
+
+static void munchNameExp(T_exp e, Temp_temp dst) {
+  assert(e && e->kind == T_NAME);
+
+  emit(AS_Oper(
+      Stringf("%%`d0 = ptrtoint ptr @%s to i64", Temp_labelstring(e->u.NAME)),
+      TL(dst, NULL), NULL, NULL));
+}
+
+static void munchConstExp(T_exp e, Temp_temp dst) {
+  assert(e && e->kind == T_CONST);
+
+  if (e->type == T_int) {
+    emit(AS_Oper(Stringf("%%`d0 = add i64 %d, 0", e->u.CONST.i), TL(dst, NULL),
+                 NULL, NULL));
+  } else {
+    emit(AS_Oper(Stringf("%%`d0 = fadd double %f, 0.0", e->u.CONST.f),
+                 TL(dst, NULL), NULL, NULL));
+  }
+}
+
+static void munchCallExp(T_exp e, Temp_temp dst) {
+  assert(e && e->kind == T_CALL);
+
+  // get the method address
+  Temp_temp addrOfmethAddr = munchExp(e->u.CALL.obj);
+  Temp_temp ptraddr = Temp_newtemp(T_int);
+  emit(AS_Oper("%%`d0 = inttoptr i64 %%`s0 to ptr", TL(ptraddr, NULL),
+               TL(addrOfmethAddr, NULL), NULL));
+  Temp_temp methAddr = Temp_newtemp(T_int);
+  emit(AS_Oper("%%`d0 = load i64, ptr %%`s0, align 8", TL(methAddr, NULL),
+               TL(ptraddr, NULL), NULL));
+  Temp_temp methPtr = Temp_newtemp(T_int);
+  emit(AS_Oper("%%`d0 = inttoptr i64 %%`s0 to ptr", TL(methPtr, NULL),
+               TL(methAddr, NULL), NULL));
+
+  // get the arguments
+  Temp_tempList args = NULL;
+  string argsStr = NULL;
+  int argNum = 1;
+  for (T_expList arg = e->u.CALL.args; arg; arg = arg->tail) {
+    if (arg->head->kind == T_CONST) {
+      if (!argsStr) {
+        switch (arg->head->type) {
+          case T_int:
+            argsStr = Stringf("i64 %d", arg->head->u.CONST.i);
+            break;
+          case T_float:
+            argsStr = Stringf("double %f", arg->head->u.CONST.f);
+            break;
+          default:
+            assert(0);
+        }
+      } else {
+        switch (arg->head->type) {
+          case T_int:
+            strcat(argsStr, Stringf(", i64 %d", arg->head->u.CONST.i));
+            break;
+          case T_float:
+            strcat(argsStr, Stringf(", double %f", arg->head->u.CONST.f));
+            break;
+          default:
+            assert(0);
+        }
+      }
+    } else {
+      Temp_temp argTemp = munchExp(arg->head);
+      args = TLS(args, TL(argTemp, NULL));
+      if (!argsStr) {
+        switch (argTemp->type) {
+          case T_int:
+            argsStr = Stringf("i64 %%`s%d", argNum++);
+            break;
+          case T_float:
+            argsStr = Stringf("double %%`s%d", argNum++);
+            break;
+          default:
+            assert(0);
+        }
+      } else {
+        switch (argTemp->type) {
+          case T_int:
+            strcat(argsStr, Stringf(", i64 %%`s%d", argNum++));
+            break;
+          case T_float:
+            strcat(argsStr, Stringf(", double %%`s%d", argNum++));
+            break;
+          default:
+            assert(0);
+        }
+      }
+    }
+  }
+
+  emit(AS_Oper(Stringf("%%`d0 = call i64 %%`s0(%s)", argsStr), TL(dst, NULL),
+               TL(methPtr, args), NULL));
+}
+
+static void munchExtCallExp(T_exp e, Temp_temp dst) {
+  assert(e && e->kind == T_ExtCALL);
+
+  if (!strcmp("malloc", e->u.ExtCALL.extfun)) {
+  } else if (!strcmp("getint", e->u.ExtCALL.extfun) ||
+             !strcmp("getch", e->u.ExtCALL.extfun)) {
   }
 }
 
