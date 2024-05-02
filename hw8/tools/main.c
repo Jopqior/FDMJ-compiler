@@ -37,48 +37,48 @@ int main(int argc, const char * argv[]) {
   // fflush(stdout);
   // fclose(stdout);
 
-  freopen(file_irp, "a", stdout);
-  printIRP_set(IRP_parentheses);
-  printIRP_FuncDeclList(stdout, fdl);
-  fflush(stdout);
-  fclose(stdout);
+  // freopen(file_irp, "a", stdout);
+  // printIRP_set(IRP_parentheses);
+  // printIRP_FuncDeclList(stdout, fdl);
+  // fflush(stdout);
+  // fclose(stdout);
 
   while (fdl) {
-    // freopen(file_irp, "a", stdout);
-    // fprintf(stdout, "------Original IR Tree------\n");
-    // printIRP_set(IRP_parentheses);
-    // printIRP_FuncDecl(stdout, fdl->head);
+    freopen(file_irp, "a", stdout);
+    fprintf(stdout, "------Original IR Tree------\n");
+    printIRP_set(IRP_parentheses);
+    printIRP_FuncDecl(stdout, fdl->head);
     // fprintf(stdout, "\n\n");
-    // fflush(stdout);
-    // fclose(stdout);
+    fflush(stdout);
+    fclose(stdout);
 
-    freopen(file_stm, "a", stdout);
-    fprintf(stdout, "-----Function %s------\n", fdl->head->name);
-    fprintf(stdout, "\n\n");
+    // freopen(file_stm, "a", stdout);
+    // fprintf(stdout, "-----Function %s------\n", fdl->head->name);
+    // fprintf(stdout, "\n\n");
     T_stm s = fdl->head->stm;
      // canonicalize
     T_stmList sl = C_linearize(s);
-    freopen(file_stm, "a", stdout);
-    fprintf(stdout, "------Linearized IR Tree------\n");
-    printStm_StmList(stdout, sl, 0);
-    fprintf(stdout, "\n\n");
-    fflush(stdout);
-    fclose(stdout);
+    // freopen(file_stm, "a", stdout);
+    // fprintf(stdout, "------Linearized IR Tree------\n");
+    // printStm_StmList(stdout, sl, 0);
+    // fprintf(stdout, "\n\n");
+    // fflush(stdout);
+    // fclose(stdout);
     struct C_block b = C_basicBlocks(sl);
-    freopen(file_stm, "a", stdout);
-    fprintf(stdout, "------Basic Blocks------\n");
-    for (C_stmListList sll = b.stmLists; sll; sll = sll->tail) {
-      fprintf(stdout, "For Label=%s\n", S_name(sll->head->head->u.LABEL));
-      printStm_StmList(stdout, sll->head, 0);
-    }
-    fprintf(stdout, "\n\n");
-    fflush(stdout);
-    fclose(stdout);
+    // freopen(file_stm, "a", stdout);
+    // fprintf(stdout, "------Basic Blocks------\n");
+    // for (C_stmListList sll = b.stmLists; sll; sll = sll->tail) {
+    //   fprintf(stdout, "For Label=%s\n", S_name(sll->head->head->u.LABEL));
+    //   printStm_StmList(stdout, sll->head, 0);
+    // }
+    // fprintf(stdout, "\n\n");
+    // fflush(stdout);
+    // fclose(stdout);
     sl = C_traceSchedule(b);
     freopen(file_stm, "a", stdout);
     fprintf(stdout, "------Canonical IR Tree------\n");
     printStm_StmList(stdout, sl, 0);
-    fprintf(stdout, "\n\n");
+    // fprintf(stdout, "\n\n");
     fflush(stdout);
     fclose(stdout);
     fdl = fdl->tail;

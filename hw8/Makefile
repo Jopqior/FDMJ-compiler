@@ -159,12 +159,12 @@ test_external: clean build clean_external
 				echo "running your code..."; \
 			fi; \
 			$(MAIN_EXE) "$${file%%.*}"; \
-			mv "$${file%%.*}.4.stm" "../yours/$${file%%.*}.stm"; \
+			mv "$${file%%.*}.3.irp" "../yours/$${file%%.*}.irp"; \
 			if [ $(PRINT_INFO) -eq 1 ]; then \
 				echo "running standard code..."; \
 			fi; \
 			$(AST2STM) "$${file%%.*}"; \
-			mv "$${file%%.*}.4.stm" "../correct/$${file%%.*}.stm"; \
+			mv "$${file%%.*}.3.irp" "../correct/$${file%%.*}.irp"; \
 		fi; \
 	done; \
 	python3 ../${CHECK_PY_SCRIPT}; \
