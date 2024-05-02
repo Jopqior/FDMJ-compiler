@@ -272,7 +272,7 @@ static void munchMoveStm(T_stm s) {
 #endif
   if (!s) return;
   T_exp dst = s->u.MOVE.dst;
-  assert(dst->kind != T_ESEQ);
+  assert(dst->kind == T_TEMP || dst->kind == T_MEM);
   T_exp src = s->u.MOVE.src;
   assert(src->kind != T_ESEQ);
 
@@ -672,8 +672,8 @@ static void munchCallExp(T_exp e, Temp_temp dst) {
 static void munchExtCallExp(T_exp e, Temp_temp dst) {
 #ifdef LLVMGEN_DEBUG
   printIndent();
-  fprintf(stderr, "munchExtCallExp: e->u.ExtCALL->extfun:%s\n",
-          e->u.ExtCALL.extfun);
+  fprintf(stderr, "munchExtCallExp: e->u.ExtCALL->extfun:%s, dst->num:%d\n",
+          e->u.ExtCALL.extfun, dst->num);
   depth++;
 #endif
   assert(e && e->kind == T_ExtCALL);
@@ -684,6 +684,8 @@ static void munchExtCallExp(T_exp e, Temp_temp dst) {
     Temp_tempList args = munchArgs(e->u.ExtCALL.args, argsStr, 0);
     emit(AS_Oper(Stringf("%%`d0 = call ptr @malloc(%s)", argsStr),
                  TL(ptr, NULL), args, NULL));
+    emit(AS_Oper(Stringf("%%`d0 = ptrtoint ptr %%`s0 to i64"), TL(dst, NULL),
+                 TL(ptr, NULL), NULL));
   } else if (!strcmp("getint", e->u.ExtCALL.extfun) ||
              !strcmp("getch", e->u.ExtCALL.extfun)) {
     Temp_temp num = Temp_newtemp(T_int);
