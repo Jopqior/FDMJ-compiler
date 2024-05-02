@@ -45,6 +45,15 @@ static char binOp_codes[2][10][5] = {
     {"fadd", "fsub", "fmul", "fdiv", "and", "or", "shl", "lshr", "ashr",
      "xor"}};
 
+#ifdef LLVMGEN_DEBUG
+static int depth = 0;
+static void printIndent() {
+  for (int i = 0; i < depth; i++) {
+    fprintf(stderr, "  ");
+  }
+}
+#endif
+
 static void munchStm(T_stm s);
 static void munchSeqStm(T_stm s);
 static void munchLabelStm(T_stm s);
@@ -68,6 +77,11 @@ static void munchCastExp(T_exp e, Temp_temp dst);
 static string Stringf(char *fmt, ...);
 
 AS_instrList llvmbody(T_stmList stmList) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "Entering llvmbody...\n");
+  depth++;
+#endif
   if (!stmList) return NULL;
   iList = last = NULL;
 
@@ -75,6 +89,11 @@ AS_instrList llvmbody(T_stmList stmList) {
     munchStm(sl->head);
   }
 
+#ifdef LLVMGEN_DEBUG
+  depth--;
+  printIndent();
+  fprintf(stderr, "Returning from llvmbody...\n");
+#endif
   return iList;
 }
 
@@ -116,17 +135,41 @@ static void munchSeqStm(T_stm s) {
 }
 
 static void munchLabelStm(T_stm s) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "munchLabelStm: s->u.LABEL->name:%s\n",
+          Temp_labelstring(s->u.LABEL));
+  depth++;
+#endif
   if (!s) return;
   emit(AS_Label(Stringf("%s:", Temp_labelstring(s->u.LABEL)), s->u.LABEL));
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchJumpStm(T_stm s) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "munchJumpStm: s->u.JUMP.jump->name:%s\n",
+          Temp_labelstring(s->u.JUMP.jump));
+  depth++;
+#endif
   if (!s) return;
   emit(AS_Oper("br label \%`j0", NULL, NULL,
                AS_Targets(LL(s->u.JUMP.jump, NULL))));
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchCjumpStm(T_stm s) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "munchCjumpStm: left->type:%d, right->type:%d\n",
+          s->u.CJUMP.left->type, s->u.CJUMP.right->type);
+  depth++;
+#endif
   if (!s) return;
   Temp_temp cond = Temp_newtemp(T_int);
 
@@ -149,9 +192,9 @@ static void munchCjumpStm(T_stm s) {
           Stringf("%%`d0 = icmp %s i64 %%`s0, %d", relop, right->u.CONST.i),
           TL(cond, NULL), TL(munchExp(left, NULL), NULL), NULL));
     } else {
-      emit(AS_Oper(Stringf("%%`d0 = icmp %s i64 %%`s0, %%`s1", relop),
-                   TL(cond, NULL),
-                   TL(munchExp(left, NULL), TL(munchExp(right, NULL), NULL)), NULL));
+      emit(AS_Oper(
+          Stringf("%%`d0 = icmp %s i64 %%`s0, %%`s1", relop), TL(cond, NULL),
+          TL(munchExp(left, NULL), TL(munchExp(right, NULL), NULL)), NULL));
     }
   } else {
     // emit fcmp instruction
@@ -211,9 +254,19 @@ static void munchCjumpStm(T_stm s) {
 
   emit(AS_Oper("br i1 \%`s0, label \%`j0, label \%`j1", NULL, TL(cond, NULL),
                AS_Targets(LL(s->u.CJUMP.t, LL(s->u.CJUMP.f, NULL)))));
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchMoveStm(T_stm s) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr,
+          "munchMoveStm: s->u.MOVE.dst->type:%d, s->u.MOVE.src->type:%d\n",
+          s->u.MOVE.dst->type, s->u.MOVE.src->type);
+  depth++;
+#endif
   if (!s) return;
   T_exp dst = s->u.MOVE.dst;
   assert(dst->kind != T_ESEQ);
@@ -289,11 +342,13 @@ static void munchMoveStm(T_stm s) {
       case T_NAME:
       case T_CAST: {
         if (dst->type == T_int) {
-          emit(AS_Oper("\%`d0 = add i64 \%`s0, 0", TL(munchExp(dst, NULL), NULL),
+          emit(AS_Oper("\%`d0 = add i64 \%`s0, 0",
+                       TL(munchExp(dst, NULL), NULL),
                        TL(munchExp(src, NULL), NULL), NULL));
         } else {
           emit(AS_Oper("\%`d0 = fadd double \%`s0, 0.0",
-                       TL(munchExp(dst, NULL), NULL), TL(munchExp(src, NULL), NULL), NULL));
+                       TL(munchExp(dst, NULL), NULL),
+                       TL(munchExp(src, NULL), NULL), NULL));
         }
         break;
       }
@@ -303,14 +358,30 @@ static void munchMoveStm(T_stm s) {
       }
     }
   }
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchExpStm(T_stm s) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "munchExpStm\n");
+  depth++;
+#endif
   if (!s) return;
   munchExp(s->u.EXP, NULL);
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchReturnStm(T_stm s) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "munchReturnStm\n");
+  depth++;
+#endif
   if (!s) return;
 
   T_exp ret = s->u.EXP;
@@ -324,9 +395,13 @@ static void munchReturnStm(T_stm s) {
     if (ret->type == T_int) {
       emit(AS_Oper("ret i64 \%`s0", NULL, TL(munchExp(ret, NULL), NULL), NULL));
     } else {
-      emit(AS_Oper("ret double \%`s0", NULL, TL(munchExp(ret, NULL), NULL), NULL));
+      emit(AS_Oper("ret double \%`s0", NULL, TL(munchExp(ret, NULL), NULL),
+                   NULL));
     }
   }
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static Temp_temp munchExp(T_exp e, Temp_temp dst) {
@@ -380,8 +455,10 @@ static Temp_temp munchExp(T_exp e, Temp_temp dst) {
 
 static void munchBinOpExp(T_exp e, Temp_temp dst) {
 #ifdef LLVMGEN_DEBUG
+  printIndent();
   fprintf(stderr, "munchBinOpExp: e->type=%d, e->u.BINOP.op=%d\n", e->type,
           e->u.BINOP.op);
+  depth++;
 #endif
   assert(e && e->kind == T_BINOP);
 
@@ -404,9 +481,9 @@ static void munchBinOpExp(T_exp e, Temp_temp dst) {
             Stringf("%%`d0 = %s i64 %%`s0, %d", binop, right->u.CONST.i),
             TL(dst, NULL), TL(munchExp(left, NULL), NULL), NULL));
       } else {
-        emit(AS_Oper(Stringf("%%`d0 = %s i64 %%`s0, %%`s1", binop),
-                     TL(dst, NULL),
-                     TL(munchExp(left, NULL), TL(munchExp(right, NULL), NULL)), NULL));
+        emit(AS_Oper(
+            Stringf("%%`d0 = %s i64 %%`s0, %%`s1", binop), TL(dst, NULL),
+            TL(munchExp(left, NULL), TL(munchExp(right, NULL), NULL)), NULL));
       }
 
       break;
@@ -468,11 +545,16 @@ static void munchBinOpExp(T_exp e, Temp_temp dst) {
     default:
       assert(0);
   }
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchMemExp_load(T_exp e, Temp_temp dst) {
 #ifdef LLVMGEN_DEBUG
-  fprintf(stderr, "munchMemExp_load: e->u.MEM->kind:%d\n", e->u.Mem->kind);
+  printIndent();
+  fprintf(stderr, "munchMemExp_load: e->u.MEM->kind:%d\n", e->u.MEM->kind);
+  depth++;
 #endif
   assert(e && e->kind == T_MEM);
 
@@ -493,22 +575,52 @@ static void munchMemExp_load(T_exp e, Temp_temp dst) {
     emit(AS_Oper("\%`d0 = load double, ptr \%`s0, align 8", TL(dst, NULL),
                  TL(srcPtr, NULL), NULL));
   }
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static Temp_temp munchTempExp(T_exp e) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr,
+          "munchTempExp: e->u.TEMP->num:%d, e->u.TEMP->type:%d, e->type:%d\n",
+          e->u.TEMP->num, e->u.TEMP->type, e->type);
+#endif
   assert(e && e->kind == T_TEMP);
   return e->u.TEMP;
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchNameExp(T_exp e, Temp_temp dst) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "munchNameExp: e->u.NAME->name:%s\n",
+          Temp_labelstring(e->u.NAME));
+  depth++;
+#endif
   assert(e && e->kind == T_NAME);
 
   emit(AS_Oper(
       Stringf("%%`d0 = ptrtoint ptr @%s to i64", Temp_labelstring(e->u.NAME)),
       TL(dst, NULL), NULL, NULL));
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchConstExp(T_exp e, Temp_temp dst) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  if (e->type == T_int) {
+    fprintf(stderr, "munchConstExp: int, e->u.CONST->i:%d\n", e->u.CONST.i);
+  } else {
+    fprintf(stderr, "munchConstExp: float, e->u.CONST->f:%f\n", e->u.CONST.f);
+  }
+  depth++;
+#endif
   assert(e && e->kind == T_CONST);
 
   if (e->type == T_int) {
@@ -518,9 +630,17 @@ static void munchConstExp(T_exp e, Temp_temp dst) {
     emit(AS_Oper(Stringf("%%`d0 = fadd double %f, 0.0", e->u.CONST.f),
                  TL(dst, NULL), NULL, NULL));
   }
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchCallExp(T_exp e, Temp_temp dst) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "munchCallExp: e->u.CALL->id:%s\n", e->u.CALL.id);
+  depth++;
+#endif
   assert(e && e->kind == T_CALL);
 
   // get the method address
@@ -541,9 +661,18 @@ static void munchCallExp(T_exp e, Temp_temp dst) {
 
   emit(AS_Oper(Stringf("%%`d0 = call i64 %%`s0(%s)", argsStr), TL(dst, NULL),
                TL(methPtr, args), NULL));
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchExtCallExp(T_exp e, Temp_temp dst) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "munchExtCallExp: e->u.ExtCALL->extfun:%s\n",
+          e->u.ExtCALL.extfun);
+  depth++;
+#endif
   assert(e && e->kind == T_ExtCALL);
 
   if (!strcmp("malloc", e->u.ExtCALL.extfun)) {
@@ -584,11 +713,16 @@ static void munchExtCallExp(T_exp e, Temp_temp dst) {
   } else {
     assert(0);
   }
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static Temp_tempList munchArgs(T_expList args, string argsStr, int initNo) {
 #ifdef LLVMGEN_DEBUG
+  printIndent();
   fprintf(stderr, "munchArgs\n");
+  depth++;
 #endif
   assert(args && !strcmp(argsStr, ""));
 
@@ -654,9 +788,18 @@ static Temp_tempList munchArgs(T_expList args, string argsStr, int initNo) {
   }
 
   return argTemps;
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static void munchCastExp(T_exp e, Temp_temp dst) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "munchCastExp: e->u.CAST->type:%d, e->type:%d\n",
+          e->u.CAST->type, e->type);
+  depth++;
+#endif
   assert(e && e->kind == T_CAST);
 
   Temp_temp src = munchExp(e->u.CAST, NULL);
@@ -667,6 +810,9 @@ static void munchCastExp(T_exp e, Temp_temp dst) {
     emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"), TL(dst, NULL),
                  TL(src, NULL), NULL));
   }
+#ifdef LLVMGEN_DEBUG
+  depth--;
+#endif
 }
 
 static char buf[IR_MAXLEN];

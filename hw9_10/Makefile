@@ -25,6 +25,7 @@ clean:
 		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
 		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
 		-o -name "*.stm" -o -name "*.ins" \
+		-o -name "*.debug" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean
@@ -54,7 +55,9 @@ test-extra: clean
 		fi \
 	done; \
 	cd $(CURDIR)
-irp2llvm:clean
+
+.PHONY: irp2llvm
+irp2llvm: clean
 	@cd $(TEST_DIR); \
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \

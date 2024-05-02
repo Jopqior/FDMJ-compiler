@@ -9,3 +9,4 @@ build
 *.irp
 *.stm
 *.ins
+*.debug
