@@ -168,8 +168,9 @@ static Temp_tempList xmlirptemplist(XMLNode *l) {
 static T_funcDecl xmlirpfunc(XMLNode *func) {
     XMLNode *n = xmlgetchildnode(func, "name");
     assert(n && n->children.size>0);  //must have a name
+    T_type t=xmlirptype(func);
     if (func->children.size == 1) { //no TempList and no stm
-        return T_FuncDecl(String(onlyid(n->inner_text)), NULL, NULL);
+        return T_FuncDecl(String(onlyid(n->inner_text)), NULL, NULL,t);
     }
     Temp_tempList tl;
     XMLNode *a = xmlgetchildnode(func, "TempList");
@@ -188,7 +189,7 @@ static T_funcDecl xmlirpfunc(XMLNode *func) {
         assert(s && s->children.size>0); 
         ss=xmlirpstm(s);
     } else ss=NULL;
-    return T_FuncDecl(String(onlyid(n->inner_text)), tl, ss);
+    return T_FuncDecl(String(onlyid(n->inner_text)), tl, ss, t);
 }
 
 T_funcDeclList xmlirpfunclist(XMLNode *l) {
@@ -201,6 +202,7 @@ T_funcDeclList xmlirpfunclist(XMLNode *l) {
 #ifdef __DEBUG
     fprintf(stderr, "---Endtering function decl: %s\n", onlyid(f->tag));
 #endif
+
     if (l->children.size == 1) {
         return T_FuncDeclList(xmlirpfunc(f), NULL);
     } else {

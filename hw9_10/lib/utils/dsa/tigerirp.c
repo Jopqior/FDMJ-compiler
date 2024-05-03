@@ -1,11 +1,12 @@
 /* IR+ for 2024 with types */
 #include "tigerirp.h"
 
-T_funcDecl T_FuncDecl(string name, Temp_tempList tl, T_stm s) {
+T_funcDecl T_FuncDecl(string name, Temp_tempList tl, T_stm s, T_type ret_type) {
   T_funcDecl p = (T_funcDecl) checked_malloc (sizeof * p);
   p->name = name;
   p->args = tl;
   p->stm = s;
+  p->ret_type = ret_type;
   return p;
 }
 
@@ -57,6 +58,10 @@ T_stm T_Cjump(T_relOp op, T_exp left, T_exp right,
   T_stm p = (T_stm) checked_malloc(sizeof * p);
   p->kind = T_CJUMP;
   p->u.CJUMP.op = op;
+  if (left->type == T_float || right->type == T_float) {
+    left = T_Cast(left, T_float);
+    right = T_Cast(right, T_float);
+  }
   p->u.CJUMP.left = left;
   p->u.CJUMP.right = right;
   p->u.CJUMP.t = t;
@@ -87,11 +92,14 @@ T_stm T_Exp(T_exp exp) {
 }
 
 T_exp T_Binop(T_binOp op, T_exp left, T_exp right) {
-  T_exp p = (T_exp) checked_malloc(sizeof * p);
+  T_exp p = (T_exp)checked_malloc(sizeof *p);
   p->kind = T_BINOP;
-  assert(left->type == T_int || left->type == T_float);
-  assert(right->type == T_int || right->type == T_float);
-  p->type = (left->type == T_float || right->type == T_float) ? T_float : T_int;
+  p->type = T_int;
+  if (left->type == T_float || right->type == T_float) {
+    left = T_Cast(left, T_float);
+    right = T_Cast(right, T_float);
+    p->type = T_float;
+  }
   p->u.BINOP.op = op;
   p->u.BINOP.left = left;
   p->u.BINOP.right = right;
