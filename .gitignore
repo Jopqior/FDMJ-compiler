@@ -9,3 +9,5 @@ build
 *.irp
 *.stm
 *.ins
+*.cfg
+*.ssa
