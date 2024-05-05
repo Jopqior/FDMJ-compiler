@@ -168,10 +168,10 @@ static Temp_tempList xmlirptemplist(XMLNode *l) {
 static T_funcDecl xmlirpfunc(XMLNode *func) {
     XMLNode *n = xmlgetchildnode(func, "name");
     assert(n && n->children.size>0);  //must have a name
-    XMLNode *t = xmlgetchildnode(func, "ret_type");
-    assert(t); //must have a return type
+    XMLNode *ret_t = xmlgetchildnode(func, "ret_type");
+    assert(ret_t && ret_t->children.size>0); //must have a return type
     if (func->children.size == 2) { //no TempList and no stm
-        return T_FuncDecl(String(onlyid(n->inner_text)), NULL, NULL, xmlirptype(t));
+        return T_FuncDecl(String(onlyid(n->inner_text)), NULL, NULL, xmlirptype(ret_t));
     }
     Temp_tempList tl;
     XMLNode *a = xmlgetchildnode(func, "TempList");
@@ -190,7 +190,7 @@ static T_funcDecl xmlirpfunc(XMLNode *func) {
         assert(s && s->children.size>0); 
         ss=xmlirpstm(s);
     } else ss=NULL;
-    return T_FuncDecl(String(onlyid(n->inner_text)), tl, ss, xmlirptype(t));
+    return T_FuncDecl(String(onlyid(n->inner_text)), tl, ss, xmlirptype(ret_t));
 }
 
 T_funcDeclList xmlirpfunclist(XMLNode *l) {

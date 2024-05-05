@@ -200,7 +200,6 @@ static void pr_stm(FILE *out, T_stm stm, int d) {
     }
     break;
   }
-#
 #ifdef __PRING_IRP_DEBUG
   printf("---Exiting pr_stm: %s\n", stm_kind[stm->kind]);
 #endif
@@ -420,7 +419,7 @@ static void pr_exp(FILE *out, T_exp exp, int d) {
     if (format==IRP_parentheses) fprintf(out, "\n");
     else fprintf(out, "</args>\n");
     indent(out, d);
-    if (format==IRP_parentheses) fprintf(out, ")");
+    if (format==IRP_parentheses) fprintf(out, ", %s)", getT_type(exp->type));
     else fprintf(out, "<ret_type>%s</ret_type>\n</Call>\n", getT_type(exp->type));
   }
   break;
@@ -526,18 +525,20 @@ void printIRP_FuncDecl(FILE *out, T_funcDecl funcDecl) {
       if (s) {
         fprintf(out, ",\n"); 
         pr_stm(out, s, 0);
-        fprintf(out, "\n)");
       } else {
         fprintf(out, ",\n"); 
         indent(out, 0);
-        fprintf(out, "NULL\n)");
       }
       break;
     case IRP_xml: 
       pr_stm(out, s, 0);
-      fprintf(out, "</FuncDecl>\n"); 
       break;
   } 
+  //print the return type
+  switch (format) {
+    case IRP_parentheses: fprintf(out, ", %s\n)", getT_type(funcDecl->ret_type)); break;
+    case IRP_xml: fprintf(out, "<ret_type>%s</ret_type>\n</FuncDecl>\n", getT_type(funcDecl->ret_type)); break;
+  }
 
   return;
 }
