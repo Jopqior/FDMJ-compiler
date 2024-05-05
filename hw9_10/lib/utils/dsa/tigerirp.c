@@ -59,8 +59,12 @@ T_stm T_Cjump(T_relOp op, T_exp left, T_exp right,
   p->kind = T_CJUMP;
   p->u.CJUMP.op = op;
   if (left->type == T_float || right->type == T_float) {
-    left = T_Cast(left, T_float);
-    right = T_Cast(right, T_float);
+    if (left->type == T_int) {
+      left = T_Cast(left, T_float);
+    }
+    else if (right->type == T_int) {
+      right = T_Cast(right, T_float);
+    }
   }
   p->u.CJUMP.left = left;
   p->u.CJUMP.right = right;
@@ -96,8 +100,12 @@ T_exp T_Binop(T_binOp op, T_exp left, T_exp right) {
   p->kind = T_BINOP;
   p->type = T_int;
   if (left->type == T_float || right->type == T_float) {
-    left = T_Cast(left, T_float);
-    right = T_Cast(right, T_float);
+    if (left->type == T_int) {
+      left = T_Cast(left, T_float);
+    }
+    else if (right->type == T_int) {
+      right = T_Cast(right, T_float);
+    }
     p->type = T_float;
   }
   p->u.BINOP.op = op;

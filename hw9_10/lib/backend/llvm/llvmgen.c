@@ -62,6 +62,15 @@ static char stm_kind[][12] = {"T_SEQ",  "T_LABEL", "T_JUMP",  "T_CJUMP",
 static char exp_kind[][12] = {"T_BINOP", "T_MEM",     "T_TEMP",
                               "T_ESEQ",  "T_NAME",    "T_CONST",
                               "T_CALL",  "T_ExtCALL", "T_CAST"};
+static void dump_TL(FILE *out, Temp_tempList tl) {
+  for (Temp_tempList p = tl; p; p = p->tail) {
+    fprintf(out, "%d: %s", p->head->num, T_type2str[p->head->type]);
+    if (p->tail) {
+      fprintf(out, ", ");
+    }
+  }
+  fprintf(out, "\n");
+}
 #endif
 
 static void munchStm(T_stm s);
@@ -648,13 +657,8 @@ static void munchCallExp(T_exp e, Temp_temp dst) {
   assert(e && e->kind == T_CALL);
 
   // get the method address
-  Temp_temp addrOfmethAddr = munchExp(e->u.CALL.obj, NULL);
-  Temp_temp ptraddr = Temp_newtemp(T_int);
-  emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to ptr", TL(ptraddr, NULL),
-               TL(addrOfmethAddr, NULL), NULL));
-  Temp_temp methAddr = Temp_newtemp(T_int);
-  emit(AS_Oper("\%`d0 = load i64, ptr \%`s0, align 8", TL(methAddr, NULL),
-               TL(ptraddr, NULL), NULL));
+  assert(e->u.CALL.obj->kind == T_MEM);
+  Temp_temp methAddr = munchExp(e->u.CALL.obj, NULL);
   Temp_temp methPtr = Temp_newtemp(T_int);
   emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to ptr", TL(methPtr, NULL),
                TL(methAddr, NULL), NULL));
@@ -662,11 +666,22 @@ static void munchCallExp(T_exp e, Temp_temp dst) {
   // get the arguments
   string argsStr = String("");
   Temp_tempList args = munchArgs(e->u.CALL.args, argsStr, 1);
+#ifdef LLVMGEN_DEBUG
+  depth--;
+  printIndent();
+  fprintf(stderr, "munchCallExp: argsStr:%s\n", argsStr);
+  printIndent();
+  fprintf(stderr, "munchCallExp: args: ");
+  dump_TL(stderr, TL(methPtr, args));
+  depth++;
+#endif
 
   emit(AS_Oper(Stringf("%%`d0 = call i64 %%`s0(%s)", argsStr), TL(dst, NULL),
                TL(methPtr, args), NULL));
 #ifdef LLVMGEN_DEBUG
   depth--;
+  printIndent();
+  fprintf(stderr, "munchCallExp ===end\n");
 #endif
 }
 
@@ -725,78 +740,41 @@ static void munchExtCallExp(T_exp e, Temp_temp dst) {
 }
 
 static Temp_tempList munchArgs(T_expList args, string argsStr, int initNo) {
-#ifdef LLVMGEN_DEBUG
-  printIndent();
-  fprintf(stderr, "munchArgs\n");
-  depth++;
-#endif
-  assert(args && !strcmp(argsStr, ""));
+  if (!args) return NULL;
 
-  Temp_tempList argTemps = NULL;
-  int argNum = initNo;
-
-  for (T_expList arg = args; arg; arg = arg->tail) {
-    if (arg->head->kind == T_CONST) {
-      if (!strcmp(argsStr, "")) {
-        switch (arg->head->type) {
-          case T_int:
-            strcat(argsStr, Stringf("i64 %d", arg->head->u.CONST.i));
-            break;
-          case T_float:
-            strcat(argsStr, Stringf("double %f", arg->head->u.CONST.f));
-            break;
-          default:
-            assert(0);
-        }
-      } else {
-        switch (arg->head->type) {
-          case T_int:
-            strcat(argsStr, Stringf(", i64 %d", arg->head->u.CONST.i));
-            break;
-          case T_float:
-            strcat(argsStr, Stringf(", double %f", arg->head->u.CONST.f));
-            break;
-          default:
-            assert(0);
-        }
-      }
-    } else {
-      Temp_temp argTemp = munchExp(arg->head, NULL);
-      if (!argTemps) {
-        argTemps = TL(argTemp, NULL);
-      } else {
-        argTemps = TLS(argTemps, TL(argTemp, NULL));
-      }
-      if (!strcmp(argsStr, "")) {
-        switch (argTemp->type) {
-          case T_int:
-            strcat(argsStr, Stringf("i64 %%`s%d", argNum++));
-            break;
-          case T_float:
-            strcat(argsStr, Stringf("double %%`s%d", argNum++));
-            break;
-          default:
-            assert(0);
-        }
-      } else {
-        switch (argTemp->type) {
-          case T_int:
-            strcat(argsStr, Stringf(", i64 %%`s%d", argNum++));
-            break;
-          case T_float:
-            strcat(argsStr, Stringf(", double %%`s%d", argNum++));
-            break;
-          default:
-            assert(0);
-        }
-      }
+  T_exp arg = args->head;
+  if (arg->kind == T_CONST) {
+    if (strcmp(argsStr, "")) {
+      strcat(argsStr, ", ");
     }
+    switch (arg->type) {
+      case T_int:
+        strcat(argsStr, Stringf("i64 %d", arg->u.CONST.i));
+        break;
+      case T_float:
+        strcat(argsStr, Stringf("double %f", arg->u.CONST.f));
+        break;
+      default:
+        assert(0);
+    }
+    return munchArgs(args->tail, argsStr, initNo);
+  } else {
+    Temp_temp argTemp = munchExp(arg, NULL);
+    if (strcmp(argsStr, "")) {
+      strcat(argsStr, ", ");
+    }
+    switch (argTemp->type) {
+      case T_int:
+        strcat(argsStr, Stringf("i64 %%`s%d", initNo));
+        break;
+      case T_float:
+        strcat(argsStr, Stringf("double %%`s%d", initNo));
+        break;
+      default:
+        assert(0);
+    }
+    return TL(argTemp, munchArgs(args->tail, argsStr, initNo + 1));
   }
-
-  return argTemps;
-#ifdef LLVMGEN_DEBUG
-  depth--;
-#endif
 }
 
 static void munchCastExp(T_exp e, Temp_temp dst) {
