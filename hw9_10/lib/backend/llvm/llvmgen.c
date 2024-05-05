@@ -1,10 +1,35 @@
 #include "llvmgen.h"
 
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "temp.h"
 #include "util.h"
+
+#define ASSERT_DEBUG
+
+#ifdef ASSERT_DEBUG
+#define ASSERT(condition)         \
+  do {                            \
+    if (condition)                \
+      NULL;                       \
+    else                          \
+      Assert(__FILE__, __LINE__); \
+  } while (0)
+#else
+#define ASSERT(condition) \
+  do {                    \
+    NULL;                 \
+  } while (0)
+#endif
+
+void Assert(char *filename, unsigned int lineno) {
+  fflush(stdout);
+  fprintf(stderr, "\nAssert failed： %s, line %u\n", filename, lineno);
+  fflush(stderr);
+  abort();
+}
 
 #define LLVMGEN_DEBUG
 #undef LLVMGEN_DEBUG
@@ -117,7 +142,7 @@ AS_instrList llvmbody(T_stmList stmList) {
 
 static void munchStm(T_stm s) {
   if (!s) return;
-  assert(s->kind != T_SEQ);
+  ASSERT(s->kind != T_SEQ);
 
   switch (s->kind) {
     case T_LABEL:
@@ -150,7 +175,8 @@ static void munchLabelStm(T_stm s) {
           Temp_labelstring(s->u.LABEL));
   depth++;
 #endif
-  assert(s && s->kind == T_LABEL);
+  ASSERT(s && s->kind == T_LABEL);
+  if (!s) return;
   emit(AS_Label(Stringf("%s:", Temp_labelstring(s->u.LABEL)), s->u.LABEL));
 #ifdef LLVMGEN_DEBUG
   depth--;
@@ -164,7 +190,8 @@ static void munchJumpStm(T_stm s) {
           Temp_labelstring(s->u.JUMP.jump));
   depth++;
 #endif
-  assert(s && s->kind == T_JUMP);
+  ASSERT(s && s->kind == T_JUMP);
+  if (!s) return;
   emit(AS_Oper("br label \%`j0", NULL, NULL,
                AS_Targets(LL(s->u.JUMP.jump, NULL))));
 #ifdef LLVMGEN_DEBUG
@@ -180,11 +207,13 @@ static void munchCjumpStm(T_stm s) {
           T_type2str[s->u.CJUMP.right->type]);
   depth++;
 #endif
-  assert(s && s->kind == T_CJUMP);
+  ASSERT(s && s->kind == T_CJUMP);
+  if (!s) return;
   Temp_temp cond = Temp_newtemp(T_int);
 
   T_exp left = s->u.CJUMP.left;
   T_exp right = s->u.CJUMP.right;
+  ASSERT(left->type == right->type);
 
   if (left->type == T_int && right->type == T_int) {
     string relop = String(relOp_codes[T_int][s->u.CJUMP.op]);
@@ -279,11 +308,13 @@ static void munchMoveStm(T_stm s) {
           T_type2str[s->u.MOVE.dst->type], T_type2str[s->u.MOVE.src->type]);
   depth++;
 #endif
-  assert(s && s->kind == T_MOVE);
+  ASSERT(s && s->kind == T_MOVE);
+  if (!s) return;
+
   T_exp dst = s->u.MOVE.dst;
-  assert(dst->kind == T_TEMP || dst->kind == T_MEM);
+  ASSERT(dst->kind == T_TEMP || dst->kind == T_MEM);
   T_exp src = s->u.MOVE.src;
-  assert(src->kind != T_ESEQ);
+  ASSERT(dst->type == src->type);
 
   if (dst->kind == T_MEM) {  // store
     Temp_temp dstPtr = Temp_newtemp(T_int);
@@ -354,19 +385,19 @@ static void munchMoveStm(T_stm s) {
       case T_NAME:
       case T_CAST: {
         if (dst->type == T_int) {
-          emit(AS_Oper("\%`d0 = add i64 \%`s0, 0",
+          emit(AS_Move("\%`d0 = add i64 \%`s0, 0",
                        TL(munchExp(dst, NULL), NULL),
-                       TL(munchExp(src, NULL), NULL), NULL));
+                       TL(munchExp(src, NULL), NULL)));
         } else {
-          emit(AS_Oper("\%`d0 = fadd double \%`s0, 0.0",
+          emit(AS_Move("\%`d0 = fadd double \%`s0, 0.0",
                        TL(munchExp(dst, NULL), NULL),
-                       TL(munchExp(src, NULL), NULL), NULL));
+                       TL(munchExp(src, NULL), NULL)));
         }
         break;
       }
       default: {
         fprintf(stderr, "munchMoveStm: invalid src kind\n");
-        assert(0);
+        ASSERT(0);
       }
     }
   }
@@ -381,7 +412,8 @@ static void munchExpStm(T_stm s) {
   fprintf(stderr, "munchExpStm\n");
   depth++;
 #endif
-  assert(s && s->kind == T_EXP);
+  ASSERT(s && s->kind == T_EXP);
+  if (!s) return;
   munchExp(s->u.EXP, NULL);
 #ifdef LLVMGEN_DEBUG
   depth--;
@@ -394,7 +426,7 @@ static void munchReturnStm(T_stm s) {
   fprintf(stderr, "munchReturnStm\n");
   depth++;
 #endif
-  assert(s && s->kind == T_RETURN);
+  ASSERT(s && s->kind == T_RETURN);
 
   T_exp ret = s->u.EXP;
   if (ret->kind == T_CONST) {
@@ -417,7 +449,7 @@ static void munchReturnStm(T_stm s) {
 }
 
 static Temp_temp munchExp(T_exp e, Temp_temp dst) {
-  assert(e && e->type != T_ESEQ);
+  ASSERT(e && e->type != T_ESEQ);
 
   Temp_temp t;
   switch (e->kind) {
@@ -460,7 +492,7 @@ static Temp_temp munchExp(T_exp e, Temp_temp dst) {
     }
     default: {
       fprintf(stderr, "munchExp: invalid exp kind\n");
-      assert(0);
+      ASSERT(0);
     }
   }
 }
@@ -472,11 +504,13 @@ static void munchBinOpExp(T_exp e, Temp_temp dst) {
           T_type2str[e->type], bin_oper[e->u.BINOP.op]);
   depth++;
 #endif
-  assert(e && e->kind == T_BINOP);
+  ASSERT(e && e->kind == T_BINOP);
 
   T_exp left = e->u.BINOP.left;
   T_exp right = e->u.BINOP.right;
   string binop = String(binOp_codes[e->type][e->u.BINOP.op]);
+
+  ASSERT(left->type == right->type);
 
   switch (e->type) {
     case T_int: {
@@ -555,7 +589,7 @@ static void munchBinOpExp(T_exp e, Temp_temp dst) {
       break;
     }
     default:
-      assert(0);
+      ASSERT(0);
   }
 #ifdef LLVMGEN_DEBUG
   depth--;
@@ -569,7 +603,7 @@ static void munchMemExp_load(T_exp e, Temp_temp dst) {
           exp_kind[e->u.MEM->kind]);
   depth++;
 #endif
-  assert(e && e->kind == T_MEM);
+  ASSERT(e && e->kind == T_MEM);
 
   Temp_temp srcPtr = Temp_newtemp(e->type);
   if (e->u.MEM->kind == T_CONST) {
@@ -600,7 +634,7 @@ static Temp_temp munchTempExp(T_exp e) {
           "munchTempExp: e->u.TEMP->num:%d, e->u.TEMP->type:%s, e->type:%s\n",
           e->u.TEMP->num, T_type2str[e->u.TEMP->type], T_type2str[e->type]);
 #endif
-  assert(e && e->kind == T_TEMP);
+  ASSERT(e && e->kind == T_TEMP);
   return e->u.TEMP;
 #ifdef LLVMGEN_DEBUG
   depth--;
@@ -614,7 +648,7 @@ static void munchNameExp(T_exp e, Temp_temp dst) {
           Temp_labelstring(e->u.NAME));
   depth++;
 #endif
-  assert(e && e->kind == T_NAME);
+  ASSERT(e && e->kind == T_NAME);
 
   emit(AS_Oper(
       Stringf("%%`d0 = ptrtoint ptr @%s to i64", Temp_labelstring(e->u.NAME)),
@@ -634,7 +668,7 @@ static void munchConstExp(T_exp e, Temp_temp dst) {
   }
   depth++;
 #endif
-  assert(e && e->kind == T_CONST);
+  ASSERT(e && e->kind == T_CONST);
 
   if (e->type == T_int) {
     emit(AS_Oper(Stringf("%%`d0 = add i64 %d, 0", e->u.CONST.i), TL(dst, NULL),
@@ -654,10 +688,10 @@ static void munchCallExp(T_exp e, Temp_temp dst) {
   fprintf(stderr, "munchCallExp: e->u.CALL->id:%s\n", e->u.CALL.id);
   depth++;
 #endif
-  assert(e && e->kind == T_CALL);
+  ASSERT(e && e->kind == T_CALL);
 
   // get the method address
-  assert(e->u.CALL.obj->kind == T_MEM);
+  ASSERT(e->u.CALL.obj->kind == T_MEM);
   Temp_temp methAddr = munchExp(e->u.CALL.obj, NULL);
   Temp_temp methPtr = Temp_newtemp(T_int);
   emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to ptr", TL(methPtr, NULL),
@@ -692,7 +726,7 @@ static void munchExtCallExp(T_exp e, Temp_temp dst) {
           e->u.ExtCALL.extfun, dst->num);
   depth++;
 #endif
-  assert(e && e->kind == T_ExtCALL);
+  ASSERT(e && e->kind == T_ExtCALL);
 
   if (!strcmp("malloc", e->u.ExtCALL.extfun)) {
     Temp_temp ptr = Temp_newtemp(T_int);
@@ -732,7 +766,7 @@ static void munchExtCallExp(T_exp e, Temp_temp dst) {
     emit(AS_Oper(Stringf("call void @%s()", e->u.ExtCALL.extfun), NULL, NULL,
                  NULL));
   } else {
-    assert(0);
+    ASSERT(0);
   }
 #ifdef LLVMGEN_DEBUG
   depth--;
@@ -755,7 +789,7 @@ static Temp_tempList munchArgs(T_expList args, string argsStr, int initNo) {
         strcat(argsStr, Stringf("double %f", arg->u.CONST.f));
         break;
       default:
-        assert(0);
+        ASSERT(0);
     }
     return munchArgs(args->tail, argsStr, initNo);
   } else {
@@ -771,7 +805,7 @@ static Temp_tempList munchArgs(T_expList args, string argsStr, int initNo) {
         strcat(argsStr, Stringf("double %%`s%d", initNo));
         break;
       default:
-        assert(0);
+        ASSERT(0);
     }
     return TL(argTemp, munchArgs(args->tail, argsStr, initNo + 1));
   }
@@ -784,7 +818,7 @@ static void munchCastExp(T_exp e, Temp_temp dst) {
           T_type2str[e->u.CAST->type], T_type2str[e->type]);
   depth++;
 #endif
-  assert(e && e->kind == T_CAST);
+  ASSERT(e && e->kind == T_CAST);
 
   Temp_temp src = munchExp(e->u.CAST, NULL);
   if (e->type == T_int) {
