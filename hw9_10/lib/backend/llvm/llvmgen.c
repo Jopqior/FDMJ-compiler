@@ -215,7 +215,7 @@ static void munchCjumpStm(T_stm s) {
   T_exp right = s->u.CJUMP.right;
   ASSERT(left->type == right->type);
 
-  if (left->type == T_int && right->type == T_int) {
+  if (left->type == T_int) {
     string relop = String(relOp_codes[T_int][s->u.CJUMP.op]);
 
     // emit icmp instruction
@@ -240,54 +240,26 @@ static void munchCjumpStm(T_stm s) {
     string relop = String(relOp_codes[T_float][s->u.CJUMP.op]);
     // emit fcmp instruction
     if (left->kind == T_CONST && right->kind == T_CONST) {
-      float leftConst =
-          left->type == T_int ? (float)left->u.CONST.i : left->u.CONST.f;
-      float rightConst =
-          right->type == T_int ? (float)right->u.CONST.i : right->u.CONST.f;
+      float leftConst = left->u.CONST.f;
+      float rightConst = right->u.CONST.f;
       emit(AS_Oper(Stringf("%%`d0 = fcmp %s double %f, %f", relop, leftConst,
                            rightConst),
                    TL(cond, NULL), NULL, NULL));
     } else if (left->kind == T_CONST) {
-      float leftConst =
-          left->type == T_int ? (float)left->u.CONST.i : left->u.CONST.f;
+      float leftConst = left->u.CONST.f;
       Temp_temp rightTemp = munchExp(right, NULL);
-      if (rightTemp->type == T_int) {
-        Temp_temp floatTemp = Temp_newtemp(T_float);
-        emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
-                     TL(floatTemp, NULL), TL(rightTemp, NULL), NULL));
-        rightTemp = floatTemp;
-      }
       emit(
           AS_Oper(Stringf("%%`d0 = fcmp %s double %f, %%`s0", relop, leftConst),
                   TL(cond, NULL), TL(rightTemp, NULL), NULL));
     } else if (right->kind == T_CONST) {
       Temp_temp leftTemp = munchExp(left, NULL);
-      if (leftTemp->type == T_int) {
-        Temp_temp floatTemp = Temp_newtemp(T_float);
-        emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
-                     TL(floatTemp, NULL), TL(leftTemp, NULL), NULL));
-        leftTemp = floatTemp;
-      }
-      float rightConst =
-          right->type == T_int ? (float)right->u.CONST.i : right->u.CONST.f;
+      float rightConst = right->u.CONST.f;
       emit(AS_Oper(
           Stringf("%%`d0 = fcmp %s double %%`s0, %f", relop, rightConst),
           TL(cond, NULL), TL(leftTemp, NULL), NULL));
     } else {
       Temp_temp leftTemp = munchExp(left, NULL);
-      if (leftTemp->type == T_int) {
-        Temp_temp floatTemp = Temp_newtemp(T_float);
-        emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
-                     TL(floatTemp, NULL), TL(leftTemp, NULL), NULL));
-        leftTemp = floatTemp;
-      }
       Temp_temp rightTemp = munchExp(right, NULL);
-      if (rightTemp->type == T_int) {
-        Temp_temp floatTemp = Temp_newtemp(T_float);
-        emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
-                     TL(floatTemp, NULL), TL(rightTemp, NULL), NULL));
-        rightTemp = floatTemp;
-      }
       emit(AS_Oper(Stringf("%%`d0 = fcmp %s double %%`s0, %%`s1", relop),
                    TL(cond, NULL), TL(leftTemp, TL(rightTemp, NULL)), NULL));
     }
@@ -536,52 +508,24 @@ static void munchBinOpExp(T_exp e, Temp_temp dst) {
     }
     case T_float: {
       if (left->kind == T_CONST && right->kind == T_CONST) {
-        float leftConst =
-            left->type == T_int ? (float)left->u.CONST.i : left->u.CONST.f;
-        float rightConst =
-            right->type == T_int ? (float)right->u.CONST.i : right->u.CONST.f;
+        float leftConst = left->u.CONST.f;
+        float rightConst = right->u.CONST.f;
         emit(AS_Oper(
             Stringf("%%`d0 = %s double %f, %f", binop, leftConst, rightConst),
             TL(dst, NULL), NULL, NULL));
       } else if (left->kind == T_CONST) {
-        float leftConst =
-            left->type == T_int ? (float)left->u.CONST.i : left->u.CONST.f;
+        float leftConst = left->u.CONST.f;
         Temp_temp rightTemp = munchExp(right, NULL);
-        if (rightTemp->type == T_int) {
-          Temp_temp floatTemp = Temp_newtemp(T_float);
-          emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
-                       TL(floatTemp, NULL), TL(rightTemp, NULL), NULL));
-          rightTemp = floatTemp;
-        }
         emit(AS_Oper(Stringf("%%`d0 = %s double %f, %%`s0", binop, leftConst),
                      TL(dst, NULL), TL(rightTemp, NULL), NULL));
       } else if (right->kind == T_CONST) {
         Temp_temp leftTemp = munchExp(left, NULL);
-        if (leftTemp->type == T_int) {
-          Temp_temp floatTemp = Temp_newtemp(T_float);
-          emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
-                       TL(floatTemp, NULL), TL(leftTemp, NULL), NULL));
-          leftTemp = floatTemp;
-        }
-        float rightConst =
-            right->type == T_int ? (float)right->u.CONST.i : right->u.CONST.f;
+        float rightConst = right->u.CONST.f;
         emit(AS_Oper(Stringf("%%`d0 = %s double %%`s0, %f", binop, rightConst),
                      TL(dst, NULL), TL(leftTemp, NULL), NULL));
       } else {
         Temp_temp leftTemp = munchExp(left, NULL);
-        if (leftTemp->type == T_int) {
-          Temp_temp floatTemp = Temp_newtemp(T_float);
-          emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
-                       TL(floatTemp, NULL), TL(leftTemp, NULL), NULL));
-          leftTemp = floatTemp;
-        }
         Temp_temp rightTemp = munchExp(right, NULL);
-        if (rightTemp->type == T_int) {
-          Temp_temp floatTemp = Temp_newtemp(T_float);
-          emit(AS_Oper(Stringf("%%`d0 = sitofp i64 %%`s0 to double"),
-                       TL(floatTemp, NULL), TL(rightTemp, NULL), NULL));
-          rightTemp = floatTemp;
-        }
         emit(AS_Oper(Stringf("%%`d0 = %s double %%`s0, %%`s1", binop),
                      TL(dst, NULL), TL(leftTemp, TL(rightTemp, NULL)), NULL));
       }
@@ -818,7 +762,7 @@ static void munchCastExp(T_exp e, Temp_temp dst) {
           T_type2str[e->u.CAST->type], T_type2str[e->type]);
   depth++;
 #endif
-  ASSERT(e && e->kind == T_CAST);
+  ASSERT(e && e->kind == T_CAST && e->type != e->u.CAST->type);
 
   Temp_temp src = munchExp(e->u.CAST, NULL);
   if (e->type == T_int) {
