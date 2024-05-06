@@ -54,19 +54,7 @@ test-extra: clean
 	done; \
 	cd $(CURDIR)
 
-.PHONY: ast2irp ast2stm
-
-ast2irp: clean
-	@cd $(TEST_DIR); \
-	for file in $$(ls .); do \
-		if [ "$${file##*.}" = "fmj" ]; then \
-			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}" && \
-			$(AST2IRP) "$${file%%.*}"; \
-		fi \
-	done; \
-	cd $(CURDIR)
-
+.PHONY: ast2stm
 ast2stm: clean
 	@cd $(TEST_DIR); \
 	for file in $$(ls .); do \
