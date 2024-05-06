@@ -78,3 +78,47 @@ handin:
 	read filename; \
 	zip -q -r "docs/$$filename-hw9_10.zip" \
 	  docs/report.pdf include lib
+
+TEST_EXTERNAL_DIR = "$(CURDIR)/../../FDMJ-tests"
+TEST_EXTERNAL_HW = hw09_10
+PRINT_INFO := 0
+
+.PHONY: test_external clean_external test-run
+clean_external:
+	@$(RM) $(TEST_EXTERNAL_DIR)/$(TEST_EXTERNAL_HW)/yours; \
+	$(RM) $(TEST_EXTERNAL_DIR)/$(TEST_EXTERNAL_HW)/correct; \
+	find $(TEST_DIR) -type f \( \
+		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
+		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
+		-o -name "*.stm" -o -name "*.ins" \
+		-o -name "*.debug" \
+		\) -exec $(RM) {} \;
+
+test_external: clean build clean_external
+	@mkdir -p $(TEST_EXTERNAL_DIR)/$(TEST_EXTERNAL_HW)/yours; \
+	mkdir -p $(TEST_EXTERNAL_DIR)/$(TEST_EXTERNAL_HW)/correct; \
+	cd $(TEST_EXTERNAL_DIR)/$(TEST_EXTERNAL_HW)/test; \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			if [ $(PRINT_INFO) -eq 1 ]; then \
+				echo "running fmj to ast code..."; \
+			fi; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			if [ $(PRINT_INFO) -eq 1 ]; then \
+				echo "running ast to irp code..."; \
+			fi; \
+			$(AST2IRP) -f xml "$${file%%.*}" && \
+			if [ $(PRINT_INFO) -eq 1 ]; then \
+				echo "running your code..."; \
+			fi; \
+			$(MAIN_EXE) "$${file%%.*}"; \
+			mv "$${file%%.*}.5.ins" "../yours/$${file%%.*}.5.ins"; \
+			if [ $(PRINT_INFO) -eq 1 ]; then \
+				echo "running correct code..."; \
+			fi; \
+			$(IRP2LLVM) "$${file%%.*}"; \
+			mv "$${file%%.*}.5.ins" "../correct/$${file%%.*}.5.ins"; \
+		fi \
+	done; \
+	cd $(CURDIR)

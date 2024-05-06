@@ -199,8 +199,10 @@ static void munchStm(T_stm s) {
     case T_RETURN:
       munchReturnStm(s);
       break;
-    default:
+    default: {
       fprintf(stderr, "munchStm: unknown stm kind\n");
+      ASSERT(0);
+    }
   }
 }
 
