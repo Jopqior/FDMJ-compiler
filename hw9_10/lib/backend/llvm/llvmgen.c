@@ -352,10 +352,10 @@ static void munchMoveStm(T_stm s) {
     expres dstAddr = munchExp(dst->u.MEM, NULL);
     Temp_temp dstPtr = Temp_newtemp(T_int);
     if (dstAddr->kind == res_const) {
-      emit(AS_Oper(Stringf("%%`d0 = inttoptr i64 %d to ptr", dstAddr->u.i),
+      emit(AS_Oper(Stringf("%%`d0 = inttoptr i64 %d to i64*", dstAddr->u.i),
                    TL(dstPtr, NULL), NULL, NULL));
     } else {
-      emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to ptr", TL(dstPtr, NULL),
+      emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to i64*", TL(dstPtr, NULL),
                    TL(dstAddr->u.t, NULL), NULL));
     }
 
@@ -364,13 +364,13 @@ static void munchMoveStm(T_stm s) {
       switch (src->type) {
         case T_int: {
           emit(AS_Oper(
-              Stringf("store i64 %d, ptr %%`s0, align 8", srcValue->u.i), NULL,
+              Stringf("store i64 %d, i64* %%`s0", srcValue->u.i), NULL,
               TL(dstPtr, NULL), NULL));
           break;
         }
         case T_float: {
           emit(AS_Oper(
-              Stringf("store double %f, ptr %%`s0, align 8", srcValue->u.f),
+              Stringf("store double %f, i64* %%`s0", srcValue->u.f),
               NULL, TL(dstPtr, NULL), NULL));
           break;
         }
@@ -380,12 +380,12 @@ static void munchMoveStm(T_stm s) {
     } else {
       switch (src->type) {
         case T_int: {
-          emit(AS_Oper("store i64 \%`s0, ptr \%`s1, align 8", NULL,
+          emit(AS_Oper("store i64 \%`s0, i64* \%`s1", NULL,
                        TL(srcValue->u.t, TL(dstPtr, NULL)), NULL));
           break;
         }
         case T_float: {
-          emit(AS_Oper("store double \%`s0, ptr \%`s1, align 8", NULL,
+          emit(AS_Oper("store double \%`s0, i64* \%`s1", NULL,
                        TL(srcValue->u.t, TL(dstPtr, NULL)), NULL));
           break;
         }
@@ -628,10 +628,10 @@ static expres munchMemExp_load(T_exp e, Temp_temp dst) {
   Temp_temp srcPtr = Temp_newtemp(e->type);
 
   if (srcAddr->kind == res_const) {
-    emit(AS_Oper(Stringf("%%`d0 = inttoptr i64 %d to ptr", srcAddr->u.i),
+    emit(AS_Oper(Stringf("%%`d0 = inttoptr i64 %d to i64*", srcAddr->u.i),
                  TL(srcPtr, NULL), NULL, NULL));
   } else {
-    emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to ptr", TL(srcPtr, NULL),
+    emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to i64*", TL(srcPtr, NULL),
                  TL(srcAddr->u.t, NULL), NULL));
   }
 
@@ -639,10 +639,10 @@ static expres munchMemExp_load(T_exp e, Temp_temp dst) {
     dst = Temp_newtemp(e->type);
   }
   if (dst->type == T_int) {
-    emit(AS_Oper("\%`d0 = load i64, ptr \%`s0, align 8", TL(dst, NULL),
+    emit(AS_Oper("\%`d0 = load i64, i64* \%`s0", TL(dst, NULL),
                  TL(srcPtr, NULL), NULL));
   } else {
-    emit(AS_Oper("\%`d0 = load double, ptr \%`s0, align 8", TL(dst, NULL),
+    emit(AS_Oper("\%`d0 = load double, i64* \%`s0", TL(dst, NULL),
                  TL(srcPtr, NULL), NULL));
   }
 #ifdef LLVMGEN_DEBUG
@@ -678,7 +678,7 @@ static expres munchNameExp(T_exp e, Temp_temp dst) {
     dst = Temp_newtemp(e->type);
   }
   emit(AS_Oper(
-      Stringf("%%`d0 = ptrtoint ptr @%s to i64", Temp_labelstring(e->u.NAME)),
+      Stringf("%%`d0 = ptrtoint i64* @%s to i64", Temp_labelstring(e->u.NAME)),
       TL(dst, NULL), NULL, NULL));
 #ifdef LLVMGEN_DEBUG
   depth--;
@@ -739,7 +739,7 @@ static expres munchCallExp(T_exp e, Temp_temp dst) {
   ASSERT(e->u.CALL.obj->kind == T_MEM);
   expres methAddr = munchExp(e->u.CALL.obj, NULL);
   Temp_temp methPtr = Temp_newtemp(T_int);
-  emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to ptr", TL(methPtr, NULL),
+  emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to i64*", TL(methPtr, NULL),
                TL(methAddr->u.t, NULL), NULL));
 
   // get the arguments
@@ -781,13 +781,13 @@ static expres munchExtCallExp(T_exp e, Temp_temp dst) {
     Temp_tempList args = munchArgs(e->u.ExtCALL.args, argsStr, 0);
 
     Temp_temp ptr = Temp_newtemp(T_int);
-    emit(AS_Oper(Stringf("%%`d0 = call ptr @malloc(%s)", argsStr),
+    emit(AS_Oper(Stringf("%%`d0 = call i64* @malloc(%s)", argsStr),
                  TL(ptr, NULL), args, NULL));
 
     if (!dst) {
       dst = Temp_newtemp(T_int);
     }
-    emit(AS_Oper(Stringf("%%`d0 = ptrtoint ptr %%`s0 to i64"), TL(dst, NULL),
+    emit(AS_Oper(Stringf("%%`d0 = ptrtoint i64* %%`s0 to i64"), TL(dst, NULL),
                  TL(ptr, NULL), NULL));
 
     return TempRes(dst);
