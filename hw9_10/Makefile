@@ -122,3 +122,13 @@ test_external: clean build clean_external
 		fi \
 	done; \
 	cd $(CURDIR)
+
+test-run: clean
+	@cd $(TEST_DIR); \
+	echo "[${FILE}]"; \
+	$(FMJ2AST) "${FILE}"; \
+	$(AST2IRP) -f xml "${FILE}"; \
+	$(MAIN_EXE) "${FILE}"; \
+	$(LLVMLINK) -opaque-pointers "${FILE}".5.ins $(BUILD_DIR)/vendor/libsysy/libsysy64.ll -o "${FILE}".ll; \
+	$(LLI) -opaque-pointers "${FILE}".ll; \
+	cd $(CURDIR)
