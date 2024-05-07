@@ -363,15 +363,13 @@ static void munchMoveStm(T_stm s) {
     if (srcValue->kind == res_const) {
       switch (src->type) {
         case T_int: {
-          emit(AS_Oper(
-              Stringf("store i64 %d, i64* %%`s0", srcValue->u.i), NULL,
-              TL(dstPtr, NULL), NULL));
+          emit(AS_Oper(Stringf("store i64 %d, i64* %%`s0", srcValue->u.i), NULL,
+                       TL(dstPtr, NULL), NULL));
           break;
         }
         case T_float: {
-          emit(AS_Oper(
-              Stringf("store double %f, i64* %%`s0", srcValue->u.f),
-              NULL, TL(dstPtr, NULL), NULL));
+          emit(AS_Oper(Stringf("store double %f, i64* %%`s0", srcValue->u.f),
+                       NULL, TL(dstPtr, NULL), NULL));
           break;
         }
         default:
@@ -810,26 +808,70 @@ static expres munchExtCallExp(T_exp e, Temp_temp dst) {
     return TempRes(dst);
   } else if (!strcmp("getarray", e->u.ExtCALL.extfun) ||
              !strcmp("getfarray", e->u.ExtCALL.extfun)) {
-    string argsStr = String("");
-    Temp_tempList args = munchArgs(e->u.ExtCALL.args, argsStr, 0);
-
+    expres arrAddr = munchExp(e->u.ExtCALL.args->head, NULL);
+    Temp_temp arrPtr = Temp_newtemp(T_int);
+    if (arrAddr->kind == res_const) {
+      emit(AS_Oper(Stringf("%%`d0 = inttoptr i64 %d to i64*", arrAddr->u.i),
+                   TL(arrPtr, NULL), NULL, NULL));
+    } else {
+      emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to i64*", TL(arrPtr, NULL),
+                   TL(arrAddr->u.t, NULL), NULL));
+    }
     if (!dst) {
       dst = Temp_newtemp(T_int);
     }
     emit(AS_Oper(
-        Stringf("%%`d0 = call i64 @%s(%s)", e->u.ExtCALL.extfun, argsStr),
-        TL(dst, NULL), args, NULL));
+        Stringf("%%`d0 = call i64 @%s(i64* %%`s0)", e->u.ExtCALL.extfun),
+        TL(dst, NULL), TL(arrPtr, NULL), NULL));
 
     return TempRes(dst);
   } else if (!strcmp("putint", e->u.ExtCALL.extfun) ||
-             !strcmp("putfloat", e->u.ExtCALL.extfun) ||
-             !strcmp("putch", e->u.ExtCALL.extfun) ||
-             !strcmp("putarray", e->u.ExtCALL.extfun) ||
+             !strcmp("putch", e->u.ExtCALL.extfun)) {
+    expres num = munchExp(e->u.ExtCALL.args->head, NULL);
+    if (num->kind == res_const) {
+      emit(AS_Oper(
+          Stringf("call void @%s(i64 %d)", e->u.ExtCALL.extfun, num->u.i), NULL,
+          NULL, NULL));
+    } else {
+      emit(AS_Oper(Stringf("call void @%s(i64 %%`s0)", e->u.ExtCALL.extfun),
+                   NULL, TL(num->u.t, NULL), NULL));
+    }
+
+    return NULL;
+  } else if (!strcmp("putfloat", e->u.ExtCALL.extfun)) {
+    expres num = munchExp(e->u.ExtCALL.args->head, NULL);
+    if (num->kind == res_const) {
+      emit(AS_Oper(
+          Stringf("call void @%s(double %f)", e->u.ExtCALL.extfun, num->u.f),
+          NULL, NULL, NULL));
+    } else {
+      emit(AS_Oper(Stringf("call void @%s(double %%`s0)", e->u.ExtCALL.extfun),
+                   NULL, TL(num->u.t, NULL), NULL));
+    }
+
+    return NULL;
+  } else if (!strcmp("putarray", e->u.ExtCALL.extfun) ||
              !strcmp("putfarray", e->u.ExtCALL.extfun)) {
-    string argsStr = String("");
-    Temp_tempList args = munchArgs(e->u.ExtCALL.args, argsStr, 0);
-    emit(AS_Oper(Stringf("call void @%s(%s)", e->u.ExtCALL.extfun, argsStr),
-                 NULL, args, NULL));
+    expres len = munchExp(e->u.ExtCALL.args->head, NULL);
+    expres arrAddr = munchExp(e->u.ExtCALL.args->tail->head, NULL);
+    Temp_temp arrPtr = Temp_newtemp(T_int);
+    if (arrAddr->kind == res_const) {
+      emit(AS_Oper(Stringf("%%`d0 = inttoptr i64 %d to i64*", arrAddr->u.i),
+                   TL(arrPtr, NULL), NULL, NULL));
+    } else {
+      emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to i64*", TL(arrPtr, NULL),
+                   TL(arrAddr->u.t, NULL), NULL));
+    }
+
+    if (len->kind == res_const) {
+      emit(AS_Oper(Stringf("call void @%s(i64 %d, i64* %%`s0)",
+                           e->u.ExtCALL.extfun, len->u.i),
+                   NULL, TL(arrPtr, NULL), NULL));
+    } else {
+      emit(AS_Oper(
+          Stringf("call void @%s(i64 %%`s0, i64* %%`s1)", e->u.ExtCALL.extfun),
+          NULL, TL(len->u.t, TL(arrPtr, NULL)), NULL));
+    }
 
     return NULL;
   } else if (!strcmp("starttime", e->u.ExtCALL.extfun) ||
