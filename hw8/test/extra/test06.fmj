@@ -1,0 +1,11 @@
+// test return array
+public int main() {
+    return new c1().m1()[0];
+}
+
+public class c1 {
+    public float[] m1() {
+        float[] a = {1.2};
+        return a;
+    }
+}

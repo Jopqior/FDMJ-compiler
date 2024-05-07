@@ -1,0 +1,6 @@
+// test new array and assign
+public int main() {
+    int[] a;
+    a = new int[4];
+    a[] = {1, 2, 3, 4};
+}

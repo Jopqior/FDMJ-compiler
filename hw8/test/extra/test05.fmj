@@ -1,0 +1,12 @@
+// test libsysy of array
+public int main() {
+    int[] a;
+    float[] b;
+    int c;
+    c = length(a);
+    c = length(b);
+    c = getarray(a);
+    c = getfarray(b);
+    putarray(1,a);
+    putfarray(2,b);
+}

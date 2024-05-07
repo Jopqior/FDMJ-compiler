@@ -1,0 +1,11 @@
+// test return class
+public int main() {
+    return new c1().m1().m1().i;
+}
+
+public class c1 {
+    int i = 1;
+    public class c1 m1() {
+        return this;
+    }
+}
