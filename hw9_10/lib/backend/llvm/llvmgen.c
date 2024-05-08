@@ -776,12 +776,17 @@ static expres munchExtCallExp(T_exp e, Temp_temp dst) {
   ASSERT(e && e->kind == T_ExtCALL);
 
   if (!strcmp("malloc", e->u.ExtCALL.extfun)) {
-    string argsStr = String("");
-    Temp_tempList args = munchArgs(e->u.ExtCALL.args, argsStr, 0);
-
+    ASSERT(e->u.ExtCALL.args->head->type == T_int);
+    expres size = munchExp(e->u.ExtCALL.args->head, NULL);
     Temp_temp ptr = Temp_newtemp(T_int);
-    emit(AS_Oper(Stringf("%%`d0 = call i64* @malloc(%s)", argsStr),
-                 TL(ptr, NULL), args, NULL));
+
+    if (size->kind == res_const) {
+      emit(AS_Oper(Stringf("%%`d0 = call i64* @malloc(i64 %d)", size->u.i),
+                   TL(ptr, NULL), NULL, NULL));
+    } else {
+      emit(AS_Oper("\%`d0 = call i64* @malloc(i64 \%`s0)", TL(ptr, NULL),
+                   TL(size->u.t, NULL), NULL));
+    }
 
     if (!dst) {
       dst = Temp_newtemp(T_int);
