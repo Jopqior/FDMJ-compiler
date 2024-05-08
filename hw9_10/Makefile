@@ -26,6 +26,7 @@ clean:
 		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
 		-o -name "*.stm" -o -name "*.ins" \
 		-o -name "*.debug" \
+		-o -name "*.ll" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean
