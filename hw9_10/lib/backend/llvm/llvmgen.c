@@ -755,8 +755,9 @@ static expres munchCallExp(T_exp e, Temp_temp dst) {
   if (!dst) {
     dst = Temp_newtemp(e->type);
   }
-  emit(AS_Oper(Stringf("%%`d0 = call i64 %%`s0(%s)", argsStr), TL(dst, NULL),
-               TL(methPtr, args), NULL));
+  emit(AS_Oper(
+      Stringf("%%`d0 = call %s %%`s0(%s)", llvm_types[e->type], argsStr),
+      TL(dst, NULL), TL(methPtr, args), NULL));
 #ifdef LLVMGEN_DEBUG
   depth--;
   printIndent();
