@@ -52,12 +52,13 @@ test-run: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}"; \
-			$(AST2IRP) -f xml "$${file%%.*}"; \
-			$(IRP2LLVM) "$${file%%.*}"; \
-			$(MAIN_EXE) "$${file%%.*}"; \
-			$(LLVMLINK) -opaque-pointers "$${file%%.*}".8.ssa $(BUILD_DIR)/vendor/libsysy/libsysy64.ll -o "$${file%%.*}".ll; \
-			$(LLI) -opaque-pointers "$${file%%.*}".ll; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(AST2IRP) -f xml "$${file%%.*}" && \
+			$(IRP2LLVM) "$${file%%.*}" && \
+			$(INS2SSA)  "$${file%%.*}" && \
+			$(LLVMLINK) --opaque-pointers "$${file%%.*}".8.ssa $(BUILD_DIR)/vendor/libsysy/libsysy64.ll -S -o "$${file%%.*}".ll && \
+			$(LLI) -opaque-pointers "$${file%%.*}".ll > "$${file%%.*}".output && \
+			echo $$?; \
 		fi \
 	done; \
 	cd $(CURDIR)

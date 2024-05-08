@@ -16,7 +16,7 @@
 
 A_prog root;
 
-AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_graph fg, G_nodeList bg); 
+AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg, G_nodeList bg); 
 
 
 static AS_instrList xmlfunc2ins(XMLNode *fn) {
@@ -216,7 +216,7 @@ int main(int argc, const char * argv[]) {
     fflush(stdout);
     fclose(stdout);
 
-    AS_instrList bodyil_in_SSA = AS_instrList_to_SSA(bodyil, fg, bg); 
+    AS_instrList bodyil_in_SSA = AS_instrList_to_SSA(bodyil, lg, bg); 
 
     //print the AS_instrList to the ssa file`
     AS_instrList finalssa = AS_splice(AS_InstrList(prologi, bodyil_in_SSA), AS_InstrList(epilogi, NULL));
