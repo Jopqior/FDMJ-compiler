@@ -1,0 +1,4 @@
+// test array init
+public int main() {
+    float[] a={1.2,3.4,5};
+}

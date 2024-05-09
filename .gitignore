@@ -1,6 +1,6 @@
 .DS_Store
-.vscode/
-build/
+.vscode
+build
 *.src
 *.ast
 *.output
@@ -9,3 +9,6 @@ build/
 *.irp
 *.stm
 *.debug
+*.ins
+*.cfg
+*.ssa

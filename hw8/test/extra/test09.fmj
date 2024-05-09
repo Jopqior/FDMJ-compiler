@@ -1,0 +1,23 @@
+// test class upcast
+public int main() {
+    class c1 c;
+    c = new c2();
+    return c.x + c.x();
+}
+
+public class c1 {
+    int x = 4;
+    public int x() {
+        return this.x;
+    }
+}
+
+public class c2 extends c1 {
+    int y = 5;
+    public int x() {
+        return 998;
+    }
+    public int y() {
+        return this.y;
+    }
+}
