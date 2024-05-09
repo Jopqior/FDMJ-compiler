@@ -149,7 +149,7 @@ int main(int argc, const char * argv[]) {
     fprintf(stdout, "------Basic Block Graph---------\n");
     Show_bg(stdout, bg);
     //put all the blocks into one AS list
-    AS_instrList il = AS_traceSchedule(bodybl, prologil, epilogil, TRUE);
+    AS_instrList il = AS_traceSchedule(bodybl, prologil, epilogil, FALSE);
 
     printf("------~Final traced AS instructions ---------\n");
     AS_printInstrList(stdout, il, Temp_name());
