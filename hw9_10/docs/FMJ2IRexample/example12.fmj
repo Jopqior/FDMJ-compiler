@@ -1,3 +1,0 @@
-public int main() {
-  return !(true*1.9);
-}

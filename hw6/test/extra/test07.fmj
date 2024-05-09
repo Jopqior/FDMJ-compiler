@@ -1,9 +1,0 @@
-public int main() {
-    return new c1().a();
-}
-
-public class c1 {
-    public int a(int x) {
-        return 2;
-    }
-}

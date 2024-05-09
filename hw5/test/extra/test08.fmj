@@ -1,7 +1,0 @@
-public int main() {
-    int[] a;
-    int b;
-    float c=2.345;
-    a=new int[10];
-    b=c+a;// wrong +
-}

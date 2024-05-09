@@ -1,5 +1,0 @@
-
-public int main() {
-  while (true) break;
-  return false;
-}

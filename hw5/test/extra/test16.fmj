@@ -1,5 +1,0 @@
-public int main() {
-    float[] a;
-    a=new float[10];
-    return a; // uncompatible
-}

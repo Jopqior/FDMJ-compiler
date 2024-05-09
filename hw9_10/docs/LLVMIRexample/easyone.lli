@@ -1,5 +1,0 @@
-define i64 @main() {
-  %x = fadd double 1.0000, 2.0
-  %y = fptosi double %x to i64
-  ret i64 %y
-}

@@ -11,3 +11,4 @@ build
 *.ins
 *.cfg
 *.ssa
+*.debug

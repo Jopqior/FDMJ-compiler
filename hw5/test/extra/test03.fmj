@@ -1,6 +1,0 @@
-public int main() {
-    float[] a;
-    a=new float[3];
-    a[]={2.1,3.2,3.3};
-    putarray(a, 1); // wrong call (reversed)
-}

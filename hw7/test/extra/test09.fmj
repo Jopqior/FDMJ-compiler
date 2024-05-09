@@ -1,9 +1,0 @@
-// test shortcut assing
-public int main() {
-    int a = 10;
-    int b;
-    float c;
-    b = (20 < a && a < 30) || a < 0 || a > 100;
-    c = (a < 20 || a > 30) && a > 0 && a < 100;
-    return c;
-}
