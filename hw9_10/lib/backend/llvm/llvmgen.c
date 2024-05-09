@@ -750,7 +750,6 @@ static expres munchCallExp(T_exp e, Temp_temp dst) {
   ASSERT(e && e->kind == T_CALL);
 
   // get the method address
-  ASSERT(e->u.CALL.obj->kind == T_MEM);
   expres methAddr = munchExp(e->u.CALL.obj, NULL);
   Temp_temp methPtr = Temp_newtemp(T_int);
   emit(AS_Oper("\%`d0 = inttoptr i64 \%`s0 to i64*", TL(methPtr, NULL),
@@ -785,8 +784,8 @@ static expres munchCallExp(T_exp e, Temp_temp dst) {
 static expres munchExtCallExp(T_exp e, Temp_temp dst) {
 #ifdef LLVMGEN_DEBUG
   printIndent();
-  fprintf(stderr, "munchExtCallExp: e->u.ExtCALL->extfun:%s, dst->num:%d\n",
-          e->u.ExtCALL.extfun, dst->num);
+  fprintf(stderr, "munchExtCallExp: e->u.ExtCALL->extfun:%s\n",
+          e->u.ExtCALL.extfun);
   depth++;
 #endif
   ASSERT(e && e->kind == T_ExtCALL);
