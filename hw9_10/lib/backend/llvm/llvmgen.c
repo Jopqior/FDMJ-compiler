@@ -63,50 +63,6 @@ static Temp_labelList LL(Temp_label l, Temp_labelList ll) {
 /* ********************************************************/
 /* YOU ARE TO IMPLEMENT THE FOLLOWING FUNCTION FOR HW9_10 */
 /* ********************************************************/
-static char llvm_types[2][7] = {"i64", "double"};
-static char relOp_codes[2][10][4] = {
-    {"eq", "ne", "slt", "sgt", "sle", "sge", "ult", "ule", "ugt", "uge"},
-    {"oeq", "one", "olt", "ogt", "ole", "oge", "ult", "ule", "ugt", "uge"}};
-static char binOp_codes[2][10][5] = {
-    {"add", "sub", "mul", "sdiv", "and", "or", "shl", "lshr", "ashr", "xor"},
-    {"fadd", "fsub", "fmul", "fdiv", "and", "or", "shl", "lshr", "ashr",
-     "xor"}};
-
-typedef struct expres_ *expres;
-struct expres_ {
-  enum { res_const, res_temp } kind;
-  T_type type;
-  union {
-    int i;
-    double f;
-    Temp_temp t;
-  } u;
-};
-static expres IntConstRes(int i) {
-  expres res = checked_malloc(sizeof(*res));
-  res->kind = res_const;
-  res->type = T_int;
-  res->u.i = i;
-  return res;
-}
-static expres FloatConstRes(float f) {
-  expres res = checked_malloc(sizeof(*res));
-  res->kind = res_const;
-  res->type = T_float;
-  res->u.f = f;
-  return res;
-}
-static expres TempRes(Temp_temp t) {
-  expres res = checked_malloc(sizeof(*res));
-  res->kind = res_temp;
-  res->type = t->type;
-  res->u.t = t;
-  return res;
-}
-
-bool OPT_CONST = TRUE;
-bool OPT_CAST_CONST = TRUE;
-
 #ifdef LLVMGEN_DEBUG
 static int depth = 0;
 static void printIndent() {
@@ -133,6 +89,63 @@ static void dump_TL(FILE *out, Temp_tempList tl) {
   fprintf(out, "\n");
 }
 #endif
+
+static char llvm_types[2][7] = {"i64", "double"};
+static char relOp_codes[2][10][4] = {
+    {"eq", "ne", "slt", "sgt", "sle", "sge", "ult", "ule", "ugt", "uge"},
+    {"oeq", "one", "olt", "ogt", "ole", "oge", "ult", "ule", "ugt", "uge"}};
+static char binOp_codes[2][10][5] = {
+    {"add", "sub", "mul", "sdiv", "and", "or", "shl", "lshr", "ashr", "xor"},
+    {"fadd", "fsub", "fmul", "fdiv", "and", "or", "shl", "lshr", "ashr",
+     "xor"}};
+
+typedef struct expres_ *expres;
+struct expres_ {
+  enum { res_const, res_temp } kind;
+  T_type type;
+  union {
+    int i;
+    double f;
+    Temp_temp t;
+  } u;
+};
+static expres IntConstRes(int i) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "IntConstRes: i=%d\n", i);
+#endif
+  expres res = checked_malloc(sizeof(*res));
+  res->kind = res_const;
+  res->type = T_int;
+  res->u.i = i;
+  return res;
+}
+static expres FloatConstRes(float f) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "FloatConstRes: f=%f\n", f);
+#endif
+  expres res = checked_malloc(sizeof(*res));
+  res->kind = res_const;
+  res->type = T_float;
+  res->u.f = f;
+  return res;
+}
+static expres TempRes(Temp_temp t) {
+#ifdef LLVMGEN_DEBUG
+  printIndent();
+  fprintf(stderr, "TempRes: t->num=%d, t->type=%s\n", t->num,
+          T_type2str[t->type]);
+#endif
+  expres res = checked_malloc(sizeof(*res));
+  res->kind = res_temp;
+  res->type = t->type;
+  res->u.t = t;
+  return res;
+}
+
+bool OPT_CONST = TRUE;
+bool OPT_CAST_CONST = TRUE;
 
 static void munchStm(T_stm s);
 static void munchLabelStm(T_stm s);
@@ -256,7 +269,7 @@ static void munchCjumpStm(T_stm s) {
 
   string relop = String(relOp_codes[left->type][s->u.CJUMP.op]);
   Temp_temp cond = Temp_newtemp(T_int);
-  if (left->kind == res_const && right->type == res_const) {
+  if (left->kind == res_const && right->kind == res_const) {
     switch (left->type) {
       case T_int: {
         emit(AS_Oper(
@@ -697,6 +710,9 @@ static expres munchConstExp(T_exp e, Temp_temp dst) {
   ASSERT(e && e->kind == T_CONST);
 
   if (OPT_CONST && !dst) {
+#ifdef LLVMGEN_DEBUG
+    depth--;
+#endif
     switch (e->type) {
       case T_int: {
         return IntConstRes(e->u.CONST.i);
@@ -941,6 +957,9 @@ static expres munchCastExp(T_exp e, Temp_temp dst) {
 
   expres src = munchExp(e->u.CAST, NULL);
   if (OPT_CAST_CONST && src->kind == res_const && !dst) {
+#ifdef LLVMGEN_DEBUG
+    depth--;
+#endif
     switch (e->type) {
       case T_int: {
         return IntConstRes((int)(src->u.f));
