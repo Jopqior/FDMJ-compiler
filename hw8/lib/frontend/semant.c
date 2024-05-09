@@ -1086,7 +1086,16 @@ Tr_exp transA_Putarray(FILE *out, A_stm s) {
     pos->exp = Tr_Cast(pos->exp, T_int);
   }
 
-  return Tr_Putarray(pos->exp, array->exp);
+  switch (array->value->u.array->kind) {
+    case Ty_int:
+      return Tr_Putarray(pos->exp, array->exp);
+    case Ty_float:
+      return Tr_Putfarray(pos->exp, array->exp);
+    default:
+      transError(out, s->pos,
+                 String("error: second argument of putarray() must be of type "
+                        "int array or float array"));
+  }
 }
 
 Tr_exp transA_Starttime(FILE *out, A_stm s) {

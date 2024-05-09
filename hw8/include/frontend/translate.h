@@ -34,6 +34,7 @@ Tr_exp Tr_Putint(Tr_exp exp);
 Tr_exp Tr_Putfloat(Tr_exp exp);
 Tr_exp Tr_Putch(Tr_exp exp);
 Tr_exp Tr_Putarray(Tr_exp pos, Tr_exp arr);
+Tr_exp Tr_Putfarray(Tr_exp pos, Tr_exp arr);
 Tr_exp Tr_Starttime();
 Tr_exp Tr_Stoptime();
 

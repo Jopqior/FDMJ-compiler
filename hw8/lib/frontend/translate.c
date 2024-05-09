@@ -453,6 +453,15 @@ Tr_exp Tr_Putarray(Tr_exp pos, Tr_exp arr) {
                                T_int)));
 }
 
+Tr_exp Tr_Putfarray(Tr_exp pos, Tr_exp arr) {
+#ifdef __DEBUG
+  fprintf(stderr, "\tEntering Tr_Putfarray...\n");
+#endif
+  return Tr_Nx(T_Exp(T_ExtCall(String("putfarray"),
+                               T_ExpList(unEx(pos), T_ExpList(unEx(arr), NULL)),
+                               T_int)));
+}
+
 Tr_exp Tr_Starttime() {
 #ifdef __DEBUG
   fprintf(stderr, "\tEntering Tr_Starttime...\n");
