@@ -27,6 +27,7 @@ clean:
 		-o -name "*.stm" -o -name "*.ins" \
 		-o -name "*.debug" \
 		-o -name "*.ll" \
+		-o -name "*.llvm" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean
@@ -130,6 +131,6 @@ test-run: clean
 	$(FMJ2AST) "${FILE}"; \
 	$(AST2IRP) -f xml "${FILE}"; \
 	$(MAIN_EXE) "${FILE}"; \
-	$(LLVMLINK) -opaque-pointers "${FILE}".5.ins $(BUILD_DIR)/vendor/libsysy/libsysy64.ll -o "${FILE}".ll; \
+	$(LLVMLINK) -opaque-pointers "${FILE}".6.llvm $(BUILD_DIR)/vendor/libsysy/libsysy64.ll -o "${FILE}".ll; \
 	$(LLI) -opaque-pointers "${FILE}".ll; \
 	cd $(CURDIR)

@@ -10,3 +10,4 @@ build
 *.stm
 *.ins
 *.debug
+*.llvm
