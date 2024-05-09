@@ -42,6 +42,8 @@ int main(int argc, const char * argv[]) {
   sprintf(file_liv, "%s.5.ins", file);
   string file_ins = checked_malloc(IR_MAXLEN);
   sprintf(file_ins, "%s.5.ins", file);
+  string file_llvm = checked_malloc(IR_MAXLEN);
+  sprintf(file_llvm, "%s.6.llvm", file);
 
   // parse xml to irp
   XMLDocument doc;
@@ -151,9 +153,32 @@ int main(int argc, const char * argv[]) {
 
     printf("------~Final traced AS instructions ---------\n");
     AS_printInstrList(stdout, il, Temp_name());
+    fflush(stdout);
+    fclose(stdout);
+
+    freopen(file_llvm, "a", stdout);
+    AS_printInstrList(stdout, il, Temp_name());
+    fflush(stdout);
+    fclose(stdout);
 
     fdl = fdl->tail;
   }
+
+  freopen(file_llvm, "a", stdout);
+  fprintf(stdout, "declare void @starttime()\n");
+  fprintf(stdout, "declare void @stoptime()\n");
+  fprintf(stdout, "declare i64* @malloc(i64)\n");
+  fprintf(stdout, "declare void @putch(i64)\n");
+  fprintf(stdout, "declare void @putint(i64)\n");
+  fprintf(stdout, "declare void @putfloat(double)\n");
+  fprintf(stdout, "declare i64 @getint()\n");
+  fprintf(stdout, "declare float @getfloat()\n");
+  fprintf(stdout, "declare i64* @getarray(i64)\n");
+  fprintf(stdout, "declare i64* @getfarray(i64)\n");
+  fprintf(stdout, "declare void @putarray(i64, i64*)\n");
+  fprintf(stdout, "declare void @putfarray(i64, i64*)\n");
+  fflush(stdout);
+  fclose(stdout);
 
   return 0;
 }
