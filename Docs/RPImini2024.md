@@ -114,7 +114,7 @@ There are **32** floating pointer registers **s0-s31** (these registers are also
 
 **Compare:** Use `vcmp.f32`.
 
-##Function Calling Convention##
+## Function Calling Convention
 
 Registers `r0-r3` and `s0-s15` are caller-saved registers. All other registers are callee saved. Return value is in `r0` and `s0`. 
 
