@@ -10,6 +10,9 @@
 #define DOM_DEBUG
 #undef DOM_DEBUG
 
+#define DOM_TREE_DEBUG
+#undef DOM_TREE_DEBUG
+
 typedef struct SSA_block_info_ *SSA_block_info;
 struct SSA_block_info_ {
   G_node mynode;
@@ -30,11 +33,15 @@ static bitmap *bg_doms;
 static void SSA_init(G_nodeList lg, G_nodeList bg);
 static void init_blockInfoEnv(G_nodeList bg);
 
-static void compute_bg_doms();
 static void sort_bg_in_RPO();
 static void dfs_bg(int i);
 static void print_bg_RPO(FILE *out);
+
+static void compute_bg_doms();
 static void print_bg_doms(FILE *out, int num_iters);
+
+static void compute_bg_dom_tree();
+static void print_bg_dom_tree(FILE *out);
 
 static void SSA_init(G_nodeList lg, G_nodeList bg) {
   num_bg_nodes = bg->head->mygraph->nodecount;
@@ -158,6 +165,49 @@ static void compute_bg_doms() {
 #endif
 }
 
+static void compute_bg_dom_tree() {
+  // compute the dominator tree of bg
+
+  // step 1: compute the dominators
+  compute_bg_doms();
+
+  // step 2: compute the dominator tree
+  blockInfoEnv[0]->idom = -1;
+
+  bitmap u_mask = Bitmap(num_bg_nodes);
+  for (int u = 1; u < num_bg_nodes; ++u) {
+    bitmap_clear_all(u_mask);
+    bitmap_set(u_mask, u);
+    for (int v = 0; v < num_bg_nodes; ++v) {
+      // idom[u] != u
+      // idom[u] dominates u
+      if (v == u || !bitmap_read(bg_doms[u], v)) {
+        continue;
+      }
+      // idom[u] is the closest dominator of u
+      bitmap flag = bitmap_difference(bg_doms[u], bg_doms[v]);
+      if (bitmap_equal(flag, u_mask)) {
+#ifdef DOM_TREE_DEBUG
+        fprintf(stderr, "set idom, u=%d, v=%d\n", u, v);
+#endif
+        blockInfoEnv[u]->idom = v;
+        break;
+      }
+    }
+  }
+#ifdef SSA_DEBUG
+  print_bg_dom_tree(stderr);
+#endif
+}
+
+static void print_bg_dom_tree(FILE *out) {
+  fprintf(out, "----------------- bg_dom_tree -----------------\n");
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    fprintf(out, "%d: (idom %d)\n", i, blockInfoEnv[i]->idom);
+  }
+  fprintf(out, "\n");
+}
+
 AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
                                  G_nodeList bg) {
   /* here is your implementation of translating to ssa */
@@ -168,7 +218,7 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
 
   SSA_init(lg, bg);
 
-  compute_bg_doms();
+  compute_bg_dom_tree();
 
   return bodyil;
 }
