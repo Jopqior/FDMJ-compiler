@@ -13,14 +13,48 @@
 #define DOM_TREE_DEBUG
 #undef DOM_TREE_DEBUG
 
+#define DOM_FRONTIER_DEBUG
+#undef DOM_FRONTIER_DEBUG
+
+typedef struct mylist_ *mylist;
+struct mylist_ {
+  int blockid;
+  mylist next;
+};
+static mylist Mylist(int data, mylist next) {
+  mylist p = (mylist)checked_malloc(sizeof *p);
+  p->blockid = data;
+  p->next = next;
+  return p;
+}
+static mylist Mylist_Splice(mylist a, mylist b) {
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+  mylist p = a;
+  while (p->next) {
+    p = p->next;
+  }
+  p->next = b;
+  return a;
+}
+
 typedef struct SSA_block_info_ *SSA_block_info;
 struct SSA_block_info_ {
   G_node mynode;
   int idom;
+  mylist dom_tree_children;
+  mylist dom_frontiers;
 };
 static SSA_block_info SSA_block_info_init(G_node node) {
   SSA_block_info info = (SSA_block_info)checked_malloc(sizeof *info);
   info->mynode = node;
+  info->idom = -1;
+  info->dom_tree_children = NULL;
+  info->dom_frontiers = NULL;
   return info;
 }
 
@@ -37,11 +71,17 @@ static void sort_bg_in_RPO();
 static void dfs_bg(int i);
 static void print_bg_RPO(FILE *out);
 
-static void compute_bg_doms();
+static void compute_bg_doms(FILE *out);
 static void print_bg_doms(FILE *out, int num_iters);
 
-static void compute_bg_dom_tree();
+static void compute_bg_dom_tree(FILE *out);
+static void construct_bg_dom_tree();
+static void print_bg_idoms(FILE *out);
 static void print_bg_dom_tree(FILE *out);
+
+static void compute_bg_dom_frontiers(FILE *out);
+static void compute_bg_df_recur(FILE *out, int u);
+static void print_bg_dom_frontiers(FILE *out);
 
 static void SSA_init(G_nodeList lg, G_nodeList bg) {
   num_bg_nodes = bg->head->mygraph->nodecount;
@@ -93,23 +133,13 @@ static void print_bg_RPO(FILE *out) {
   fprintf(out, "\n");
 }
 
-static void print_bg_doms(FILE *out, int num_iters) {
-  fprintf(out, "----------------- bg_doms -----------------\n");
-  fprintf(out, "Number of iterations=%d\n", num_iters);
-  for (int i = 0; i < num_bg_nodes; ++i) {
-    fprintf(out, "%d: ", i);
-    bitmap_print(out, bg_doms[i]);
-  }
-  fprintf(out, "\n");
-}
-
-static void compute_bg_doms() {
+static void compute_bg_doms(FILE *out) {
   // compute the dominators of each node in bg
 
   // step 1: sort in RPO
   sort_bg_in_RPO();
 #ifdef SSA_DEBUG
-  print_bg_RPO(stderr);
+  print_bg_RPO(out);
 #endif
 
   // step 2: compute the dominators
@@ -161,15 +191,25 @@ static void compute_bg_doms() {
     }
   }
 #ifdef SSA_DEBUG
-  print_bg_doms(stderr, num_iters);
+  print_bg_doms(out, num_iters);
 #endif
 }
 
-static void compute_bg_dom_tree() {
+static void print_bg_doms(FILE *out, int num_iters) {
+  fprintf(out, "----------------- bg_doms -----------------\n");
+  fprintf(out, "Number of iterations=%d\n", num_iters);
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    fprintf(out, "%d: ", i);
+    bitmap_print(out, bg_doms[i]);
+  }
+  fprintf(out, "\n");
+}
+
+static void compute_bg_dom_tree(FILE *out) {
   // compute the dominator tree of bg
 
   // step 1: compute the dominators
-  compute_bg_doms();
+  compute_bg_doms(out);
 
   // step 2: compute the dominator tree
   blockInfoEnv[0]->idom = -1;
@@ -196,14 +236,101 @@ static void compute_bg_dom_tree() {
     }
   }
 #ifdef SSA_DEBUG
-  print_bg_dom_tree(stderr);
+  fprintf(out, "----------------- bg_idoms -----------------\n");
+  print_bg_idoms(out);
+#endif
+
+  construct_bg_dom_tree();
+#ifdef SSA_DEBUG
+  fprintf(out, "----------------- bg_dom_tree -----------------\n");
+  print_bg_dom_tree(out);
 #endif
 }
 
-static void print_bg_dom_tree(FILE *out) {
-  fprintf(out, "----------------- bg_dom_tree -----------------\n");
+static void construct_bg_dom_tree() {
+  for (int i = 1; i < num_bg_nodes; ++i) {
+    int idom = blockInfoEnv[i]->idom;
+    if (idom == -1) {
+      continue;
+    }
+
+    blockInfoEnv[idom]->dom_tree_children =
+        Mylist_Splice(blockInfoEnv[idom]->dom_tree_children, Mylist(i, NULL));
+  }
+}
+
+static void print_bg_idoms(FILE *out) {
   for (int i = 0; i < num_bg_nodes; ++i) {
     fprintf(out, "%d: (idom %d)\n", i, blockInfoEnv[i]->idom);
+  }
+  fprintf(out, "\n");
+}
+
+static void print_bg_dom_tree(FILE *out) {
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    fprintf(out, "%d: ", i);
+    for (mylist p = blockInfoEnv[i]->dom_tree_children; p; p = p->next) {
+      fprintf(out, "%d ", p->blockid);
+    }
+    fprintf(out, "\n");
+  }
+  fprintf(out, "\n");
+}
+
+static void compute_bg_dom_frontiers(FILE *out) {
+  // compute the dominator frontiers of each node in bg
+
+  // step 1: compute the dominator tree
+  compute_bg_dom_tree(out);
+
+  // step 2: compute the dominator frontiers
+  compute_bg_df_recur(out, 0);
+
+#ifdef SSA_DEBUG
+  fprintf(out, "----------------- bg_dom_frontiers -----------------\n");
+  print_bg_dom_frontiers(out);
+#endif
+}
+
+static void compute_bg_df_recur(FILE *out, int u) {
+  bitmap tmp = Bitmap(num_bg_nodes);
+
+  // compute DF_local[u]
+  for (G_nodeList s = G_succ(blockInfoEnv[u]->mynode); s; s = s->tail) {
+    int v = s->head->mykey;
+    if (blockInfoEnv[v]->idom != u) {
+      bitmap_set(tmp, v);
+    }
+  }
+
+  // compute DF_up[u]
+  for (mylist p = blockInfoEnv[u]->dom_tree_children; p; p = p->next) {
+    int w = p->blockid;
+    compute_bg_df_recur(out, w);
+    for (mylist q = blockInfoEnv[w]->dom_frontiers; q; q = q->next) {
+      int x = q->blockid;
+      if (!bitmap_read(bg_doms[x], u) || x == u) {
+        bitmap_set(tmp, x);
+      }
+    }
+  }
+
+  // store DF[u]
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    if (bitmap_read(tmp, i)) {
+      blockInfoEnv[u]->dom_frontiers =
+          Mylist_Splice(blockInfoEnv[u]->dom_frontiers, Mylist(i, NULL));
+    }
+  }
+}
+
+static void print_bg_dom_frontiers(FILE *out) {
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    fprintf(out, "%d: ", i);
+    for (mylist p = blockInfoEnv[i]->dom_frontiers; p; p = p->next) {
+      fprintf(out, "%d ", p->blockid);
+    }
+    fprintf(out, "\n");
   }
   fprintf(out, "\n");
 }
@@ -218,7 +345,7 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
 
   SSA_init(lg, bg);
 
-  compute_bg_dom_tree();
+  compute_bg_dom_frontiers(stderr);
 
   return bodyil;
 }
