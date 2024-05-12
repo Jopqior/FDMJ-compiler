@@ -16,25 +16,27 @@
 #define DOM_FRONTIER_DEBUG
 #undef DOM_FRONTIER_DEBUG
 
-typedef struct mylist_ *mylist;
-struct mylist_ {
+static FILE *out;
+
+typedef struct blockIdList_ *blockIdList;
+struct blockIdList_ {
   int blockid;
-  mylist next;
+  blockIdList next;
 };
-static mylist Mylist(int data, mylist next) {
-  mylist p = (mylist)checked_malloc(sizeof *p);
+static blockIdList BlockIdList(int data, blockIdList next) {
+  blockIdList p = (blockIdList)checked_malloc(sizeof *p);
   p->blockid = data;
   p->next = next;
   return p;
 }
-static mylist Mylist_Splice(mylist a, mylist b) {
+static blockIdList BlockIdlist_Splice(blockIdList a, blockIdList b) {
   if (!a) {
     return b;
   }
   if (!b) {
     return a;
   }
-  mylist p = a;
+  blockIdList p = a;
   while (p->next) {
     p = p->next;
   }
@@ -45,63 +47,130 @@ static mylist Mylist_Splice(mylist a, mylist b) {
 typedef struct SSA_block_info_ *SSA_block_info;
 struct SSA_block_info_ {
   G_node mynode;
+  int rpo;
+  bitmap doms;
   int idom;
-  mylist dom_tree_children;
-  mylist dom_frontiers;
+  blockIdList dom_tree_children;
+  blockIdList dom_frontiers;
+  Temp_tempList orig_vars;
+  Temp_tempList phi_vars;
 };
-static SSA_block_info SSA_block_info_init(G_node node) {
+static SSA_block_info SSA_block_info_init(G_node node, int num_bg_nodes) {
   SSA_block_info info = (SSA_block_info)checked_malloc(sizeof *info);
   info->mynode = node;
+  info->rpo = -1;
+  info->doms = Bitmap(num_bg_nodes);
   info->idom = -1;
   info->dom_tree_children = NULL;
   info->dom_frontiers = NULL;
+  info->orig_vars = NULL;
+  info->phi_vars = NULL;
+  return info;
+}
+
+typedef struct SSA_var_info_ *SSA_var_info;
+struct SSA_var_info_ {
+  bitmap defsites;
+};
+static SSA_var_info SSA_var_info_init(int num_bg_nodes) {
+  SSA_var_info info = (SSA_var_info)checked_malloc(sizeof *info);
+  info->defsites = Bitmap(num_bg_nodes);
   return info;
 }
 
 static int num_bg_nodes;
 static SSA_block_info *blockInfoEnv;
-
-static int *bg_rpo;
-static bitmap *bg_doms;
+static TAB_table varInfoEnv;
 
 static void SSA_init(G_nodeList lg, G_nodeList bg);
 static void init_blockInfoEnv(G_nodeList bg);
+static void init_blockOrigVars(G_nodeList lg);
+static void print_blockOrigVars(FILE *out);
+static void init_varInfoEnv();
 
 static void sort_bg_in_RPO();
 static void dfs_bg(int i);
 static void print_bg_RPO(FILE *out);
 
-static void compute_bg_doms(FILE *out);
+static void compute_bg_doms();
 static void print_bg_doms(FILE *out, int num_iters);
 
-static void compute_bg_dom_tree(FILE *out);
+static void compute_bg_dom_tree();
 static void construct_bg_dom_tree();
 static void print_bg_idoms(FILE *out);
 static void print_bg_dom_tree(FILE *out);
 
-static void compute_bg_dom_frontiers(FILE *out);
-static void compute_bg_df_recur(FILE *out, int u);
+static void compute_bg_dom_frontiers();
+static void compute_bg_df_recur(int u);
 static void print_bg_dom_frontiers(FILE *out);
+
+static void compute_phi_functions(G_nodeList lg, G_nodeList bg);
+static void print_var_defsites(FILE *out);
+static void print_bg_phi_functions(FILE *out);
 
 static void SSA_init(G_nodeList lg, G_nodeList bg) {
   num_bg_nodes = bg->head->mygraph->nodecount;
 
   init_blockInfoEnv(bg);
+  init_blockOrigVars(lg);
+  init_varInfoEnv();
 }
 
 static void init_blockInfoEnv(G_nodeList bg) {
   blockInfoEnv =
       (SSA_block_info *)checked_malloc(num_bg_nodes * sizeof *blockInfoEnv);
   for (G_nodeList p = bg; p; p = p->tail) {
-    blockInfoEnv[p->head->mykey] = SSA_block_info_init(p->head);
+    blockInfoEnv[p->head->mykey] = SSA_block_info_init(p->head, num_bg_nodes);
   }
 }
+
+static void init_blockOrigVars(G_nodeList lg) {
+  G_nodeList p = lg;
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    AS_block block = G_nodeInfo(blockInfoEnv[i]->mynode);
+    for (AS_instrList q = block->instrs; q; q = q->tail, p = p->tail) {
+      if (q->head != G_nodeInfo(p->head)) {
+        fprintf(stderr, "Error: lg and bg are not in sync\n");
+        fprintf(stderr, "lg: ");
+        FG_Showinfo(stderr, G_nodeInfo(p->head), Temp_name());
+        fprintf(stderr, "\n");
+        fprintf(stderr, "bg: ");
+        FG_Showinfo(stderr, q->head, Temp_name());
+        fprintf(stderr, "\n");
+        exit(1);
+      }
+
+      Temp_tempList tl = FG_def(p->head);
+      if (!tl) {
+        continue;
+      }
+      if (!blockInfoEnv[i]->orig_vars) {
+        blockInfoEnv[i]->orig_vars = tl;
+      } else {
+        blockInfoEnv[i]->orig_vars =
+            Temp_TempListUnion(blockInfoEnv[i]->orig_vars, tl);
+      }
+    }
+  }
+}
+
+static void print_blockOrigVars(FILE *out) {
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    fprintf(out, "%d: ", i);
+    for (Temp_tempList p = blockInfoEnv[i]->orig_vars; p; p = p->tail) {
+      fprintf(out, "%d ", p->head->num);
+    }
+    fprintf(out, "\n");
+  }
+  fprintf(out, "\n");
+}
+
+static void init_varInfoEnv() { varInfoEnv = TAB_empty(); }
 
 static bool *marked;
 static int dfs_N;
 static void sort_bg_in_RPO() {
   // sort the nodes in bg in reverse post order
-  bg_rpo = (int *)checked_malloc(num_bg_nodes * (sizeof *bg_rpo));
   marked = (bool *)checked_malloc(num_bg_nodes * (sizeof *marked));
   for (int i = 0; i < num_bg_nodes; ++i) {
     marked[i] = FALSE;
@@ -122,18 +191,18 @@ static void dfs_bg(int i) {
     dfs_bg(l->head->mykey);
   }
 
-  bg_rpo[i] = dfs_N--;
+  blockInfoEnv[i]->rpo = dfs_N--;
 }
 
 static void print_bg_RPO(FILE *out) {
   fprintf(out, "----------------- bg_rpo -----------------\n");
   for (int i = 0; i < num_bg_nodes; ++i) {
-    fprintf(out, "%d: (rpo %d)\n", i, bg_rpo[i]);
+    fprintf(out, "%d: (rpo %d)\n", i, blockInfoEnv[i]->rpo);
   }
   fprintf(out, "\n");
 }
 
-static void compute_bg_doms(FILE *out) {
+static void compute_bg_doms() {
   // compute the dominators of each node in bg
 
   // step 1: sort in RPO
@@ -143,12 +212,9 @@ static void compute_bg_doms(FILE *out) {
 #endif
 
   // step 2: compute the dominators
-  bg_doms = (bitmap *)checked_malloc(num_bg_nodes * (sizeof *bg_doms));
-  bg_doms[0] = Bitmap(num_bg_nodes);
-  bitmap_set(bg_doms[0], 0);
+  bitmap_set(blockInfoEnv[0]->doms, 0);
   for (int i = 1; i < num_bg_nodes; ++i) {
-    bg_doms[i] = Bitmap(num_bg_nodes);
-    bitmap_set_all(bg_doms[i]);
+    bitmap_set_all(blockInfoEnv[i]->doms);
   }
 
   bool changed = TRUE;
@@ -158,7 +224,7 @@ static void compute_bg_doms(FILE *out) {
     changed = FALSE;
     num_iters++;
     for (int i = 0; i < num_bg_nodes; ++i) {
-      int u = bg_rpo[i];
+      int u = blockInfoEnv[i]->rpo;
       if (u == 0) {
         continue;
       }
@@ -172,11 +238,11 @@ static void compute_bg_doms(FILE *out) {
         fprintf(stderr, "u: %d, v: %d, v.doms: ", u, v);
         bitmap_print(stderr, bg_doms[v]);
 #endif
-        bitmap_intersection_into(tmp, bg_doms[v]);
+        bitmap_intersection_into(tmp, blockInfoEnv[v]->doms);
       }
       bitmap_set(tmp, u);
 
-      if (!bitmap_equal(tmp, bg_doms[u])) {
+      if (!bitmap_equal(tmp, blockInfoEnv[u]->doms)) {
 #ifdef DOM_DEBUG
         fprintf(stderr, "changed: %d\n", u);
         fprintf(stderr, "old: ");
@@ -186,7 +252,7 @@ static void compute_bg_doms(FILE *out) {
         fprintf(stderr, "\n");
 #endif
         changed = TRUE;
-        bitmap_copy(bg_doms[u], tmp);
+        bitmap_copy(blockInfoEnv[u]->doms, tmp);
       }
     }
   }
@@ -200,12 +266,12 @@ static void print_bg_doms(FILE *out, int num_iters) {
   fprintf(out, "Number of iterations=%d\n", num_iters);
   for (int i = 0; i < num_bg_nodes; ++i) {
     fprintf(out, "%d: ", i);
-    bitmap_print(out, bg_doms[i]);
+    bitmap_print(out, blockInfoEnv[i]->doms);
   }
   fprintf(out, "\n");
 }
 
-static void compute_bg_dom_tree(FILE *out) {
+static void compute_bg_dom_tree() {
   // compute the dominator tree of bg
 
   // step 1: compute the dominators
@@ -221,11 +287,12 @@ static void compute_bg_dom_tree(FILE *out) {
     for (int v = 0; v < num_bg_nodes; ++v) {
       // idom[u] != u
       // idom[u] dominates u
-      if (v == u || !bitmap_read(bg_doms[u], v)) {
+      if (v == u || !bitmap_read(blockInfoEnv[u]->doms, v)) {
         continue;
       }
       // idom[u] is the closest dominator of u
-      bitmap flag = bitmap_difference(bg_doms[u], bg_doms[v]);
+      bitmap flag =
+          bitmap_difference(blockInfoEnv[u]->doms, blockInfoEnv[v]->doms);
       if (bitmap_equal(flag, u_mask)) {
 #ifdef DOM_TREE_DEBUG
         fprintf(stderr, "set idom, u=%d, v=%d\n", u, v);
@@ -254,8 +321,8 @@ static void construct_bg_dom_tree() {
       continue;
     }
 
-    blockInfoEnv[idom]->dom_tree_children =
-        Mylist_Splice(blockInfoEnv[idom]->dom_tree_children, Mylist(i, NULL));
+    blockInfoEnv[idom]->dom_tree_children = BlockIdlist_Splice(
+        blockInfoEnv[idom]->dom_tree_children, BlockIdList(i, NULL));
   }
 }
 
@@ -269,7 +336,7 @@ static void print_bg_idoms(FILE *out) {
 static void print_bg_dom_tree(FILE *out) {
   for (int i = 0; i < num_bg_nodes; ++i) {
     fprintf(out, "%d: ", i);
-    for (mylist p = blockInfoEnv[i]->dom_tree_children; p; p = p->next) {
+    for (blockIdList p = blockInfoEnv[i]->dom_tree_children; p; p = p->next) {
       fprintf(out, "%d ", p->blockid);
     }
     fprintf(out, "\n");
@@ -277,14 +344,14 @@ static void print_bg_dom_tree(FILE *out) {
   fprintf(out, "\n");
 }
 
-static void compute_bg_dom_frontiers(FILE *out) {
+static void compute_bg_dom_frontiers() {
   // compute the dominator frontiers of each node in bg
 
   // step 1: compute the dominator tree
   compute_bg_dom_tree(out);
 
   // step 2: compute the dominator frontiers
-  compute_bg_df_recur(out, 0);
+  compute_bg_df_recur(0);
 
 #ifdef SSA_DEBUG
   fprintf(out, "----------------- bg_dom_frontiers -----------------\n");
@@ -292,7 +359,7 @@ static void compute_bg_dom_frontiers(FILE *out) {
 #endif
 }
 
-static void compute_bg_df_recur(FILE *out, int u) {
+static void compute_bg_df_recur(int u) {
   bitmap tmp = Bitmap(num_bg_nodes);
 
   // compute DF_local[u]
@@ -304,12 +371,12 @@ static void compute_bg_df_recur(FILE *out, int u) {
   }
 
   // compute DF_up[u]
-  for (mylist p = blockInfoEnv[u]->dom_tree_children; p; p = p->next) {
+  for (blockIdList p = blockInfoEnv[u]->dom_tree_children; p; p = p->next) {
     int w = p->blockid;
-    compute_bg_df_recur(out, w);
-    for (mylist q = blockInfoEnv[w]->dom_frontiers; q; q = q->next) {
+    compute_bg_df_recur(w);
+    for (blockIdList q = blockInfoEnv[w]->dom_frontiers; q; q = q->next) {
       int x = q->blockid;
-      if (!bitmap_read(bg_doms[x], u) || x == u) {
+      if (!bitmap_read(blockInfoEnv[x]->doms, u) || x == u) {
         bitmap_set(tmp, x);
       }
     }
@@ -318,8 +385,8 @@ static void compute_bg_df_recur(FILE *out, int u) {
   // store DF[u]
   for (int i = 0; i < num_bg_nodes; ++i) {
     if (bitmap_read(tmp, i)) {
-      blockInfoEnv[u]->dom_frontiers =
-          Mylist_Splice(blockInfoEnv[u]->dom_frontiers, Mylist(i, NULL));
+      blockInfoEnv[u]->dom_frontiers = BlockIdlist_Splice(
+          blockInfoEnv[u]->dom_frontiers, BlockIdList(i, NULL));
     }
   }
 }
@@ -327,8 +394,87 @@ static void compute_bg_df_recur(FILE *out, int u) {
 static void print_bg_dom_frontiers(FILE *out) {
   for (int i = 0; i < num_bg_nodes; ++i) {
     fprintf(out, "%d: ", i);
-    for (mylist p = blockInfoEnv[i]->dom_frontiers; p; p = p->next) {
+    for (blockIdList p = blockInfoEnv[i]->dom_frontiers; p; p = p->next) {
       fprintf(out, "%d ", p->blockid);
+    }
+    fprintf(out, "\n");
+  }
+  fprintf(out, "\n");
+}
+
+static void show_SSA_var_info(Temp_temp key, SSA_var_info value) {
+  fprintf(stderr, "var: %d, defsites: ", key->num);
+  bitmap_print(stderr, value->defsites);
+}
+
+static void compute_phi_functions(G_nodeList lg, G_nodeList bg) {
+  // place phi functions in the program
+
+  // step 1: record defsites of each variable
+  G_nodeList p = lg;
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    for (Temp_tempList tl = blockInfoEnv[i]->orig_vars; tl; tl = tl->tail) {
+      Temp_temp var = tl->head;
+      SSA_var_info info = (SSA_var_info)TAB_look(varInfoEnv, (void *)var);
+      if (!info) {
+        info = SSA_var_info_init(num_bg_nodes);
+        TAB_enter(varInfoEnv, (void *)var, (void *)info);
+      }
+
+      bitmap_set(info->defsites, i);
+    }
+  }
+
+  // step2: place phi func
+  bitmap w = Bitmap(num_bg_nodes);
+  Temp_temp top = varInfoEnv->top;
+  binder b;
+  while (top) {
+    b = TAB_getBinder(varInfoEnv, (void *)top);
+    Temp_temp var = (Temp_temp)b->key;
+    SSA_var_info info = (SSA_var_info)b->value;
+
+    // w = defsites(var)
+    bitmap_copy(w, info->defsites);
+
+    while (!bitmap_empty(w)) {
+      // remove a node u from w
+      int u = bitmap_get_first(w);
+      bitmap_clear(w, u);
+
+      // for each node v in DF[u]
+      for (blockIdList p = blockInfoEnv[u]->dom_frontiers; p; p = p->next) {
+        int v = p->blockid;
+        // if var not in phi_vars(v), then place phi function for var
+        if (!Temp_TempInTempList(var, blockInfoEnv[v]->phi_vars)) {
+          blockInfoEnv[v]->phi_vars =
+              Temp_TempList(var, blockInfoEnv[v]->phi_vars);
+          // need to reconsider v
+          if (!Temp_TempInTempList(var, blockInfoEnv[u]->orig_vars)) {
+            bitmap_set(w, v);
+          }
+        }
+      }
+    }
+
+    top = (Temp_temp)b->prevtop;
+  }
+#ifdef SSA_DEBUG
+  fprintf(out, "----------------- bg_phi_functions -----------------\n");
+  print_bg_phi_functions(out);
+#endif
+}
+
+static void print_var_defsites(FILE *out) {
+  TAB_dump(varInfoEnv, (void (*)(void *, void *))show_SSA_var_info);
+  fprintf(out, "\n");
+}
+
+static void print_bg_phi_functions(FILE *out) {
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    fprintf(out, "%d: ", i);
+    for (Temp_tempList p = blockInfoEnv[i]->phi_vars; p; p = p->tail) {
+      fprintf(out, "%d ", p->head->num);
     }
     fprintf(out, "\n");
   }
@@ -342,10 +488,12 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
   if (!lg || !bg) {
     return bodyil;
   }
+  out = stderr;
 
   SSA_init(lg, bg);
 
-  compute_bg_dom_frontiers(stderr);
+  compute_bg_dom_frontiers();
+  compute_phi_functions(lg, bg);
 
   return bodyil;
 }
