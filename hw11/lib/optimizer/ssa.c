@@ -1,5 +1,7 @@
 #include "ssa.h"
 
+#include <string.h>
+
 #include "assem.h"
 #include "bitmap.h"
 #include "graph.h"
@@ -54,6 +56,7 @@ struct SSA_block_info_ {
   blockIdList dom_frontiers;
   Temp_tempList orig_vars;
   Temp_tempList phi_vars;
+  AS_instrList instrs;
 };
 static SSA_block_info SSA_block_info_init(G_node node, int num_bg_nodes) {
   SSA_block_info info = (SSA_block_info)checked_malloc(sizeof *info);
@@ -65,6 +68,9 @@ static SSA_block_info SSA_block_info_init(G_node node, int num_bg_nodes) {
   info->dom_frontiers = NULL;
   info->orig_vars = NULL;
   info->phi_vars = NULL;
+
+  AS_block block = G_nodeInfo(node);
+  info->instrs = block->instrs;
   return info;
 }
 
@@ -104,9 +110,14 @@ static void compute_bg_dom_frontiers();
 static void compute_bg_df_recur(int u);
 static void print_bg_dom_frontiers(FILE *out);
 
-static void compute_phi_functions(G_nodeList lg, G_nodeList bg);
+static void compute_phi_functions(G_nodeList lg);
+static void place_phi_func(Temp_temp var, int v);
 static void print_var_defsites(FILE *out);
 static void print_bg_phi_functions(FILE *out);
+
+static void rename_vars(G_nodeList lg, G_nodeList bg);
+
+static AS_instrList get_final_result();
 
 static void SSA_init(G_nodeList lg, G_nodeList bg) {
   num_bg_nodes = bg->head->mygraph->nodecount;
@@ -407,7 +418,7 @@ static void show_SSA_var_info(Temp_temp key, SSA_var_info value) {
   bitmap_print(stderr, value->defsites);
 }
 
-static void compute_phi_functions(G_nodeList lg, G_nodeList bg) {
+static void compute_phi_functions(G_nodeList lg) {
   // place phi functions in the program
 
   // step 1: record defsites of each variable
@@ -446,7 +457,9 @@ static void compute_phi_functions(G_nodeList lg, G_nodeList bg) {
       for (blockIdList p = blockInfoEnv[u]->dom_frontiers; p; p = p->next) {
         int v = p->blockid;
         // if var not in phi_vars(v), then place phi function for var
-        if (!Temp_TempInTempList(var, blockInfoEnv[v]->phi_vars)) {
+        if (!Temp_TempInTempList(var, blockInfoEnv[v]->phi_vars)
+        && Temp_TempInTempList(var, FG_In(blockInfoEnv[v]->mynode))) {
+          place_phi_func(var, v);
           blockInfoEnv[v]->phi_vars =
               Temp_TempList(var, blockInfoEnv[v]->phi_vars);
           // need to reconsider v
@@ -465,6 +478,34 @@ static void compute_phi_functions(G_nodeList lg, G_nodeList bg) {
 #endif
 }
 
+static void place_phi_func(Temp_temp var, int v) {
+  if (!G_pred(blockInfoEnv[v]->mynode)) {
+    return;
+  }
+
+  // place phi function for var in block v
+  Temp_tempList dsts = Temp_TempList(Temp_namedtemp(var->num, var->type), NULL);
+  Temp_tempList srcs = NULL;
+  Temp_labelList labels = NULL;
+  string instr_str =
+      Stringf("%%`d0 = phi %s ", var->type == T_int ? "i64" : "double");
+  int cnt = 0;
+  for (G_nodeList p = G_pred(blockInfoEnv[v]->mynode); p; p = p->tail, ++cnt) {
+    srcs = Temp_TempList(Temp_namedtemp(var->num, var->type), srcs);
+    AS_block block = G_nodeInfo(p->head);
+    labels = Temp_LabelListSplice(labels, Temp_LabelList(block->label, NULL));
+    strcat(instr_str, Stringf("[%%`s%d, %%`j%d]", cnt, cnt));
+    if (p->tail) {
+      strcat(instr_str, ", ");
+    }
+  }
+
+  blockInfoEnv[v]->instrs = AS_InstrList(
+      blockInfoEnv[v]->instrs->head,
+      AS_InstrList(AS_Oper(instr_str, dsts, srcs, AS_Targets(labels)),
+                   blockInfoEnv[v]->instrs->tail));
+}
+
 static void print_var_defsites(FILE *out) {
   TAB_dump(varInfoEnv, (void (*)(void *, void *))show_SSA_var_info);
   fprintf(out, "\n");
@@ -481,6 +522,14 @@ static void print_bg_phi_functions(FILE *out) {
   fprintf(out, "\n");
 }
 
+static AS_instrList get_final_result() {
+  AS_instrList result = NULL;
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    result = AS_splice(result, blockInfoEnv[i]->instrs);
+  }
+  return result;
+}
+
 AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
                                  G_nodeList bg) {
   /* here is your implementation of translating to ssa */
@@ -493,7 +542,7 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
   SSA_init(lg, bg);
 
   compute_bg_dom_frontiers();
-  compute_phi_functions(lg, bg);
+  compute_phi_functions(lg);
 
-  return bodyil;
+  return get_final_result();
 }
