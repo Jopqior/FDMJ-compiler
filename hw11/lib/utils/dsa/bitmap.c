@@ -39,6 +39,19 @@ int bitmap_read(bitmap b, int n) {
   return (b->array[word] >> position) & 1;
 }
 
+int bitmap_get_first(bitmap b) {
+  for (int i = 0; i < b->words; i++) {
+    if (b->array[i]) {
+      for (int j = 0; j < bitmap_wordlength; j++) {
+        if ((b->array[i] >> j) & 1) {
+          return i * bitmap_wordlength + j;
+        }
+      }
+    }
+  }
+  return -1;
+}
+
 void bitmap_set_all(bitmap b) {
   for (int i = 0; i < b->words; i++) {
     b->array[i] = ~0;
@@ -145,6 +158,15 @@ bool bitmap_disjoint(bitmap b1, bitmap b2) {
 
   for (int i = 0; i < b1->words; i++) {
     if (b1->array[i] & b2->array[i]) {
+      return FALSE;
+    }
+  }
+  return TRUE;
+}
+
+bool bitmap_empty(bitmap b) {
+  for (int i = 0; i < b->words; i++) {
+    if (b->array[i]) {
       return FALSE;
     }
   }
