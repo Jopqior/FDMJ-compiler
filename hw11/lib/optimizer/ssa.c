@@ -19,19 +19,19 @@
 #undef DOM_FRONTIER_DEBUG
 
 #define RENAME_DEBUG
-// #undef RENAME_DEBUG
+#undef RENAME_DEBUG
 
 static FILE *out;
 
 typedef struct blockIdList_ *blockIdList;
 struct blockIdList_ {
   int blockid;
-  blockIdList next;
+  blockIdList tail;
 };
 static blockIdList BlockIdList(int data, blockIdList next) {
   blockIdList p = (blockIdList)checked_malloc(sizeof *p);
   p->blockid = data;
-  p->next = next;
+  p->tail = next;
   return p;
 }
 static blockIdList BlockIdlist_Splice(blockIdList a, blockIdList b) {
@@ -42,10 +42,10 @@ static blockIdList BlockIdlist_Splice(blockIdList a, blockIdList b) {
     return a;
   }
   blockIdList p = a;
-  while (p->next) {
-    p = p->next;
+  while (p->tail) {
+    p = p->tail;
   }
-  p->next = b;
+  p->tail = b;
   return a;
 }
 
@@ -61,6 +61,42 @@ static void print_var_stack(FILE *out, var_stack stack) {
   fprintf(out, "\n");
 }
 
+typedef struct instrInfoList_ *instrInfoList;
+struct instrInfoList_ {
+  AS_instr instr;
+  Temp_tempList origin_def;
+  instrInfoList tail;
+};
+static instrInfoList InstrInfoList(AS_instr instr, Temp_tempList tl,
+                                   instrInfoList tail) {
+  instrInfoList il = checked_malloc(sizeof *il);
+  il->instr = instr;
+  il->origin_def = tl;
+  il->tail = tail;
+  return il;
+}
+static instrInfoList InstrInfoList_Splice(instrInfoList a, instrInfoList b) {
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+  instrInfoList p = a;
+  while (p->tail) {
+    p = p->tail;
+  }
+  p->tail = b;
+  return a;
+}
+static instrInfoList Insert_phi_func(instrInfoList a, AS_instr instr,
+                                     Temp_tempList tl) {
+  instrInfoList firstInstr = a->tail;
+  instrInfoList newInstrs = InstrInfoList(instr, tl, firstInstr);
+  a->tail = newInstrs;
+  return a;
+}
+
 typedef struct SSA_block_info_ *SSA_block_info;
 struct SSA_block_info_ {
   G_node mynode;
@@ -71,7 +107,8 @@ struct SSA_block_info_ {
   blockIdList dom_frontiers;
   Temp_tempList orig_vars;
   Temp_tempList phi_vars;
-  AS_instrList instrs;
+  instrInfoList instrInfos;
+  Temp_tempList blockIn;
 };
 static SSA_block_info SSA_block_info_init(G_node node, int num_bg_nodes) {
   SSA_block_info info = (SSA_block_info)checked_malloc(sizeof *info);
@@ -83,9 +120,8 @@ static SSA_block_info SSA_block_info_init(G_node node, int num_bg_nodes) {
   info->dom_frontiers = NULL;
   info->orig_vars = NULL;
   info->phi_vars = NULL;
-
-  AS_block block = G_nodeInfo(node);
-  info->instrs = block->instrs;
+  info->instrInfos = NULL;
+  info->blockIn = NULL;
   return info;
 }
 
@@ -135,9 +171,10 @@ static TAB_table varInfoEnv;
 
 static void SSA_init(G_nodeList lg, G_nodeList bg);
 static void init_blockInfoEnv(G_nodeList bg);
-static void init_blockOrigVars(G_nodeList lg);
+static void init_blockInfoAbountLg(G_nodeList lg);
 static void print_blockOrigVars(FILE *out);
-static void init_varInfoEnv();
+static void print_blockInstrInfos(FILE *out);
+static void init_varInfoEnv(G_nodeList lg);
 
 static void sort_bg_in_RPO();
 static void dfs_bg(int i);
@@ -169,8 +206,8 @@ static void SSA_init(G_nodeList lg, G_nodeList bg) {
   num_bg_nodes = bg->head->mygraph->nodecount;
 
   init_blockInfoEnv(bg);
-  init_blockOrigVars(lg);
-  init_varInfoEnv();
+  init_blockInfoAbountLg(lg);
+  init_varInfoEnv(lg);
 }
 
 static void init_blockInfoEnv(G_nodeList bg) {
@@ -181,9 +218,10 @@ static void init_blockInfoEnv(G_nodeList bg) {
   }
 }
 
-static void init_blockOrigVars(G_nodeList lg) {
+static void init_blockInfoAbountLg(G_nodeList lg) {
   G_nodeList p = lg;
   for (int i = 0; i < num_bg_nodes; ++i) {
+    blockInfoEnv[i]->blockIn = FG_In(p->head);
     AS_block block = G_nodeInfo(blockInfoEnv[i]->mynode);
     for (AS_instrList q = block->instrs; q; q = q->tail, p = p->tail) {
       if (q->head != G_nodeInfo(p->head)) {
@@ -198,9 +236,14 @@ static void init_blockOrigVars(G_nodeList lg) {
       }
 
       Temp_tempList tl = FG_def(p->head);
+      // record the instrs
+      blockInfoEnv[i]->instrInfos = InstrInfoList_Splice(
+          blockInfoEnv[i]->instrInfos, InstrInfoList(q->head, tl, NULL));
+
       if (!tl) {
         continue;
       }
+      // record the origs
       if (!blockInfoEnv[i]->orig_vars) {
         blockInfoEnv[i]->orig_vars = tl;
       } else {
@@ -209,6 +252,10 @@ static void init_blockOrigVars(G_nodeList lg) {
       }
     }
   }
+#ifdef SSA_DEBUG
+  fprintf(out, "----------------- blockInstrInfos -----------------\n");
+  print_blockInstrInfos(out);
+#endif
 }
 
 static void print_blockOrigVars(FILE *out) {
@@ -222,7 +269,54 @@ static void print_blockOrigVars(FILE *out) {
   fprintf(out, "\n");
 }
 
-static void init_varInfoEnv() { varInfoEnv = TAB_empty(); }
+static void print_blockInstrInfos(FILE *out) {
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    fprintf(out, "%d: \n", i);
+    for (instrInfoList p = blockInfoEnv[i]->instrInfos; p; p = p->tail) {
+      switch (p->instr->kind) {
+        case I_OPER: {
+          fprintf(out, "[%s] ", p->instr->u.OPER.assem);
+          break;
+        }
+        case I_LABEL: {
+          fprintf(out, "[%s] ", p->instr->u.LABEL.assem);
+          break;
+        }
+        case I_MOVE: {
+          fprintf(out, "[%s] ", p->instr->u.MOVE.assem);
+          break;
+        }
+        default:
+          break;
+      }
+      for (Temp_tempList q = p->origin_def; q; q = q->tail) {
+        fprintf(out, "%d ", q->head->num);
+      }
+      fprintf(out, "\n");
+    }
+    fprintf(out, "\n");
+  }
+}
+
+static void init_varInfoEnv(G_nodeList lg) {
+  varInfoEnv = TAB_empty();
+  for (G_nodeList p = lg; p; p = p->tail) {
+    for (Temp_tempList q = FG_def(p->head); q; q = q->tail) {
+      if (TAB_look(varInfoEnv, (void *)q->head)) {
+        continue;
+      }
+      SSA_var_info info = SSA_var_info_init(num_bg_nodes);
+      TAB_enter(varInfoEnv, (void *)q->head, (void *)info);
+    }
+    for (Temp_tempList q = FG_use(p->head); q; q = q->tail) {
+      if (TAB_look(varInfoEnv, (void *)q->head)) {
+        continue;
+      }
+      SSA_var_info info = SSA_var_info_init(num_bg_nodes);
+      TAB_enter(varInfoEnv, (void *)q->head, (void *)info);
+    }
+  }
+}
 
 static bool *marked;
 static int dfs_N;
@@ -393,7 +487,7 @@ static void print_bg_idoms(FILE *out) {
 static void print_bg_dom_tree(FILE *out) {
   for (int i = 0; i < num_bg_nodes; ++i) {
     fprintf(out, "%d: ", i);
-    for (blockIdList p = blockInfoEnv[i]->dom_tree_children; p; p = p->next) {
+    for (blockIdList p = blockInfoEnv[i]->dom_tree_children; p; p = p->tail) {
       fprintf(out, "%d ", p->blockid);
     }
     fprintf(out, "\n");
@@ -428,10 +522,10 @@ static void compute_bg_df_recur(int u) {
   }
 
   // compute DF_up[u]
-  for (blockIdList p = blockInfoEnv[u]->dom_tree_children; p; p = p->next) {
+  for (blockIdList p = blockInfoEnv[u]->dom_tree_children; p; p = p->tail) {
     int w = p->blockid;
     compute_bg_df_recur(w);
-    for (blockIdList q = blockInfoEnv[w]->dom_frontiers; q; q = q->next) {
+    for (blockIdList q = blockInfoEnv[w]->dom_frontiers; q; q = q->tail) {
       int x = q->blockid;
       if (!bitmap_read(blockInfoEnv[x]->doms, u) || x == u) {
         bitmap_set(tmp, x);
@@ -451,7 +545,7 @@ static void compute_bg_df_recur(int u) {
 static void print_bg_dom_frontiers(FILE *out) {
   for (int i = 0; i < num_bg_nodes; ++i) {
     fprintf(out, "%d: ", i);
-    for (blockIdList p = blockInfoEnv[i]->dom_frontiers; p; p = p->next) {
+    for (blockIdList p = blockInfoEnv[i]->dom_frontiers; p; p = p->tail) {
       fprintf(out, "%d ", p->blockid);
     }
     fprintf(out, "\n");
@@ -474,10 +568,9 @@ static void compute_phi_functions(G_nodeList lg) {
       Temp_temp var = tl->head;
       SSA_var_info info = (SSA_var_info)TAB_look(varInfoEnv, (void *)var);
       if (!info) {
-        info = SSA_var_info_init(num_bg_nodes);
-        TAB_enter(varInfoEnv, (void *)var, (void *)info);
+        fprintf(stderr, "Error: var not found in varInfoEnv\n");
+        exit(1);
       }
-
       bitmap_set(info->defsites, i);
     }
   }
@@ -500,10 +593,11 @@ static void compute_phi_functions(G_nodeList lg) {
       bitmap_clear(w, u);
 
       // for each node v in DF[u]
-      for (blockIdList p = blockInfoEnv[u]->dom_frontiers; p; p = p->next) {
+      for (blockIdList p = blockInfoEnv[u]->dom_frontiers; p; p = p->tail) {
         int v = p->blockid;
         // if var not in phi_vars(v), then place phi function for var
-        if (!Temp_TempInTempList(var, blockInfoEnv[v]->phi_vars)) {
+        if (!Temp_TempInTempList(var, blockInfoEnv[v]->phi_vars) &&
+            Temp_TempInTempList(var, blockInfoEnv[v]->blockIn)) {
           place_phi_func(var, v);
           blockInfoEnv[v]->phi_vars =
               Temp_TempList(var, blockInfoEnv[v]->phi_vars);
@@ -545,10 +639,11 @@ static void place_phi_func(Temp_temp var, int v) {
     }
   }
 
-  blockInfoEnv[v]->instrs = AS_InstrList(
-      blockInfoEnv[v]->instrs->head,
-      AS_InstrList(AS_Oper(instr_str, dsts, srcs, AS_Targets(labels)),
-                   blockInfoEnv[v]->instrs->tail));
+  // insert the phi function
+  blockInfoEnv[v]->instrInfos =
+      Insert_phi_func(blockInfoEnv[v]->instrInfos,
+                      AS_Oper(instr_str, dsts, srcs, AS_Targets(labels)),
+                      Temp_TempList(var, NULL));
 }
 
 static void print_var_defsites(FILE *out) {
@@ -568,6 +663,9 @@ static void print_bg_phi_functions(FILE *out) {
 }
 
 static void rename_vars() {
+#ifdef RENAME_DEBUG
+  fprintf(out, "Enter rename_vars\n");
+#endif
   // rename variables in the program
 
   // step 1: initialize the stack
@@ -580,22 +678,19 @@ static void rename_vars() {
     Var_Stack_push(info, var);
     top = (Temp_temp)b->prevtop;
   }
-#ifdef RENAME_DEBUG
-  fprintf(out, "----------------- stack -----------------\n");
-  Temp_temp debugtop = varInfoEnv->top;
-  binder debugb;
-  while (debugtop) {
-    debugb = TAB_getBinder(varInfoEnv, (void *)debugtop);
-    Temp_temp debugvar = (Temp_temp)debugb->key;
-    SSA_var_info debuginfo = (SSA_var_info)debugb->value;
-    fprintf(out, "%d's stack: ", debugvar->num);
-    print_var_stack(out, debuginfo->stack);
-    debugtop = (Temp_temp)debugb->prevtop;
-  }
-#endif
 
   // step 2: rename variables
   rename_vars_recur(0);
+}
+
+static int get_pred_num(G_nodeList pred, int u) {
+  int cnt = 0;
+  for (G_nodeList p = pred; p; p = p->tail, ++cnt) {
+    if (p->head->mykey == u) {
+      return cnt;
+    }
+  }
+  return -1;
 }
 
 static bool is_phi_func(AS_instr instr) {
@@ -609,8 +704,8 @@ static void rename_vars_recur(int u) {
   fprintf(out, "rename_vars_recur: %d\n", u);
 #endif
   // rename variables in block u
-  for (AS_instrList p = blockInfoEnv[u]->instrs; p; p = p->tail) {
-    AS_instr S = p->head;
+  for (instrInfoList p = blockInfoEnv[u]->instrInfos; p; p = p->tail) {
+    AS_instr S = p->instr;
     if (!is_phi_func(S)) {
       Temp_tempList use_x = NULL;
       switch (S->kind) {
@@ -627,12 +722,10 @@ static void rename_vars_recur(int u) {
       }
       while (use_x) {
 #ifdef RENAME_DEBUG
-        fprintf(out, "%d's stack: ", use_x->head->num);
-        print_var_stack(out, ((SSA_var_info)TAB_look(varInfoEnv, use_x->head))->stack);
         fprintf(out, "rename1: %d -> ", use_x->head->num);
 #endif
-        use_x->head =
-            Var_Stack_top((SSA_var_info)TAB_look(varInfoEnv, Temp_namedtemp(use_x->head->num, use_x->head->type)));
+        use_x->head = Var_Stack_top((SSA_var_info)TAB_look(
+            varInfoEnv, Temp_namedtemp(use_x->head->num, use_x->head->type)));
 #ifdef RENAME_DEBUG
         fprintf(out, "%d\n", use_x->head->num);
 #endif
@@ -653,54 +746,80 @@ static void rename_vars_recur(int u) {
       default:
         break;
     }
+
+    // record the origin def
+    p->origin_def = NULL;
+    for (Temp_tempList q = def_x; q; q = q->tail) {
+      p->origin_def =
+          Temp_TempListSplice(p->origin_def, Temp_TempList(q->head, NULL));
+    }
+
     while (def_x) {
       Temp_temp new_x = Temp_newtemp(def_x->head->type);
+#ifdef RENAME_DEBUG
+      fprintf(out, "rename2: %d -> %d\n", def_x->head->num, new_x->num);
+      fprintf(out, "old stack: ");
+      print_var_stack(out,
+                      ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
+#endif
       Var_Stack_push((SSA_var_info)TAB_look(varInfoEnv, def_x->head), new_x);
+#ifdef RENAME_DEBUG
+      fprintf(out, "new stack: %d", TAB_look(varInfoEnv, def_x->head) == NULL);
+      print_var_stack(out,
+                      ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
+#endif
       def_x->head = new_x;
       def_x = def_x->tail;
     }
   }
 
-  int cnt = 0;
-  for (G_nodeList Y = G_succ(blockInfoEnv[u]->mynode); Y; Y = Y->tail, ++cnt) {
-    for (AS_instrList p = blockInfoEnv[Y->head->mykey]->instrs; p;
+  for (G_nodeList Y = G_succ(blockInfoEnv[u]->mynode); Y; Y = Y->tail) {
+    int cnt = get_pred_num(G_pred(Y->head), u);
+    for (instrInfoList p = blockInfoEnv[Y->head->mykey]->instrInfos; p;
          p = p->tail) {
-      if (!is_phi_func(p->head)) {
+      if (!is_phi_func(p->instr)) {
         continue;
       }
 
       int op_cnt = 0;
-      for (Temp_tempList q = p->head->u.OPER.src; q; q = q->tail, ++op_cnt) {
+      for (Temp_tempList q = p->instr->u.OPER.src; q; q = q->tail, ++op_cnt) {
         if (op_cnt == cnt) {
+#ifdef RENAME_DEBUG
+          fprintf(out, "rename3: %d -> ", q->head->num);
+#endif
           q->head = Var_Stack_top((SSA_var_info)TAB_look(varInfoEnv, q->head));
+#ifdef RENAME_DEBUG
+          fprintf(out, "%d\n", q->head->num);
+#endif
         }
       }
     }
   }
+#ifdef RENAME_DEBUG
+  fprintf(out, "rename_vars_recur: %d done\n", u);
+#endif
 
   // rename variables in the children of u
-  for (blockIdList p = blockInfoEnv[u]->dom_tree_children; p; p = p->next) {
+  for (blockIdList p = blockInfoEnv[u]->dom_tree_children; p; p = p->tail) {
     rename_vars_recur(p->blockid);
   }
 
   // pop the stack
-  for (AS_instrList p = blockInfoEnv[u]->instrs; p; p = p->tail) {
-    AS_instr S = p->head;
-    Temp_tempList def_x = NULL;
-    switch (S->kind) {
-      case I_OPER: {
-        def_x = S->u.OPER.dst;
-        break;
-      }
-      case I_MOVE: {
-        def_x = S->u.MOVE.dst;
-        break;
-      }
-      default:
-        break;
-    }
+  for (instrInfoList p = blockInfoEnv[u]->instrInfos; p; p = p->tail) {
+    Temp_tempList def_x = p->origin_def;
     while (def_x) {
+#ifdef RENAME_DEBUG
+      fprintf(out, "rename4: %d\n", def_x->head->num);
+      fprintf(out, "old stack: ");
+      print_var_stack(out,
+                      ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
+#endif
       Var_Stack_pop((SSA_var_info)TAB_look(varInfoEnv, def_x->head));
+#ifdef RENAME_DEBUG
+      fprintf(out, "new stack: ");
+      print_var_stack(out,
+                      ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
+#endif
       def_x = def_x->tail;
     }
   }
@@ -709,7 +828,9 @@ static void rename_vars_recur(int u) {
 static AS_instrList get_final_result() {
   AS_instrList result = NULL;
   for (int i = 0; i < num_bg_nodes; ++i) {
-    result = AS_splice(result, blockInfoEnv[i]->instrs);
+    for (instrInfoList p = blockInfoEnv[i]->instrInfos; p; p = p->tail) {
+      result = AS_splice(result, AS_InstrList(p->instr, NULL));
+    }
   }
   return result;
 }
