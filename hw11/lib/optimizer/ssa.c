@@ -109,6 +109,7 @@ struct SSA_block_info_ {
   Temp_tempList phi_vars;
   instrInfoList instrInfos;
   Temp_tempList blockIn;
+  Temp_tempList blockOut;
 };
 static SSA_block_info SSA_block_info_init(G_node node, int num_bg_nodes) {
   SSA_block_info info = (SSA_block_info)checked_malloc(sizeof *info);
@@ -122,6 +123,7 @@ static SSA_block_info SSA_block_info_init(G_node node, int num_bg_nodes) {
   info->phi_vars = NULL;
   info->instrInfos = NULL;
   info->blockIn = NULL;
+  info->blockOut = NULL;
   return info;
 }
 
@@ -169,6 +171,8 @@ static int num_bg_nodes;
 static SSA_block_info *blockInfoEnv;
 static TAB_table varInfoEnv;
 
+static int compute_doms_iter = 0;
+
 static void SSA_init(G_nodeList lg, G_nodeList bg);
 static void init_blockInfoEnv(G_nodeList bg);
 static void init_blockInfoAbountLg(G_nodeList lg);
@@ -183,7 +187,7 @@ static void print_bg_RPO(FILE *out);
 static void compute_bg_doms();
 static void print_bg_doms(FILE *out, int num_iters);
 
-static void compute_bg_dom_tree();
+static void compute_bg_idoms();
 static void construct_bg_dom_tree();
 static void print_bg_idoms(FILE *out);
 static void print_bg_dom_tree(FILE *out);
@@ -233,6 +237,11 @@ static void init_blockInfoAbountLg(G_nodeList lg) {
         FG_Showinfo(stderr, q->head, Temp_name());
         fprintf(stderr, "\n");
         exit(1);
+      }
+
+      // record the block LiveOut
+      if (q->tail) {
+        blockInfoEnv[i]->blockOut = FG_Out(p->head);
       }
 
       Temp_tempList tl = FG_def(p->head);
@@ -354,15 +363,6 @@ static void print_bg_RPO(FILE *out) {
 }
 
 static void compute_bg_doms() {
-  // compute the dominators of each node in bg
-
-  // step 1: sort in RPO
-  sort_bg_in_RPO();
-#ifdef SSA_DEBUG
-  print_bg_RPO(out);
-#endif
-
-  // step 2: compute the dominators
   bitmap_set(blockInfoEnv[0]->doms, 0);
   for (int i = 1; i < num_bg_nodes; ++i) {
     bitmap_set_all(blockInfoEnv[i]->doms);
@@ -407,9 +407,8 @@ static void compute_bg_doms() {
       }
     }
   }
-#ifdef SSA_DEBUG
-  print_bg_doms(out, num_iters);
-#endif
+
+  compute_doms_iter = num_iters;
 }
 
 static void print_bg_doms(FILE *out, int num_iters) {
@@ -422,13 +421,7 @@ static void print_bg_doms(FILE *out, int num_iters) {
   fprintf(out, "\n");
 }
 
-static void compute_bg_dom_tree() {
-  // compute the dominator tree of bg
-
-  // step 1: compute the dominators
-  compute_bg_doms(out);
-
-  // step 2: compute the dominator tree
+static void compute_bg_idoms() {
   blockInfoEnv[0]->idom = -1;
 
   bitmap u_mask = Bitmap(num_bg_nodes);
@@ -453,16 +446,6 @@ static void compute_bg_dom_tree() {
       }
     }
   }
-#ifdef SSA_DEBUG
-  fprintf(out, "----------------- bg_idoms -----------------\n");
-  print_bg_idoms(out);
-#endif
-
-  construct_bg_dom_tree();
-#ifdef SSA_DEBUG
-  fprintf(out, "----------------- bg_dom_tree -----------------\n");
-  print_bg_dom_tree(out);
-#endif
 }
 
 static void construct_bg_dom_tree() {
@@ -495,20 +478,7 @@ static void print_bg_dom_tree(FILE *out) {
   fprintf(out, "\n");
 }
 
-static void compute_bg_dom_frontiers() {
-  // compute the dominator frontiers of each node in bg
-
-  // step 1: compute the dominator tree
-  compute_bg_dom_tree(out);
-
-  // step 2: compute the dominator frontiers
-  compute_bg_df_recur(0);
-
-#ifdef SSA_DEBUG
-  fprintf(out, "----------------- bg_dom_frontiers -----------------\n");
-  print_bg_dom_frontiers(out);
-#endif
-}
+static void compute_bg_dom_frontiers() { compute_bg_df_recur(0); }
 
 static void compute_bg_df_recur(int u) {
   bitmap tmp = Bitmap(num_bg_nodes);
@@ -611,10 +581,6 @@ static void compute_phi_functions(G_nodeList lg) {
 
     top = (Temp_temp)b->prevtop;
   }
-#ifdef SSA_DEBUG
-  fprintf(out, "----------------- bg_phi_functions -----------------\n");
-  print_bg_phi_functions(out);
-#endif
 }
 
 static void place_phi_func(Temp_temp var, int v) {
@@ -846,10 +812,50 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
 
   SSA_init(lg, bg);
 
+  /* compute DF */
+
+  // step 1: sort in RPO
+  sort_bg_in_RPO();
+#ifdef SSA_DEBUG
+  print_bg_RPO(out);
+#endif
+
+  // step 2: compute the dominators
+  compute_bg_doms(out);
+#ifdef SSA_DEBUG
+  print_bg_doms(out, compute_doms_iter);
+#endif
+
+  // step 3: compute the dominator tree of bg
+  compute_bg_idoms();
+#ifdef SSA_DEBUG
+  fprintf(out, "----------------- bg_idoms -----------------\n");
+  print_bg_idoms(out);
+#endif
+
+  construct_bg_dom_tree();
+#ifdef SSA_DEBUG
+  fprintf(out, "----------------- bg_dom_tree -----------------\n");
+  print_bg_dom_tree(out);
+#endif
+
   compute_bg_dom_frontiers();
+#ifdef SSA_DEBUG
+  fprintf(out, "----------------- bg_dom_frontiers -----------------\n");
+  print_bg_dom_frontiers(out);
+#endif
+
+  /* place phi functions */
+
   compute_phi_functions(lg);
+#ifdef SSA_DEBUG
+  fprintf(out, "----------------- bg_phi_functions -----------------\n");
+  print_bg_phi_functions(out);
+#endif
+
+  /* rename variables */
+
   rename_vars();
-  fprintf(out, "----------------- final_result -----------------\n");
 
   return get_final_result();
 }
