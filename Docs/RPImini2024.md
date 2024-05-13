@@ -88,7 +88,7 @@ Do nothing. Sometimes useful to make the program easier to structure.
 
 There are **32** floating pointer registers **s0-s31** (these registers are also used for double precision floating point numbers, ie. 64 bits or double, and for vector operations, but these are beyond the scope of this class).
 
-**Arithmetic operations:** There is a set of instructions specifically for these registers. They the same as those for the integer registers, expect prefixed with "v" and suffixed with "f32". For example, `vadd.f32` for addition of two (32 bit) floats. Other instructions are: `vsub.f32`, `vmul.f32`, and `vdiv.f32`. 
+**Arithmetic operations:** There is a set of instructions specifically for these registers. They the same as those for the integer registers, except prefixed with "v" and suffixed with "f32". For example, `vadd.f32` for addition of two (32 bit) floats. Other instructions are: `vsub.f32`, `vmul.f32`, and `vdiv.f32`. 
 
 **Move instruction:** Move (`vmov`) works for registers between float registers and between float registers and integer registers. Move doesn't do any conversion: 32 bits are copied without change!
 
