@@ -65,7 +65,8 @@ static AS_blockList instrList2BL(AS_instrList il) {
       //now add the instruction to the block
       b = AS_splice(b, AS_InstrList(til->head, NULL));
 
-      if (til->head->kind == I_OPER && til->head->u.OPER.jumps && til->head->u.OPER.jumps->labels) {
+      if (til->head->kind == I_OPER && ((til->head->u.OPER.jumps && til->head->u.OPER.jumps->labels)||(
+      !strcmp(til->head->u.OPER.assem,"ret i64 -1")||!strcmp(til->head->u.OPER.assem,"ret double -1.0")))) {
 #ifdef __DEBUG
           fprintf(stderr, "----Got a jump, ending the block for label = %s\n", Temp_labelstring(b->head->u.LABEL.label)); fflush(stderr);
 #endif
