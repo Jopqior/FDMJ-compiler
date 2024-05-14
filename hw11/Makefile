@@ -15,7 +15,7 @@ TEST_DIR  = "$(CURDIR)/test"
 
 MAKEFLAGS = --no-print-directory
 
-.PHONY: build clean veryclean rebuild test test-extra handin
+.PHONY: build clean veryclean rebuild test test-extra handin runone
 
 build:
 	@cmake -G Ninja -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release; \
@@ -27,6 +27,7 @@ clean:
 		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
 		-o -name "*.stm" -o -name "*.ins" -o -name "*.ssa" \
 		-o -name "*.cfg" \
+		-o -name "*.debug" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean
@@ -42,7 +43,7 @@ test: clean
 			$(FMJ2AST) "$${file%%.*}"; \
 			$(AST2IRP) -f xml "$${file%%.*}"; \
 			$(IRP2LLVM) "$${file%%.*}"; \
-			$(MAIN_EXE) "$${file%%.*}"; \
+			$(MAIN_EXE) "$${file%%.*}" 2> "$${file%%.*}".debug; \
 		fi \
 	done; \
 	cd $(CURDIR)
@@ -55,9 +56,9 @@ test-run: clean
 			$(FMJ2AST) "$${file%%.*}" && \
 			$(AST2IRP) -f xml "$${file%%.*}" && \
 			$(IRP2LLVM) "$${file%%.*}" && \
-			$(MAIN_EXE)  "$${file%%.*}" && \
+			$(MAIN_EXE)  "$${file%%.*}" 2> "$${file%%.*}".debug && \
 			$(LLVMLINK) --opaque-pointers "$${file%%.*}".8.ssa $(BUILD_DIR)/vendor/libsysy/libsysy64.ll -S -o "$${file%%.*}".ll && \
-			$(LLI) -opaque-pointers "$${file%%.*}".ll > "$${file%%.*}".output && \
+			$(LLI) -opaque-pointers "$${file%%.*}".ll  && \
 			echo $$?; \
 		fi \
 	done; \
@@ -96,3 +97,15 @@ handin:
 	read filename; \
 	zip -q -r "docs/$$filename-hw9_10.zip" \
 	  docs/report.pdf include lib
+
+runone: clean
+	@cd $(TEST_DIR); \
+	echo "[${FILE}]"; \
+	$(FMJ2AST) "${FILE}" && \
+	$(AST2IRP) -f xml "${FILE}" && \
+	$(IRP2LLVM) "${FILE}" && \
+	$(MAIN_EXE)  "${FILE}" 2> "${FILE}".debug && \
+	$(LLVMLINK) --opaque-pointers "${FILE}".8.ssa $(BUILD_DIR)/vendor/libsysy/libsysy64.ll -S -o "${FILE}".ll && \
+	$(LLI) -opaque-pointers "${FILE}".ll > "${FILE}".output && \
+	echo $$?; \
+	cd $(CURDIR)
