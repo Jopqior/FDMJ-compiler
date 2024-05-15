@@ -572,7 +572,7 @@ static void compute_phi_functions(G_nodeList lg) {
           blockInfoEnv[v]->phi_vars =
               Temp_TempList(var, blockInfoEnv[v]->phi_vars);
           // need to reconsider v
-          if (!Temp_TempInTempList(var, blockInfoEnv[u]->orig_vars)) {
+          if (!Temp_TempInTempList(var, blockInfoEnv[v]->orig_vars)) {
             bitmap_set(w, v);
           }
         }
