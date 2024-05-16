@@ -100,7 +100,6 @@ static instrInfoList Insert_phi_func(instrInfoList a, AS_instr instr,
 typedef struct SSA_block_info_ *SSA_block_info;
 struct SSA_block_info_ {
   G_node mynode;
-  int rpo;
   bitmap doms;
   int idom;
   blockIdList dom_tree_children;
@@ -114,7 +113,6 @@ struct SSA_block_info_ {
 static SSA_block_info SSA_block_info_init(G_node node, int num_bg_nodes) {
   SSA_block_info info = (SSA_block_info)checked_malloc(sizeof *info);
   info->mynode = node;
-  info->rpo = -1;
   info->doms = Bitmap(num_bg_nodes);
   info->idom = -1;
   info->dom_tree_children = NULL;
@@ -168,12 +166,14 @@ static Temp_temp Var_Stack_top(SSA_var_info info) {
 }
 
 static int num_bg_nodes;
+static int *bg_RPO;
 static SSA_block_info *blockInfoEnv;
 static TAB_table varInfoEnv;
 
 static int compute_doms_iter = 0;
 
 static void SSA_init(G_nodeList lg, G_nodeList bg);
+static void init_bg_RPO();
 static void init_blockInfoEnv(G_nodeList bg);
 static void init_blockInfoAbountLg(G_nodeList lg);
 static void print_blockOrigVars(FILE *out);
@@ -209,9 +209,17 @@ static AS_instrList get_final_result();
 static void SSA_init(G_nodeList lg, G_nodeList bg) {
   num_bg_nodes = bg->head->mygraph->nodecount;
 
+  init_bg_RPO();
   init_blockInfoEnv(bg);
   init_blockInfoAbountLg(lg);
   init_varInfoEnv(lg);
+}
+
+static void init_bg_RPO() {
+  bg_RPO = (int *)checked_malloc(num_bg_nodes * sizeof *bg_RPO);
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    bg_RPO[i] = -1;
+  }
 }
 
 static void init_blockInfoEnv(G_nodeList bg) {
@@ -351,13 +359,13 @@ static void dfs_bg(int i) {
     dfs_bg(l->head->mykey);
   }
 
-  blockInfoEnv[i]->rpo = dfs_N--;
+  bg_RPO[dfs_N--] = i;
 }
 
 static void print_bg_RPO(FILE *out) {
   fprintf(out, "----------------- bg_rpo -----------------\n");
   for (int i = 0; i < num_bg_nodes; ++i) {
-    fprintf(out, "%d: (rpo %d)\n", i, blockInfoEnv[i]->rpo);
+    fprintf(out, "(rpo %d): %d\n", i, bg_RPO[i]);
   }
   fprintf(out, "\n");
 }
@@ -375,7 +383,7 @@ static void compute_bg_doms() {
     changed = FALSE;
     num_iters++;
     for (int i = 0; i < num_bg_nodes; ++i) {
-      int u = blockInfoEnv[i]->rpo;
+      int u = bg_RPO[i];
       if (u == 0) {
         continue;
       }
