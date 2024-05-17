@@ -9,6 +9,9 @@
 #define SSA_DEBUG
 // #undef SSA_DEBUG
 
+#define LT_DEBUG
+#undef LT_DEBUG
+
 #define DOM_DEBUG
 #undef DOM_DEBUG
 
@@ -21,6 +24,7 @@
 #define RENAME_DEBUG
 #undef RENAME_DEBUG
 
+bool Lengauer_Tarjan_Enable = TRUE;
 static FILE *out;
 
 typedef struct blockIdList_ *blockIdList;
@@ -270,8 +274,8 @@ static void init_blockInfoAbountLg(G_nodeList lg) {
     }
   }
 #ifdef SSA_DEBUG
-  fprintf(out, "----------------- blockInstrInfos -----------------\n");
-  print_blockInstrInfos(out);
+  // fprintf(out, "----------------- blockInstrInfos -----------------\n");
+  // print_blockInstrInfos(out);
 #endif
 }
 
@@ -454,6 +458,149 @@ static void compute_bg_idoms() {
       }
     }
   }
+}
+
+typedef struct LT_info_ *LT_info;
+struct LT_info_ {
+  int parent;       // parent in the DFS tree
+  int semi_dfsnum;  // semi-dfsnum
+  int ancestor;     // ancestor in the DFS tree
+  bitmap bucket;    // n in bucket[s] means sdom(n) = s
+  int label;        // node that has min dfsnum from path (ancestor[cur], cur]
+};
+static LT_info LT_Info_init() {
+  LT_info info = (LT_info)checked_malloc(sizeof *info);
+  info->parent = -1;
+  info->semi_dfsnum = -1;
+  info->ancestor = -1;
+  info->bucket = Bitmap(num_bg_nodes);
+  info->label = -1;
+  return info;
+}
+static LT_info *lt_infos;
+static int *vertex;  // vertex[i]=u means u is the ith vertex in the DFS tree
+static int dfscnt;
+
+static void dfs(int v) {
+  lt_infos[v]->semi_dfsnum = dfscnt;
+  vertex[dfscnt] = v;
+  lt_infos[v]->label = v;
+  dfscnt++;
+  for (G_nodeList p = G_succ(blockInfoEnv[v]->mynode); p; p = p->tail) {
+    int w = p->head->mykey;
+    if (lt_infos[w]->semi_dfsnum == -1) {
+      lt_infos[w]->parent = v;
+      dfs(w);
+    }
+  }
+}
+
+static void link(int v, int w) {
+  // make w a child of v
+  lt_infos[w]->ancestor = v;
+}
+
+static void compress(int v) {
+  if (lt_infos[v]->ancestor == -1) {
+    fprintf(stderr, "compress: ancestor is -1\n");
+    exit(1);
+  }
+
+  if (lt_infos[lt_infos[v]->ancestor]->ancestor != -1) {
+    compress(lt_infos[v]->ancestor);
+    if (lt_infos[lt_infos[lt_infos[v]->ancestor]->label]->semi_dfsnum <
+        lt_infos[lt_infos[v]->label]->semi_dfsnum) {
+      lt_infos[v]->label = lt_infos[lt_infos[v]->ancestor]->label;
+    }
+    lt_infos[v]->ancestor = lt_infos[lt_infos[v]->ancestor]->ancestor;
+  }
+}
+
+/* eval(v) returns the vertex with the minimum semi_dfsnum on the path from v to
+ * the root of the DFS tree, but not including the root */
+static int eval(int v) {
+  if (lt_infos[v]->ancestor == -1) {
+    return v;
+  }
+
+  compress(v);
+  return lt_infos[v]->label;
+}
+
+static void lengauer_tarjan_idoms() {
+  // initialize the LT_info
+  lt_infos = (LT_info *)checked_malloc(num_bg_nodes * sizeof *lt_infos);
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    lt_infos[i] = LT_Info_init();
+  }
+
+  // DFS and initialize the vertex, semi_dfsnum, label
+  vertex = (int *)checked_malloc(num_bg_nodes * sizeof *vertex);
+  dfscnt = 0;
+  dfs(0);
+#ifdef LT_DEBUG
+  for (int i = 0; i < num_bg_nodes; ++i) {
+    fprintf(stderr, "vertex[%d]=%d\n", i, vertex[i]);
+  }
+  fprintf(stderr, "DFS done\n");
+#endif
+
+  for (int i = num_bg_nodes - 1; i > 0; --i) {
+    // compute semi(w)
+    int w = vertex[i];
+    for (G_nodeList s = G_pred(blockInfoEnv[w]->mynode); s; s = s->tail) {
+      int v = s->head->mykey;
+      int u = eval(v);
+      if (lt_infos[u]->semi_dfsnum < lt_infos[w]->semi_dfsnum) {
+        lt_infos[w]->semi_dfsnum = lt_infos[u]->semi_dfsnum;
+      }
+    }
+    // add w to the bucket of vertex[semi_dfsnum[w]]
+    bitmap_set(lt_infos[vertex[lt_infos[w]->semi_dfsnum]]->bucket, w);
+    // link w to its parent
+    link(lt_infos[w]->parent, w);
+
+    // compute idom
+    for (int v = 0; v < num_bg_nodes; ++v) {
+      if (bitmap_read(lt_infos[lt_infos[w]->parent]->bucket, v)) {
+        int u = eval(v);
+        if (lt_infos[u]->semi_dfsnum < lt_infos[v]->semi_dfsnum) {
+          // idom[v] = idom[u], need to reconsider v later
+          blockInfoEnv[v]->idom = u;
+        } else {
+          // idom[v] = semi[v] = parent[w]
+          blockInfoEnv[v]->idom = lt_infos[w]->parent;
+        }
+      }
+    }
+  }
+#ifdef LT_DEBUG
+  fprintf(stderr, "sdom done\n");
+#endif
+
+  // compute the rest of idoms
+  blockInfoEnv[0]->idom = -1;
+  for (int i = 1; i < num_bg_nodes; ++i) {
+    int w = vertex[i];
+    if (blockInfoEnv[w]->idom != vertex[lt_infos[w]->semi_dfsnum]) {
+      blockInfoEnv[w]->idom = blockInfoEnv[blockInfoEnv[w]->idom]->idom;
+    }
+  }
+}
+
+static void lt_dfs_dom_tree(int u) {
+  for (blockIdList p = blockInfoEnv[u]->dom_tree_children; p; p = p->tail) {
+    int v = p->blockid;
+    bitmap_set(blockInfoEnv[v]->doms, v);
+    bitmap_union_into(blockInfoEnv[v]->doms, blockInfoEnv[u]->doms);
+    lt_dfs_dom_tree(v);
+  }
+}
+
+static void lengauer_tarjan_doms() {
+  // after constructing the dominator tree, compute the dominators
+  bitmap_set(blockInfoEnv[0]->doms, 0);
+  lt_dfs_dom_tree(0);
 }
 
 static void construct_bg_dom_tree() {
@@ -822,30 +969,48 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
 
   /* compute DF */
 
-  // step 1: sort in RPO
-  sort_bg_in_RPO();
+  if (!Lengauer_Tarjan_Enable) {  // step 1: sort in RPO
+    sort_bg_in_RPO();
 #ifdef SSA_DEBUG
-  print_bg_RPO(out);
+    print_bg_RPO(out);
 #endif
 
-  // step 2: compute the dominators
-  compute_bg_doms(out);
+    // step 2: compute the dominators
+    compute_bg_doms(out);
 #ifdef SSA_DEBUG
-  print_bg_doms(out, compute_doms_iter);
+    print_bg_doms(out, compute_doms_iter);
 #endif
 
-  // step 3: compute the dominator tree of bg
-  compute_bg_idoms();
+    // step 3: compute the dominator tree of bg
+    compute_bg_idoms();
 #ifdef SSA_DEBUG
-  fprintf(out, "----------------- bg_idoms -----------------\n");
-  print_bg_idoms(out);
+    fprintf(out, "----------------- bg_idoms -----------------\n");
+    print_bg_idoms(out);
 #endif
 
-  construct_bg_dom_tree();
+    construct_bg_dom_tree();
 #ifdef SSA_DEBUG
-  fprintf(out, "----------------- bg_dom_tree -----------------\n");
-  print_bg_dom_tree(out);
+    fprintf(out, "----------------- bg_dom_tree -----------------\n");
+    print_bg_dom_tree(out);
 #endif
+  } else {
+    lengauer_tarjan_idoms();
+#ifdef SSA_DEBUG
+    fprintf(out, "----------------- bg_idoms -----------------\n");
+    print_bg_idoms(out);
+#endif
+    
+    construct_bg_dom_tree();
+#ifdef SSA_DEBUG
+    fprintf(out, "----------------- bg_dom_tree -----------------\n");
+    print_bg_dom_tree(out);
+#endif
+
+    lengauer_tarjan_doms();
+#ifdef SSA_DEBUG
+    print_bg_doms(out, 0);
+#endif
+  }
 
   compute_bg_dom_frontiers();
 #ifdef SSA_DEBUG
