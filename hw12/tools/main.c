@@ -242,15 +242,15 @@ int main(int argc, const char * argv[]) {
   fclose(stdout);
   // print the runtime functions for the 9.arm file
   freopen(file_arm,"a",stdout);
-  fprintf(file_arm, ".global malloc\n");
-  fprintf(file_arm, ".global getint\n");
-  fprintf(file_arm, ".global getch\n");
-  fprintf(file_arm, ".global getarray\n");
-  fprintf(file_arm, ".global putint\n");
-  fprintf(file_arm, ".global putch\n");
-  fprintf(file_arm, ".global putarray\n");
-  fprintf(file_arm, ".global starttime\n");
-  fprintf(file_arm, ".global stoptime\n");
+  fprintf(stdout, ".global malloc\n");
+  fprintf(stdout, ".global getint\n");
+  fprintf(stdout, ".global getch\n");
+  fprintf(stdout, ".global getarray\n");
+  fprintf(stdout, ".global putint\n");
+  fprintf(stdout, ".global putch\n");
+  fprintf(stdout, ".global putarray\n");
+  fprintf(stdout, ".global starttime\n");
+  fprintf(stdout, ".global stoptime\n");
   fclose(stdout);
 
   return 0;
