@@ -10,6 +10,8 @@
 #include "lxml.h"
 #include "xml2ins.h"
 #include "print_ins.h"
+#include "armgen.h"
+#include "ssa.h"
 
 #define __DEBUG
 #undef __DEBUG
@@ -33,6 +35,14 @@ static AS_instrList xmlfunc2ins(XMLNode *fn) {
 static void print_to_ssa_file(string file_ssa, AS_instrList il) {
     freopen(file_ssa, "a", stdout);
     AS_printInstrList(stdout, il, Temp_name());
+    fclose(stdout);
+}
+
+static void print_to_arm_file(string file_arm, AS_instrList il, string funcname) {
+    freopen(file_arm, "a", stdout);
+    fprintf(stdout, "\t.global %s\n", funcname);
+    AS_printInstrList(stdout, il, Temp_name());
+    fflush(stdout);
     fclose(stdout);
 }
 
@@ -147,6 +157,7 @@ int main(int argc, const char * argv[]) {
     }
     //read from xml to an AS_instrList
     inslist_func = insxml2func(fn);
+    string funcname = fn->attributes.data->value;
 
 #ifdef __DEBUG
     fprintf(stderr, "------ now got Function %d, %s------\n", i, fn->attributes.data->value);
@@ -224,6 +235,16 @@ int main(int argc, const char * argv[]) {
     //print the AS_instrList to the ssa file`
     AS_instrList finalssa = AS_splice(AS_InstrList(prologi, bodyil_in_SSA), AS_InstrList(epilogi, NULL));
     print_to_ssa_file(file_ssa, finalssa);
+
+    //print the AS_instrList to the arm file
+    G_graph ssa_bg = Create_SSA_bg(bg);
+    AS_instrList bodyil_wo_SSA = SSA_deconstruct(bodyil_in_SSA, ssa_bg);
+
+    AS_instrList prologil_arm = armprolog(AS_InstrList(prologi, NULL));
+    Temp_label retLabel = Temp_newlabel_prefix('E');
+    AS_instrList epilogil_arm = armepilog(AS_InstrList(epilogi, NULL), retLabel);
+    AS_instrList bodyil_arm = armbody(bodyil_wo_SSA, retLabel);
+    print_to_arm_file(file_arm, AS_splice(AS_splice(prologil_arm, bodyil_arm), epilogil_arm), funcname);
   }
   // print the runtime functions for the 8.ssa file
   freopen(file_ssa, "a", stdout);
@@ -234,6 +255,7 @@ int main(int argc, const char * argv[]) {
   fprintf(stdout, "declare void @putint(i64)\n");
   fprintf(stdout, "declare void @putfloat(double)\n");
   fprintf(stdout, "declare i64 @getint()\n");
+  fprintf(stdout, "declare i64 @getch()\n");
   fprintf(stdout, "declare float @getfloat()\n");
   fprintf(stdout, "declare i64* @getarray(i64)\n");
   fprintf(stdout, "declare i64* @getfarray(i64)\n");
@@ -244,11 +266,15 @@ int main(int argc, const char * argv[]) {
   freopen(file_arm,"a",stdout);
   fprintf(stdout, ".global malloc\n");
   fprintf(stdout, ".global getint\n");
+  fprintf(stdout, ".global getfloat\n");
   fprintf(stdout, ".global getch\n");
   fprintf(stdout, ".global getarray\n");
+  fprintf(stdout, ".global getfarray\n");
   fprintf(stdout, ".global putint\n");
   fprintf(stdout, ".global putch\n");
+  fprintf(stdout, ".global putfloat\n");
   fprintf(stdout, ".global putarray\n");
+  fprintf(stdout, ".global putfarray\n");
   fprintf(stdout, ".global starttime\n");
   fprintf(stdout, ".global stoptime\n");
   fclose(stdout);
