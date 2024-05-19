@@ -5,6 +5,7 @@ set(LIBS
   utils
   vendor_lxml
 #  backend_llvm
+  backend_arm
 )
 add_dependencies(${LIBS} vendor_libsysy)
 

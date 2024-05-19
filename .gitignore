@@ -12,3 +12,4 @@ build
 *.cfg
 *.ssa
 *.arm
+*.debug
