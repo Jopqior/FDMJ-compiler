@@ -9,6 +9,9 @@
 #define SSA_DEBUG
 #undef SSA_DEBUG
 
+#define SSA_DEC_DEBUG
+#undef SSA_DEC_DEBUG
+
 #define LT_DEBUG
 #undef LT_DEBUG
 
@@ -956,11 +959,14 @@ static AS_instrList get_final_result() {
   return result;
 }
 
+static bool isSSA = TRUE;
+
 AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
                                  G_nodeList bg) {
   /* here is your implementation of translating to ssa */
 
   if (!lg || !bg) {
+    isSSA = FALSE;
     return bodyil;
   }
   out = stderr;
@@ -999,7 +1005,7 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
     fprintf(out, "----------------- bg_idoms -----------------\n");
     print_bg_idoms(out);
 #endif
-    
+
     construct_bg_dom_tree();
 #ifdef SSA_DEBUG
     fprintf(out, "----------------- bg_dom_tree -----------------\n");
@@ -1031,4 +1037,204 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
   rename_vars();
 
   return get_final_result();
+}
+
+G_graph Create_SSA_bg(G_nodeList bg) {
+  if (!isSSA) {
+    return bg ? bg->head->mygraph : NULL;
+  }
+  for (G_nodeList p = bg; p; p = p->tail) {
+    AS_instrList instrs = NULL;
+    for (instrInfoList q = blockInfoEnv[p->head->mykey]->instrInfos; q;
+         q = q->tail) {
+      instrs = AS_splice(instrs, AS_InstrList(q->instr, NULL));
+    }
+    p->head->info = AS_Block(instrs);
+  }
+  return bg->head->mygraph;
+}
+
+static bool isBlockContainPhi(AS_block b) {
+  for (AS_instrList p = b->instrs; p; p = p->tail) {
+    if (is_phi_func(p->head)) {
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+static bool isNodeHasMultiplePred(G_node n) {
+  G_nodeList p = G_pred(n);
+  return p && p->tail;
+}
+
+static bool isNodeHasMultipleSucc(G_node n) {
+  G_nodeList p = G_succ(n);
+  return p && p->tail;
+}
+
+static bool isInstrCmpOrJump(AS_instr instr) {
+  return instr->kind == I_OPER && (strstr(instr->u.OPER.assem, "cmp") ||
+                                   strstr(instr->u.OPER.assem, "br") ||
+                                   strstr(instr->u.OPER.assem, "ret"));
+}
+
+static G_node splitNewBlock(G_graph bg, G_node u, G_node v) {
+  Temp_label vLabel = ((AS_block)G_nodeInfo(v))->label;
+  // create a new block
+  Temp_label new_label = Temp_newlabel_prefix('S');
+  AS_instr labelIns =
+      AS_Label(Stringf("%s:", Temp_labelstring(new_label)), new_label);
+  AS_instr jmpIns = AS_Oper("br label \%`j0", NULL, NULL,
+                            AS_Targets(Temp_LabelList(vLabel, NULL)));
+  AS_instrList instrs = AS_InstrList(labelIns, AS_InstrList(jmpIns, NULL));
+  AS_block new_block = AS_Block(instrs);
+
+  // change u's last instr to a jump to the new block
+  AS_block u_block = G_nodeInfo(u);
+  AS_instrList last = u_block->instrs;
+  while (last->tail) {
+    last = last->tail;
+  }
+  if (!last->head->kind == I_OPER) {
+    fprintf(stderr, "Error: last instr is not I_OPER\n");
+    exit(1);
+  }
+  for (Temp_labelList p = last->head->u.OPER.jumps->labels; p; p = p->tail) {
+    if (p->head == vLabel) {
+      p->head = new_label;
+    }
+  }
+
+  // add the new block to the graph
+  G_node new_node = G_Node(bg, new_block);
+#ifdef SSA_DEC_DEBUG
+  fprintf(out, "last1: %p\n", bg->mylast);
+  G_nodeList last2 = G_nodes(bg);
+  while (last2->tail) {
+    last2 = last2->tail;
+  }
+  fprintf(out, "last2: %p\n", last2);
+#endif
+  G_addEdge(u, new_node);
+  G_addEdge(new_node, v);
+
+  return new_node;
+}
+
+AS_instrList SSA_deconstruct(AS_instrList bodyil, G_graph ssa_bg) {
+  if (!isSSA) {
+    return bodyil;
+  }
+
+  int originNodeCnt = ssa_bg->nodecount;
+  for (G_nodeList p = G_nodes(ssa_bg); p && originNodeCnt;
+       p = p->tail, --originNodeCnt) {
+    G_node v = p->head;
+    AS_block b = G_nodeInfo(v);
+    if (!isBlockContainPhi(b)) {
+      continue;
+    }
+#ifdef SSA_DEC_DEBUG
+    fprintf(out, "SSA_dec: %s\n", Temp_labelstring(b->label));
+#endif
+    // critical edge splitting
+    S_table parallelCopyTab = S_empty();
+
+    G_nodeList q = G_pred(v);
+    while (q) {
+      G_node u = q->head;
+      q = q->tail;
+
+      AS_block pred = G_nodeInfo(u);
+      if (!isNodeHasMultiplePred(v) || !isNodeHasMultipleSucc(u)) {
+        S_enter(parallelCopyTab, S_Symbol(Temp_labelstring(pred->label)),
+                (void *)u);
+        continue;
+      } else {
+#ifdef SSA_DEC_DEBUG
+        fprintf(out, "split edge: %s -> %s\n", Temp_labelstring(pred->label),
+                Temp_labelstring(b->label));
+#endif
+        // split the edge: pred -> pred', pred' -> n
+        G_rmEdge(u, v);
+        G_node newNode = splitNewBlock(ssa_bg, u, v);
+#ifdef SSA_DEC_DEBUG
+        AS_block newBlock = G_nodeInfo(newNode);
+        fprintf(out, "new block: %s\n", Temp_labelstring(newBlock->label));
+#endif
+        S_enter(parallelCopyTab, S_Symbol(Temp_labelstring(pred->label)),
+                (void *)newNode);
+      }
+    }
+#ifdef SSA_DEC_DEBUG
+    fprintf(out, "== new bg ==\n");
+    Show_bg(out, G_nodes(ssa_bg));
+    fprintf(out, "edge split done\n");
+#endif
+
+    // deconstruct phi functions
+    for (AS_instrList pre = b->instrs, cur = pre->tail; cur; cur = cur->tail) {
+      if (!is_phi_func(cur->head)) {
+        pre = cur;
+        continue;
+      }
+
+      Temp_temp dst = cur->head->u.OPER.dst->head;
+      Temp_tempList srcs = cur->head->u.OPER.src;
+      Temp_labelList labels = cur->head->u.OPER.jumps->labels;
+
+      for (; srcs; srcs = srcs->tail, labels = labels->tail) {
+        Temp_temp src = srcs->head;
+        Temp_label label = labels->head;
+
+        // find the block that contains the label
+        G_node u =
+            (G_node)S_look(parallelCopyTab, S_Symbol(Temp_labelstring(label)));
+        AS_block pred = G_nodeInfo(u);
+#ifdef SSA_DEC_DEBUG
+        fprintf(out, "pred: %s\n", Temp_labelstring(pred->label));
+#endif
+
+        // insert a move instruction
+        AS_instrList prevLastIns = pred->instrs;
+        AS_instrList lastIns = prevLastIns->tail;
+        while (!isInstrCmpOrJump(lastIns->head)) {
+          prevLastIns = lastIns;
+          lastIns = lastIns->tail;
+        }
+        AS_instr moveIns = NULL;
+        switch (src->type) {
+          case T_int: {
+            moveIns =
+                AS_Move("\%`d0 = add i64 \%`s0, 0", Temp_TempList(dst, NULL),
+                        Temp_TempList(src, NULL));
+            break;
+          }
+          case T_float: {
+            moveIns =
+                AS_Move("\%`d0 = fadd double \%`s0, 0.0",
+                        Temp_TempList(dst, NULL), Temp_TempList(src, NULL));
+            break;
+          }
+          default:
+            break;
+        }
+        prevLastIns->tail = AS_InstrList(moveIns, lastIns);
+      }
+
+      // remove the phi function
+      pre->tail = cur->tail;
+    }
+  }
+
+  AS_instrList result = NULL;
+  for (G_nodeList p = G_nodes(ssa_bg); p; p = p->tail) {
+    AS_block b = G_nodeInfo(p->head);
+    for (AS_instrList q = b->instrs; q; q = q->tail) {
+      result = AS_splice(result, AS_InstrList(q->head, NULL));
+    }
+  }
+
+  return result;
 }
