@@ -4,6 +4,7 @@ LLVMLINK = llvm-link-14
 LLI      = lli-14
 ARMCC    = arm-linux-gnueabihf-gcc
 QEMU     = qemu-arm
+LLC	     = llc-14
 
 BUILD_DIR = "$(CURDIR)/build"
 MAIN_EXE  = "$(BUILD_DIR)/tools/main"
@@ -73,6 +74,21 @@ irp2llvm:clean
 		fi \
 	done; \
 	cd $(CURDIR)
+
+llvm2arm: clean
+	@cd $(TEST_DIR); \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}"; \
+			$(AST2IRP) -f xml "$${file%%.*}"; \
+			$(IRP2LLVM) "$${file%%.*}"; \
+			$(MAIN_EXE) "$${file%%.*}"; \
+			$(LLC) -mtriple=arm-linux-gnueabihf -mcpu=cortex-a72 -opaque-pointers -O0 "$${file%%.*}".8.ssa -o "$${file%%.*}".arm; \
+		fi \
+	done; \
+	cd $(CURDIR)
+
 
 handin:
 	@if [ ! -f docs/report.pdf ]; then \
