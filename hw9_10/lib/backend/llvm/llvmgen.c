@@ -636,7 +636,7 @@ static expres munchMemExp_load(T_exp e, Temp_temp dst) {
   ASSERT(e && e->kind == T_MEM && e->u.MEM->type == T_int);
 
   expres srcAddr = munchExp(e->u.MEM, NULL);
-  Temp_temp srcPtr = Temp_newtemp(e->type);
+  Temp_temp srcPtr = Temp_newtemp(T_int);
 
   if (srcAddr->kind == res_const) {
     emit(AS_Oper(Stringf("%%`d0 = inttoptr i64 %d to i64*", srcAddr->u.i),
