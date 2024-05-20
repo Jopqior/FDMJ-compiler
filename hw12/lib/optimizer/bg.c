@@ -46,12 +46,17 @@ static void bg_rmNode(AS_block b) {
       }
       n->head->mygraph->nodecount -= 1;
       G_nodeList fa = n->head->mygraph->mynodes;
-      if (fa->head == n->head) n->head->mygraph->mynodes = n->head->mygraph->mynodes->tail;
+      if (fa->head == n->head) {
+        n->head->mygraph->mynodes = n->head->mygraph->mynodes->tail;
+        if (n->head->mygraph->mynodes == NULL) {
+          n->head->mygraph->mylast = NULL;
+        }
+      }
       for (G_nodeList dd = n->head->mygraph->mynodes->tail; dd; dd = dd->tail) {
         if (dd->head == n->head) {
           fa->tail = dd->tail;
           if (n->head->mygraph->mylast->head == n->head) {
-            n->head->mygraph->mylast->head = fa->head;
+            n->head->mygraph->mylast = fa;
           }
           break;
         }
