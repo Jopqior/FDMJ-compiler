@@ -676,6 +676,73 @@ static void munchFdiv(AS_instr ins) {
   }
 }
 
+static void munchF2I(AS_instr ins) {
+  Temp_temp dst = ins->u.OPER.dst->head;
+  if (!ins->u.OPER.src) {
+    // parse the const value
+    char *s = ins->u.OPER.assem + 14;
+    while (*s == ' ') {
+      s++;
+    }
+    while (*s != ' ') {
+      s++;
+    }
+    while (*s == ' ') {
+      s++;
+    }
+    float src = atof(s);
+    emitMovImm(dst, NULL, (uf){.i = (int)src});
+  } else {
+    Temp_temp src = ins->u.OPER.src->head;
+    emit(AS_Oper("\tvcvt.s32.f32 `d0, `s0", Temp_TempList(dst, NULL),
+                 Temp_TempList(src, NULL), NULL));
+  }
+}
+
+static void munchI2F(AS_instr ins) {
+  Temp_temp dst = ins->u.OPER.dst->head;
+  if (!ins->u.OPER.src) {
+    // parse the const value
+    char *s = ins->u.OPER.assem + 14;
+    while (*s == ' ') {
+      s++;
+    }
+    while (*s != ' ') {
+      s++;
+    }
+    while (*s == ' ') {
+      s++;
+    }
+    int src = atoi(s);
+    emitMovImm(dst, NULL, (uf){.f = (float)src});
+  } else {
+    Temp_temp src = ins->u.OPER.src->head;
+    emit(AS_Oper("\tvcvt.f32.s32 `d0, `s0", Temp_TempList(dst, NULL),
+                 Temp_TempList(src, NULL), NULL));
+  }
+}
+
+static void munchLoad(AS_instr ins) {
+  Temp_temp dst = ins->u.OPER.dst->head;
+  Temp_temp src = ins->u.OPER.src->head;
+  switch (dst->type) {
+    case T_int: {
+      emit(AS_Oper("\tldr `d0, [`s0]", Temp_TempList(dst, NULL),
+                   Temp_TempList(src, NULL), NULL));
+      break;
+    }
+    case T_float: {
+      emit(AS_Oper("\tvldr.f32 `d0, [`s0]", Temp_TempList(dst, NULL),
+                   Temp_TempList(src, NULL), NULL));
+      break;
+    }
+    default: {
+      fprintf(stderr, "Error: unknown temp type\n");
+      exit(1);
+    }
+  }
+}
+
 AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
   iList = last = NULL;
 
@@ -734,6 +801,26 @@ AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
       }
       case FDIV: {
         munchFdiv(ins);
+        break;
+      }
+      case F2I: {
+        munchF2I(ins);
+        break;
+      }
+      case I2F: {
+        munchI2F(ins);
+        break;
+      }
+      case I2P: {
+        // nothing to do
+        break;
+      }
+      case P2I: {
+        // nothing to do
+        break;
+      }
+      case LOAD: {
+        munchLoad(ins);
         break;
       }
     }
