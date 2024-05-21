@@ -236,6 +236,7 @@ int main(int argc, const char * argv[]) {
   fprintf(stdout, "declare i64 @getint()\n");
   fprintf(stdout, "declare float @getfloat()\n");
   fprintf(stdout, "declare i64* @getarray(i64)\n");
+  fprintf(stdout, "declare i64 @getch(i64)\n");
   fprintf(stdout, "declare i64* @getfarray(i64)\n");
   fprintf(stdout, "declare void @putarray(i64, i64*)\n");
   fprintf(stdout, "declare void @putfarray(i64, i64*)\n");
@@ -245,10 +246,14 @@ int main(int argc, const char * argv[]) {
   fprintf(stdout, ".global malloc\n");
   fprintf(stdout, ".global getint\n");
   fprintf(stdout, ".global getch\n");
+  fprintf(stdout, ".global getfloat\n");
   fprintf(stdout, ".global getarray\n");
+  fprintf(stdout, ".global getfarray\n");
   fprintf(stdout, ".global putint\n");
   fprintf(stdout, ".global putch\n");
+  fprintf(stdout, ".global putfloat\n");
   fprintf(stdout, ".global putarray\n");
+  fprintf(stdout, ".global putfarray\n");
   fprintf(stdout, ".global starttime\n");
   fprintf(stdout, ".global stoptime\n");
   fclose(stdout);
