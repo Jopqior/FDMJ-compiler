@@ -1176,8 +1176,8 @@ AS_instrList SSA_deconstruct(AS_instrList bodyil, G_graph ssa_bg) {
     // deconstruct phi functions
     for (AS_instrList pre = b->instrs, cur = pre->tail; cur; cur = cur->tail) {
       if (!is_phi_func(cur->head)) {
-        pre = cur;
-        continue;
+        // no phi func now
+        break;
       }
 
       Temp_temp dst = cur->head->u.OPER.dst->head;
