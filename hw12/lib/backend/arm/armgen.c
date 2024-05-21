@@ -743,6 +743,71 @@ static void munchLoad(AS_instr ins) {
   }
 }
 
+static void munchStore(AS_instr ins) {
+  Temp_tempList srcs = ins->u.OPER.src;
+  if (!srcs->tail) {
+    // the number to store is a const
+    char *s = ins->u.OPER.assem + 6;
+    T_type type;
+    while (*s == ' ') {
+      s++;
+    }
+    switch (*s) {
+      case 'i': {
+        type = T_int;
+        break;
+      }
+      case 'd': {
+        type = T_float;
+        break;
+      }
+      default: {
+        fprintf(stderr, "Error: unknown type in store\n");
+        exit(1);
+      }
+    }
+    while (*s != ' ') {
+      s++;
+    }
+    while (*s == ' ') {
+      s++;
+    }
+    switch (type) {
+      case T_int: {
+        int num = atoi(s);
+        Temp_temp tmp = Temp_newtemp(T_int);
+        emitMovImm(tmp, NULL, (uf){.i = num});
+        emit(AS_Oper("\tstr `s0, [`s1]", NULL, Temp_TempList(tmp, srcs), NULL));
+        break;
+      }
+      case T_float: {
+        float num = atof(s);
+        Temp_temp tmp = Temp_newtemp(T_float);
+        emitMovImm(tmp, NULL, (uf){.f = num});
+        emit(AS_Oper("\tvstr.f32 `s0, [`s1]", NULL, Temp_TempList(tmp, srcs),
+                     NULL));
+        break;
+      }
+    }
+  } else {
+    Temp_temp num = srcs->head;
+    switch (num->type) {
+      case T_int: {
+        emit(AS_Oper("\tstr `s0, [`s1]", NULL, srcs, NULL));
+        break;
+      }
+      case T_float: {
+        emit(AS_Oper("\tvstr.f32 `s0, [`s1]", NULL, srcs, NULL));
+        break;
+      }
+      default: {
+        fprintf(stderr, "Error: unknown temp type\n");
+        exit(1);
+      }
+    }
+  }
+}
+
 AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
   iList = last = NULL;
 
@@ -821,6 +886,10 @@ AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
       }
       case LOAD: {
         munchLoad(ins);
+        break;
+      }
+      case STORE: {
+        munchStore(ins);
         break;
       }
     }
