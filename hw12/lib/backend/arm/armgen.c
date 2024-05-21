@@ -300,7 +300,7 @@ static void munchBr(AS_instr ins) {
   emit(AS_Oper("\tb .`j0", NULL, NULL, ins->u.OPER.jumps));
 }
 
-static void munchRet(AS_instr ins, Temp_label retLabel) {
+static void munchRet(AS_instr ins) {
   if (!ins->u.OPER.src) {
     // parse the const ret value
     string assem = ins->u.OPER.assem;
@@ -1232,7 +1232,15 @@ static void munchExtCall(AS_instr ins) {
   }
 }
 
-AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
+static void munchIcmpBr(AS_instr cmp, AS_instr br) {
+  // TODO: implement this
+}
+
+static void munchFcmpBr(AS_instr cmp, AS_instr br) {
+  // TODO: implement this
+}
+
+AS_instrList armbody(AS_instrList il) {
   iList = last = NULL;
 
   for (AS_instrList p = il; p; p = p->tail) {
@@ -1242,6 +1250,17 @@ AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
       fprintf(stderr, "Error: unknown instruction type, %s\n",
               ins->u.OPER.assem);
       exit(1);
+    }
+    if (type == ICMP || type == FCMP) {
+      ASSERT(p->tail && gettype(p->tail->head) == CJUMP,
+             "icmp/fcmp should be followed by cjump");
+      if (type == ICMP) {
+        munchIcmpBr(ins, p->tail->head);
+      } else {
+        munchFcmpBr(ins, p->tail->head);
+      }
+      p = p->tail;
+      continue;
     }
     switch (type) {
       case LABEL: {
@@ -1257,7 +1276,7 @@ AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
         break;
       }
       case RET: {
-        munchRet(ins, retLabel);
+        munchRet(ins);
         break;
       }
       case ADD: {
@@ -1327,6 +1346,10 @@ AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
       case EXTCALL: {
         munchExtCall(ins);
         break;
+      }
+      default: {
+        fprintf(stderr, "Error: unknown instruction type\n");
+        exit(1);
       }
     }
   }
@@ -1440,7 +1463,7 @@ AS_instrList armprolog(AS_instrList il) {
   return iList;
 }
 
-AS_instrList armepilog(AS_instrList il, Temp_label retLabel) {
+AS_instrList armepilog(AS_instrList il) {
 #ifdef ARMGEN_DEBUG
   fprintf(stderr, "armepilog: assem=%s\n", il->head->u.OPER.assem);
 #endif

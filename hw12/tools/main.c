@@ -241,9 +241,8 @@ int main(int argc, const char * argv[]) {
     AS_instrList bodyil_wo_SSA = SSA_deconstruct(bodyil_in_SSA, ssa_bg);
 
     AS_instrList prologil_arm = armprolog(AS_InstrList(prologi, NULL));
-    Temp_label retLabel = Temp_newlabel_prefix('E');
-    AS_instrList epilogil_arm = armepilog(AS_InstrList(epilogi, NULL), retLabel);
-    AS_instrList bodyil_arm = armbody(bodyil_wo_SSA, retLabel);
+    AS_instrList epilogil_arm = armepilog(AS_InstrList(epilogi, NULL));
+    AS_instrList bodyil_arm = armbody(bodyil_wo_SSA);
     print_to_arm_file(file_arm, AS_splice(AS_splice(prologil_arm, bodyil_arm), epilogil_arm), funcname);
   }
   // print the runtime functions for the 8.ssa file
