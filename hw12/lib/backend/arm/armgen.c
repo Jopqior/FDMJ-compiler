@@ -3,23 +3,23 @@
 #define ASSERT_DEBUG
 
 #ifdef ASSERT_DEBUG
-#define ASSERT(condition)         \
-  do {                            \
-    if (condition)                \
-      NULL;                       \
-    else                          \
-      Assert(__FILE__, __LINE__); \
+#define ASSERT(condition, errInfo)         \
+  do {                                     \
+    if (condition)                         \
+      NULL;                                \
+    else                                   \
+      Assert(__FILE__, __LINE__, errInfo); \
   } while (0)
 #else
-#define ASSERT(condition) \
-  do {                    \
-    NULL;                 \
+#define ASSERT(condition, errInfo) \
+  do {                             \
+    NULL;                          \
   } while (0)
 #endif
 
-void Assert(char *filename, unsigned int lineno) {
+void Assert(char *filename, unsigned int lineno, char *errInfo) {
   fflush(stdout);
-  fprintf(stderr, "\nAssert failed： %s, line %u\n", filename, lineno);
+  fprintf(stderr, "Assertion failed at %s:%u: %s\n", filename, lineno, errInfo);
   fflush(stderr);
   abort();
 }
@@ -105,6 +105,7 @@ typedef enum {
   I2F,
   I2P,
   P2I,
+  NAME,
   LOAD,
   STORE,
   CALL,
@@ -172,13 +173,18 @@ AS_type gettype(AS_instr ins) {
     ret = STORE;
     return ret;
   } else if (!strncmp(assem, "%`d0 = ptrtoint", 15)) {
-    ret = P2I;
+    if (strchr(assem, '@')) {
+      ret = NAME;
+    } else {
+      ret = P2I;
+    }
     return ret;
-  } else if (strstr(assem, "call") && !strchr(assem, '@')) {
-    ret = CALL;
-    return ret;
-  } else if (strstr(assem, "call") && strchr(assem, '@')) {
-    ret = EXTCALL;
+  } else if (strstr(assem, "call")) {
+    if (strchr(assem, '@')) {
+      ret = EXTCALL;
+    } else {
+      ret = CALL;
+    }
     return ret;
   } else if (!strncmp(assem, "%`d0 = icmp", 11)) {
     ret = ICMP;
@@ -194,10 +200,8 @@ AS_type gettype(AS_instr ins) {
 }
 
 static void emitMovImm(Temp_temp dt, string ds, uf imm) {
-  if (!dt && !ds) {
-    fprintf(stderr, "Error: no temp for mov imm\n");
-    exit(1);
-  }
+  ASSERT(dt || ds, "no temp for mov imm");
+
   int immu = getImm16U(imm.u);
   int imml = getImm16L(imm.u);
   if (dt) {
@@ -278,7 +282,7 @@ static void munchLabel(AS_instr ins) {
 static void munchMove(AS_instr ins) {
   Temp_tempList dst = ins->u.MOVE.dst;
   Temp_tempList src = ins->u.MOVE.src;
-  ASSERT(dst->head->type == src->head->type);
+  ASSERT(dst->head->type == src->head->type, "move type mismatch");
 
   switch (dst->head->type) {
     case T_int: {
@@ -502,6 +506,7 @@ static uf parseOpExpConst(char *s, OP_type optype, bool isBothConst) {
 }
 
 static void munchAdd(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for add");
   Temp_temp dst = ins->u.OPER.dst->head;
   Temp_tempList srcs = ins->u.OPER.src;
 
@@ -527,6 +532,7 @@ static void munchAdd(AS_instr ins) {
 }
 
 static void munchFadd(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for fadd");
   Temp_temp dst = ins->u.OPER.dst->head;
   Temp_tempList srcs = ins->u.OPER.src;
 
@@ -548,6 +554,7 @@ static void munchFadd(AS_instr ins) {
 }
 
 static void munchSub(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for sub");
   Temp_temp dst = ins->u.OPER.dst->head;
   Temp_tempList srcs = ins->u.OPER.src;
 
@@ -573,6 +580,7 @@ static void munchSub(AS_instr ins) {
 }
 
 static void munchFsub(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for fsub");
   Temp_temp dst = ins->u.OPER.dst->head;
   Temp_tempList srcs = ins->u.OPER.src;
 
@@ -594,6 +602,7 @@ static void munchFsub(AS_instr ins) {
 }
 
 static void munchMul(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for mul");
   Temp_temp dst = ins->u.OPER.dst->head;
   Temp_tempList srcs = ins->u.OPER.src;
 
@@ -615,6 +624,7 @@ static void munchMul(AS_instr ins) {
 }
 
 static void munchFmul(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for fmul");
   Temp_temp dst = ins->u.OPER.dst->head;
   Temp_tempList srcs = ins->u.OPER.src;
 
@@ -636,6 +646,7 @@ static void munchFmul(AS_instr ins) {
 }
 
 static void munchDiv(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for div");
   Temp_temp dst = ins->u.OPER.dst->head;
   Temp_tempList srcs = ins->u.OPER.src;
 
@@ -656,6 +667,7 @@ static void munchDiv(AS_instr ins) {
 }
 
 static void munchFdiv(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for fdiv");
   Temp_temp dst = ins->u.OPER.dst->head;
   Temp_tempList srcs = ins->u.OPER.src;
 
@@ -677,6 +689,7 @@ static void munchFdiv(AS_instr ins) {
 }
 
 static void munchF2I(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for f2i");
   Temp_temp dst = ins->u.OPER.dst->head;
   if (!ins->u.OPER.src) {
     // parse the const value
@@ -700,6 +713,7 @@ static void munchF2I(AS_instr ins) {
 }
 
 static void munchI2F(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for i2f");
   Temp_temp dst = ins->u.OPER.dst->head;
   if (!ins->u.OPER.src) {
     // parse the const value
@@ -720,6 +734,57 @@ static void munchI2F(AS_instr ins) {
     emit(AS_Oper("\tvcvt.f32.s32 `d0, `s0", Temp_TempList(dst, NULL),
                  Temp_TempList(src, NULL), NULL));
   }
+}
+
+static void munchI2P(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for i2p");
+  ASSERT(ins->u.OPER.dst->tail == NULL, "i2p dst should only have one temp");
+  // just move the src to dst
+  Temp_temp dst = ins->u.OPER.dst->head;
+  Temp_tempList srcs = ins->u.OPER.src;
+  if (!srcs) {
+    // parse the const value
+    char *s = ins->u.OPER.assem + 16;
+    while (*s == ' ') {
+      s++;
+    }
+    while (*s != ' ') {
+      s++;
+    }
+    while (*s == ' ') {
+      s++;
+    }
+    int src = atoi(s);
+    emitMovImm(dst, NULL, (uf){.i = src});
+  } else {
+    ASSERT(srcs->tail == NULL, "i2p srcs should only have one temp");
+    emit(AS_Move("\tmov `d0, `s0", Temp_TempList(dst, NULL), srcs));
+  }
+}
+
+static void munchP2I(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for p2i");
+  ASSERT(ins->u.OPER.dst->tail == NULL, "p2i dst should only have one temp");
+  ASSERT(ins->u.OPER.src, "no src for p2i");
+  ASSERT(ins->u.OPER.src->tail == NULL, "p2i src should only have one temp");
+  // just move the src to dst
+  emit(AS_Move("\tmov `d0, `s0", ins->u.OPER.dst, ins->u.OPER.src));
+}
+
+static void munchName(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for name");
+  ASSERT(ins->u.OPER.dst->tail == NULL, "name dst should only have one temp");
+  char *s = strchr(ins->u.OPER.assem, '@');
+  ASSERT(s, "name should have @");
+  s++;
+  char *end = s;
+  while (*end != ' ') {
+    end++;
+  }
+  char *name = checked_malloc(end - s + 1);
+  strncpy(name, s, end - s);
+  name[end - s] = '\0';
+  emit(AS_Oper(Stringf("\tldr `d0, =%s", name), ins->u.OPER.dst, NULL, NULL));
 }
 
 static void munchLoad(AS_instr ins) {
@@ -808,6 +873,160 @@ static void munchStore(AS_instr ins) {
   }
 }
 
+static void munchCall(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for call");
+  ASSERT(ins->u.OPER.dst->tail == NULL, "call dst should only have one temp");
+  ASSERT(ins->u.OPER.src && ins->u.OPER.src->tail,
+         "call src should have at least two temps");
+
+  Temp_temp methAddr = ins->u.OPER.src->head;
+
+  // parse the args
+  Temp_tempList tempArgs = ins->u.OPER.src->tail;
+  // first arg must be this
+  Temp_temp this = tempArgs->head;
+  tempArgs = tempArgs->tail;
+
+  int intArgNum = 1, floatArgNum = 0;
+  int stackArgNum = 0;
+  char *s = strchr(ins->u.OPER.assem, '(');
+  while (*s && *s != ',' && *s != ')') {
+    s++;
+  }
+  while (*s && (*s == ' ' || *s == ',')) {
+    s++;
+  }
+
+  // parse the args beginning from the second one
+  while (*s && *s != ')') {
+    while (*s && *s == ' ') {
+      s++;
+    }
+    T_type argType;
+#ifdef ARMGEN_DEBUG
+    fprintf(stderr, "arg type: %c\n", *s);
+#endif
+    switch (*s) {
+      case 'i': {
+        argType = T_int;
+        break;
+      }
+      case 'd': {
+        argType = T_float;
+        break;
+      }
+      default: {
+        fprintf(stderr, "Error: unknown arg type in call\n");
+        exit(1);
+      }
+    }
+    while (*s != ' ') {
+      s++;  // skip the type
+    }
+    while (*s == ' ') {
+      s++;
+    }
+    if (*s == '%') {
+      // arg is a temp
+      Temp_temp arg = tempArgs->head;
+      tempArgs = tempArgs->tail;
+
+      switch (argType) {
+        case T_int: {
+          if (intArgNum < 4) {
+            emit(AS_Move(
+                Stringf("\tmov r%d, `s0", intArgNum),
+                Temp_TempList(armReg2Temp(Stringf("r%d", intArgNum)), NULL),
+                Temp_TempList(arg, NULL)));
+          } else {
+            emit(AS_Oper(
+                "\tpush {`s0}", NULL,
+                Temp_TempList(arg, Temp_TempList(armReg2Temp("sp"), NULL)),
+                NULL));
+            stackArgNum++;
+          }
+          intArgNum++;
+          break;
+        }
+        case T_float: {
+          if (floatArgNum < 4) {
+            emit(AS_Oper(Stringf("\tvmov.f32 s%d, `s0", floatArgNum), NULL,
+                         Temp_TempList(arg, NULL), NULL));
+          } else {
+            emit(AS_Oper(
+                "\tpush {`s0}", NULL,
+                Temp_TempList(arg, Temp_TempList(armReg2Temp("sp"), NULL)),
+                NULL));
+            stackArgNum++;
+          }
+          floatArgNum++;
+          break;
+        }
+        default: {
+          fprintf(stderr, "Error: unknown temp type in call\n");
+          exit(1);
+        }
+      }
+    } else {
+      // arg is a const val
+      switch (argType) {
+        case T_int: {
+          int arg = atoi(s);
+          if (intArgNum < 4) {
+            emitMovImm(NULL, Stringf("r%d", intArgNum), (uf){.i = arg});
+          } else {
+            emitMovImm(NULL, "r0", (uf){.i = arg});
+            emit(AS_Oper("\tpush {r0}", NULL,
+                         Temp_TempList(armReg2Temp("r0"),
+                                       Temp_TempList(armReg2Temp("sp"), NULL)),
+                         NULL));
+            stackArgNum++;
+          }
+          intArgNum++;
+          break;
+        }
+        case T_float: {
+          float arg = atof(s);
+          if (floatArgNum < 4) {
+            emitMovImm(NULL, Stringf("s%d", floatArgNum), (uf){.f = arg});
+          } else {
+            emitMovImm(NULL, "r0", (uf){.f = arg});
+            emit(AS_Oper("\tpush {r0}", NULL,
+                         Temp_TempList(armReg2Temp("r0"),
+                                       Temp_TempList(armReg2Temp("sp"), NULL)),
+                         NULL));
+            stackArgNum++;
+          }
+          floatArgNum++;
+          break;
+        }
+        default: {
+          fprintf(stderr, "Error: unknown arg type in call\n");
+          exit(1);
+        }
+      }
+    }
+
+    while (*s && *s != ',' && *s != ')') {
+      s++;
+    }
+    while (*s && (*s == ' ' || *s == ',')) {
+      s++;
+    }
+  }
+
+  // at last, move this to r0
+  emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
+               Temp_TempList(this, NULL)));
+
+  // call the method
+  emit(AS_Oper("\tblx `s0", NULL, Temp_TempList(methAddr, NULL), NULL));
+
+  // move the return value to dst
+  emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
+               Temp_TempList(armReg2Temp("r0"), NULL)));
+}
+
 AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
   iList = last = NULL;
 
@@ -877,11 +1096,15 @@ AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
         break;
       }
       case I2P: {
-        // nothing to do
+        munchI2P(ins);
         break;
       }
       case P2I: {
-        // nothing to do
+        munchP2I(ins);
+        break;
+      }
+      case NAME: {
+        munchName(ins);
         break;
       }
       case LOAD: {
@@ -890,6 +1113,10 @@ AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
       }
       case STORE: {
         munchStore(ins);
+        break;
+      }
+      case CALL: {
+        munchCall(ins);
         break;
       }
     }
@@ -967,7 +1194,6 @@ AS_instrList armprolog(AS_instrList il) {
     switch (arg->type) {
       case T_int: {
         if (intArgNum < 4) {
-          // TODO: MAP
           emit(AS_Move(
               Stringf("\tmov `d0, r%d", intArgNum), Temp_TempList(arg, NULL),
               Temp_TempList(armReg2Temp(Stringf("r%d", intArgNum)), NULL)));
@@ -982,7 +1208,6 @@ AS_instrList armprolog(AS_instrList il) {
       }
       case T_float: {
         if (floatArgNum < 16) {
-          // TODO: MAP
           emit(AS_Move(
               Stringf("\tvmov.f32 `d0, s%d", floatArgNum),
               Temp_TempList(arg, NULL),
