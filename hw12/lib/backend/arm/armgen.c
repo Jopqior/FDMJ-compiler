@@ -878,26 +878,18 @@ static void munchCall(AS_instr ins) {
   ASSERT(ins->u.OPER.dst->tail == NULL, "call dst should only have one temp");
   ASSERT(ins->u.OPER.src && ins->u.OPER.src->tail,
          "call src should have at least two temps");
-
+  // parse the method address
   Temp_temp methAddr = ins->u.OPER.src->head;
 
   // parse the args
   Temp_tempList tempArgs = ins->u.OPER.src->tail;
-  // first arg must be this
-  Temp_temp this = tempArgs->head;
-  tempArgs = tempArgs->tail;
 
-  int intArgNum = 1, floatArgNum = 0;
+  int intArgNum = 0, floatArgNum = 0;
   int stackArgNum = 0;
   char *s = strchr(ins->u.OPER.assem, '(');
-  while (*s && *s != ',' && *s != ')') {
-    s++;
-  }
-  while (*s && (*s == ' ' || *s == ',')) {
-    s++;
-  }
+  s++;
 
-  // parse the args beginning from the second one
+  // parse the args
   while (*s && *s != ')') {
     while (*s && *s == ' ') {
       s++;
@@ -950,8 +942,10 @@ static void munchCall(AS_instr ins) {
         }
         case T_float: {
           if (floatArgNum < 4) {
-            emit(AS_Oper(Stringf("\tvmov.f32 s%d, `s0", floatArgNum), NULL,
-                         Temp_TempList(arg, NULL), NULL));
+            emit(AS_Move(
+                Stringf("\tvmov.f32 s%d, `s0", floatArgNum),
+                Temp_TempList(armReg2Temp(Stringf("s%d", floatArgNum)), NULL),
+                Temp_TempList(arg, NULL)));
           } else {
             emit(AS_Oper(
                 "\tpush {`s0}", NULL,
@@ -975,11 +969,12 @@ static void munchCall(AS_instr ins) {
           if (intArgNum < 4) {
             emitMovImm(NULL, Stringf("r%d", intArgNum), (uf){.i = arg});
           } else {
-            emitMovImm(NULL, "r0", (uf){.i = arg});
-            emit(AS_Oper("\tpush {r0}", NULL,
-                         Temp_TempList(armReg2Temp("r0"),
-                                       Temp_TempList(armReg2Temp("sp"), NULL)),
-                         NULL));
+            Temp_temp tmp = Temp_newtemp(T_int);
+            emitMovImm(tmp, NULL, (uf){.i = arg});
+            emit(AS_Oper(
+                "\tpush {`s0}", NULL,
+                Temp_TempList(tmp, Temp_TempList(armReg2Temp("sp"), NULL)),
+                NULL));
             stackArgNum++;
           }
           intArgNum++;
@@ -990,11 +985,12 @@ static void munchCall(AS_instr ins) {
           if (floatArgNum < 4) {
             emitMovImm(NULL, Stringf("s%d", floatArgNum), (uf){.f = arg});
           } else {
-            emitMovImm(NULL, "r0", (uf){.f = arg});
-            emit(AS_Oper("\tpush {r0}", NULL,
-                         Temp_TempList(armReg2Temp("r0"),
-                                       Temp_TempList(armReg2Temp("sp"), NULL)),
-                         NULL));
+            Temp_temp tmp = Temp_newtemp(T_float);
+            emitMovImm(tmp, NULL, (uf){.f = arg});
+            emit(AS_Oper(
+                "\tpush {`s0}", NULL,
+                Temp_TempList(tmp, Temp_TempList(armReg2Temp("sp"), NULL)),
+                NULL));
             stackArgNum++;
           }
           floatArgNum++;
@@ -1015,16 +1011,225 @@ static void munchCall(AS_instr ins) {
     }
   }
 
-  // at last, move this to r0
-  emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
-               Temp_TempList(this, NULL)));
-
   // call the method
   emit(AS_Oper("\tblx `s0", NULL, Temp_TempList(methAddr, NULL), NULL));
 
   // move the return value to dst
+  switch (ins->u.OPER.dst->head->type) {
+    case T_int: {
+      emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
+                   Temp_TempList(armReg2Temp("r0"), NULL)));
+      break;
+    }
+    case T_float: {
+      emit(AS_Move("\tvmov.f32 `d0, s0", ins->u.OPER.dst,
+                   Temp_TempList(armReg2Temp("s0"), NULL)));
+      break;
+    }
+    default: {
+      fprintf(stderr, "Error: unknown temp type\n");
+      exit(1);
+    }
+  }
+}
+
+static void munchMalloc(AS_instr ins) {
+  ASSERT(ins->u.OPER.dst, "no dest for malloc");
+  ASSERT(ins->u.OPER.dst->tail == NULL, "malloc dst should only have one temp");
+  if (!ins->u.OPER.src) {
+    // parse the const value
+    char *s = strchr(ins->u.OPER.assem, '(');
+    ASSERT(s, "malloc should have (");
+    while (*s != ' ') {
+      s++;
+    }
+    while (*s == ' ') {
+      s++;
+    }
+    int size = atoi(s);
+    emitMovImm(NULL, "r0", (uf){.i = size});
+    emit(AS_Oper("\tbl =malloc", NULL, NULL, NULL));
+    emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
+                 Temp_TempList(armReg2Temp("r0"), NULL)));
+  } else {
+    emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
+                 ins->u.OPER.src));
+    emit(AS_Oper("\tbl =malloc", NULL, NULL, NULL));
+    emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
+                 Temp_TempList(armReg2Temp("r0"), NULL)));
+  }
+}
+
+static void munchGetNumOrCh(AS_instr ins, string func) {
+  ASSERT(ins->u.OPER.dst, "no dest for getIntOrCh");
+  ASSERT(!ins->u.OPER.dst->tail, "getIntOrCh dst should only have one temp");
+  ASSERT(!ins->u.OPER.src, "getIntOrCh should not have src");
+
+  emit(AS_Oper(Stringf("\tbl =%s", func), NULL, NULL, NULL));
+
+  switch (ins->u.OPER.dst->head->type) {
+    case T_int: {
+      emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
+                   Temp_TempList(armReg2Temp("r0"), NULL)));
+      break;
+    }
+    case T_float: {
+      emit(AS_Move("\tvmov.f32 `d0, s0", ins->u.OPER.dst,
+                   Temp_TempList(armReg2Temp("s0"), NULL)));
+      break;
+    }
+    default: {
+      fprintf(stderr, "Error: unknown temp type\n");
+      exit(1);
+    }
+  }
+}
+
+static void munchGetArray(AS_instr ins, string func) {
+  ASSERT(ins->u.OPER.dst, "no dest for getArray");
+  ASSERT(!ins->u.OPER.dst->tail, "getArray dst should only have one temp");
+  ASSERT(ins->u.OPER.src, "getArray should have src");
+  ASSERT(!ins->u.OPER.src->tail, "getArray src should only have one temp");
+
+  emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
+               ins->u.OPER.src));
+  emit(AS_Oper(Stringf("\tbl =%s", func), NULL, NULL, NULL));
   emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
                Temp_TempList(armReg2Temp("r0"), NULL)));
+}
+
+static void munchPutNumOrCh(AS_instr ins, string func) {
+  ASSERT(!ins->u.OPER.dst, "putNumOrCh should not have dst");
+
+  if (!ins->u.OPER.src) {
+    // parse the const value
+    char *s = strchr(ins->u.OPER.assem, '(');
+    ASSERT(s, "putNumOrCh should have (");
+    s++;
+    T_type type;
+    switch (*s) {
+      case 'i': {
+        type = T_int;
+        break;
+      }
+      case 'd': {
+        type = T_float;
+        break;
+      }
+      default: {
+        fprintf(stderr, "Error: unknown type in putNumOrCh\n");
+        exit(1);
+      }
+    }
+    while (*s != ' ') {
+      s++;
+    }
+    while (*s == ' ') {
+      s++;
+    }
+
+    switch (type) {
+      case T_int: {
+        int num = atoi(s);
+        emitMovImm(NULL, "r0", (uf){.i = num});
+        break;
+      }
+      case T_float: {
+        float num = atof(s);
+        emitMovImm(NULL, "s0", (uf){.f = num});
+        break;
+      }
+    }
+  } else {
+    ASSERT(!ins->u.OPER.src->tail, "putNumOrCh src should only have one temp");
+    switch (ins->u.OPER.src->head->type) {
+      case T_int: {
+        emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
+                     ins->u.OPER.src));
+        break;
+      }
+      case T_float: {
+        emit(AS_Move("\tvmov.f32 s0, `s0",
+                     Temp_TempList(armReg2Temp("s0"), NULL), ins->u.OPER.src));
+        break;
+      }
+      default: {
+        fprintf(stderr, "Error: unknown temp type\n");
+        exit(1);
+      }
+    }
+  }
+
+  emit(AS_Oper(Stringf("\tbl =%s", func), NULL, NULL, NULL));
+}
+
+static void munchPutArray(AS_instr ins, string func) {
+  ASSERT(!ins->u.OPER.dst, "putArray should not have dst");
+  ASSERT(ins->u.OPER.src, "putArray should have src");
+
+  if (!ins->u.OPER.src->tail) {
+    // parse the const value
+    char *s = strchr(ins->u.OPER.assem, '(');
+    ASSERT(s, "putArray should have (");
+    while (*s != ' ') {
+      s++;
+    }
+    while (*s == ' ') {
+      s++;
+    }
+
+    int num = atoi(s);
+    emitMovImm(NULL, "r0", (uf){.i = num});
+    emit(AS_Move("\tmov r1, `s0", Temp_TempList(armReg2Temp("r1"), NULL),
+                 ins->u.OPER.src));
+  } else {
+    Temp_temp pos = ins->u.OPER.src->head;
+    Temp_temp arr = ins->u.OPER.src->tail->head;
+    emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
+                 Temp_TempList(pos, NULL)));
+    emit(AS_Move("\tmov r1, `s0", Temp_TempList(armReg2Temp("r1"), NULL),
+                 Temp_TempList(arr, NULL)));
+  }
+
+  emit(AS_Oper(Stringf("\tbl =%s", func), NULL, NULL, NULL));
+}
+
+static inline void munchTime(string func) {
+  emit(AS_Oper(Stringf("\tbl =%s", func), NULL, NULL, NULL));
+}
+
+static void munchExtCall(AS_instr ins) {
+  string assem = ins->u.OPER.assem;
+  if (!strncmp(assem, "%`d0 = call i64* @malloc", 24)) {
+    munchMalloc(ins);
+  } else if (!strncmp(assem, "%`d0 = call i64 @getint", 23)) {
+    munchGetNumOrCh(ins, "getint");
+  } else if (!strncmp(assem, "%`d0 = call i64 @getch", 22)) {
+    munchGetNumOrCh(ins, "getch");
+  } else if (!strncmp(assem, "%`d0 = call double @getfloat", 28)) {
+    munchGetNumOrCh(ins, "getfloat");
+  } else if (!strncmp(assem, "%`d0 = call i64 @getarray", 25)) {
+    munchGetArray(ins, "getarray");
+  } else if (!strncmp(assem, "%`d0 = call i64 @getfarray", 26)) {
+    munchGetArray(ins, "getfarray");
+  } else if (!strncmp(assem, "call void @putint", 17)) {
+    munchPutNumOrCh(ins, "putint");
+  } else if (!strncmp(assem, "call void @putch", 16)) {
+    munchPutNumOrCh(ins, "putch");
+  } else if (!strncmp(assem, "call void @putfloat", 19)) {
+    munchPutNumOrCh(ins, "putfloat");
+  } else if (!strncmp(assem, "call void @putarray", 19)) {
+    munchPutArray(ins, "putarray");
+  } else if (!strncmp(assem, "call void @putfarray", 20)) {
+    munchPutArray(ins, "putfarray");
+  } else if (!strcmp(assem, "call void @starttime()")) {
+    munchTime("starttime");
+  } else if (!strcmp(assem, "call void @stoptime()")) {
+    munchTime("stoptime");
+  } else {
+    fprintf(stderr, "Error: unknown external call\n");
+    exit(1);
+  }
 }
 
 AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
@@ -1117,6 +1322,10 @@ AS_instrList armbody(AS_instrList il, Temp_label retLabel) {
       }
       case CALL: {
         munchCall(ins);
+        break;
+      }
+      case EXTCALL: {
+        munchExtCall(ins);
         break;
       }
     }
