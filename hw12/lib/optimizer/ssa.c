@@ -6,11 +6,38 @@
 #include "bitmap.h"
 #include "graph.h"
 
+#define ASSERT_DEBUG
+
+#ifdef ASSERT_DEBUG
+#define ASSERT(condition, errInfo)         \
+  do {                                     \
+    if (condition)                         \
+      NULL;                                \
+    else                                   \
+      Assert(__FILE__, __LINE__, errInfo); \
+  } while (0)
+#else
+#define ASSERT(condition, errInfo) \
+  do {                             \
+    NULL;                          \
+  } while (0)
+#endif
+
+static void Assert(char *filename, unsigned int lineno, char *errInfo) {
+  fflush(stdout);
+  fprintf(stderr, "Assertion failed at %s:%u: %s\n", filename, lineno, errInfo);
+  fflush(stderr);
+  abort();
+}
+
 #define SSA_DEBUG
 #undef SSA_DEBUG
 
 #define SSA_DEC_DEBUG
 #undef SSA_DEC_DEBUG
+
+#define SSA_REORDER_DEBUG
+#undef SSA_REORDER_DEBUG
 
 #define LT_DEBUG
 #undef LT_DEBUG
@@ -1105,6 +1132,11 @@ static G_node splitNewBlock(G_graph bg, G_node u, G_node v) {
       p->head = new_label;
     }
   }
+  for (Temp_labelList p = u_block->succs; p; p = p->tail) {
+    if (p->head == vLabel) {
+      p->head = new_label;
+    }
+  }
 
   // add the new block to the graph
   G_node new_node = G_Node(bg, new_block);
@@ -1120,6 +1152,188 @@ static G_node splitNewBlock(G_graph bg, G_node u, G_node v) {
   G_addEdge(new_node, v);
 
   return new_node;
+}
+
+typedef struct block_trace_ *block_trace;
+struct block_trace_ {
+  G_node node;
+  bool isVisited;
+};
+static block_trace BlockTrace(G_node node) {
+  block_trace trace = (block_trace)checked_malloc(sizeof *trace);
+  trace->node = node;
+  trace->isVisited = FALSE;
+  return trace;
+}
+
+static Temp_labelList reorderBlockList;
+static Temp_labelList rblTail;
+static S_table reorderNodeEnv;
+
+static void addBlock(Temp_label label) {
+  if (!reorderBlockList) {
+    reorderBlockList = rblTail = Temp_LabelList(label, NULL);
+  } else {
+    rblTail->tail = Temp_LabelList(label, NULL);
+    rblTail = rblTail->tail;
+  }
+}
+
+static AS_instrList getLast(AS_block b) {
+  AS_instrList instrs = b->instrs;
+  while (instrs->tail->tail) {
+    instrs = instrs->tail;
+  }
+  return instrs;
+}
+
+static struct {
+  const char *op;
+  const char *reverse_op;
+} operators[] = {
+    {"oeq", "one"}, {"one", "oeq"}, {"ogt", "ole"}, {"oge", "olt"},
+    {"olt", "oge"}, {"ole", "ogt"}, {"eq", "ne"},   {"ne", "eq"},
+    {"sgt", "sle"}, {"sge", "slt"}, {"slt", "sge"}, {"sle", "sgt"},
+};
+
+static void flipCmpIns(AS_instr cmp) {
+  int numOfOps = sizeof(operators) / sizeof(operators[0]);
+  char *pos = NULL;
+  for (int i = 0; i < numOfOps; ++i) {
+    pos = strstr(cmp->u.OPER.assem, operators[i].op);
+    if (pos) {
+      strncpy(pos, operators[i].reverse_op, strlen(operators[i].reverse_op));
+      break;
+    }
+  }
+  if (!pos) {
+    fprintf(stderr, "Error: no operator found\n");
+    exit(1);
+  }
+}
+
+static void trace(block_trace btrace) {
+#ifdef SSA_REORDER_DEBUG
+  fprintf(out, "trace: %s\n",
+          Temp_labelstring(((AS_block)G_nodeInfo(btrace->node))->label));
+#endif
+  btrace->isVisited = TRUE;
+  AS_block b = G_nodeInfo(btrace->node);
+  addBlock(b->label);
+  AS_instrList last = getLast(b);
+  AS_instr lastIns = last->tail->head;
+  ASSERT(lastIns->kind == I_OPER, "last instr is not I_OPER");
+  string assem = lastIns->u.OPER.assem;
+
+  if (!strncmp(assem, "ret", 3)) {  // return stm
+    return;
+  } else if (!strncmp(assem, "br label", 8)) {  // jump stm
+    Temp_labelList bsuccs = lastIns->u.OPER.jumps->labels;
+    block_trace succ = (block_trace)S_look(reorderNodeEnv, bsuccs->head);
+    ASSERT(succ, "succ is NULL");
+    if (!succ->isVisited) {
+      trace(succ);
+    }
+  } else if (!strncmp(assem, "br i1", 5)) {  // cmp or jump stm
+    Temp_labelList bsuccs = lastIns->u.OPER.jumps->labels;
+    Temp_label t = bsuccs->head;
+    Temp_label f = bsuccs->tail->head;
+
+    block_trace t_trace = (block_trace)S_look(reorderNodeEnv, t);
+    block_trace f_trace = (block_trace)S_look(reorderNodeEnv, f);
+
+    if (!f_trace->isVisited) {
+      // make f the next block
+      trace(f_trace);
+    } else if (!t_trace->isVisited) {
+      // flip t and f
+      b->succs = Temp_LabelList(f, Temp_LabelList(t, NULL));
+      AS_instr cmpIns = last->head;
+      flipCmpIns(cmpIns);
+      AS_instr jmpIns = last->tail->head;
+      jmpIns->u.OPER.jumps->labels = b->succs;
+
+      // make f the next block
+      trace(f_trace);
+    } else {
+      // create a new block
+      Temp_label new_label = Temp_newlabel_prefix('S');
+      AS_instr labelIns =
+          AS_Label(Stringf("%s:", Temp_labelstring(new_label)), new_label);
+      AS_instr jmpIns = AS_Oper("br label \%`j0", NULL, NULL,
+                                AS_Targets(Temp_LabelList(f, NULL)));
+      AS_instrList instrs = AS_InstrList(labelIns, AS_InstrList(jmpIns, NULL));
+      AS_block new_block = AS_Block(instrs);
+
+      // change the original block's jump target
+      b->succs = Temp_LabelList(t, Temp_LabelList(new_label, NULL));
+      last->tail->head->u.OPER.jumps->labels = b->succs;
+
+      // add the new block to the graph
+      G_rmEdge(btrace->node, t_trace->node);
+      G_node new_node = G_Node(btrace->node->mygraph, new_block);
+      G_addEdge(btrace->node, new_node);
+      G_addEdge(new_node, t_trace->node);
+
+      // make the new block the next block
+      addBlock(new_label);
+    }
+  } else {
+    ASSERT(0, "Not jump or ret!");
+  }
+}
+
+static void traceLoop(G_graph ssa_bg) {
+  G_nodeList nodeList = G_nodes(ssa_bg);
+  int originNodeCnt = ssa_bg->nodecount;
+  for (G_nodeList p = nodeList; p && originNodeCnt;
+       p = p->tail, --originNodeCnt) {
+    AS_block b = G_nodeInfo(p->head);
+    block_trace btrace = (block_trace)S_look(reorderNodeEnv, b->label);
+    ASSERT(btrace, "btrace is NULL");
+#ifdef SSA_REORDER_DEBUG
+    fprintf(out, "traceLoop: %s\n", Temp_labelstring(b->label));
+#endif
+    if (!btrace->isVisited) {
+      trace(btrace);
+    }
+  }
+}
+
+// Make every CJUMP(_t, f) is immediately followed by LABEL f
+// Note: this function does not eliminate the redundant JUMP
+static void reorderBlocks(G_graph ssa_bg) {
+  reorderBlockList = rblTail = NULL;
+  reorderNodeEnv = S_empty();
+
+  for (G_nodeList p = G_nodes(ssa_bg); p; p = p->tail) {
+    AS_block b = G_nodeInfo(p->head);
+    S_enter(reorderNodeEnv, b->label, (void *)BlockTrace(p->head));
+  }
+
+#ifdef SSA_REORDER_DEBUG
+  fprintf(out, "reorderBlocks: %d\n", G_nodes(ssa_bg)->head->mykey);
+#endif
+  traceLoop(ssa_bg);
+#ifdef SSA_REORDER_DEBUG
+  fprintf(out, "reorderBlocks done\n");
+#endif
+
+  G_nodeList reorderNodeList = NULL;
+  G_nodeList last = NULL;
+  int cnt = 0;
+  for (Temp_labelList p = reorderBlockList; p; p = p->tail) {
+    block_trace btrace = (block_trace)S_look(reorderNodeEnv, p->head);
+    btrace->node->mykey = cnt++;
+    if (!reorderNodeList) {
+      reorderNodeList = last = G_NodeList(btrace->node, NULL);
+    } else {
+      last->tail = G_NodeList(btrace->node, NULL);
+      last = last->tail;
+    }
+  }
+  ssa_bg->mynodes = reorderNodeList;
+  ssa_bg->mylast = last;
 }
 
 AS_instrList SSA_deconstruct(AS_instrList bodyil, G_graph ssa_bg) {
@@ -1227,6 +1441,9 @@ AS_instrList SSA_deconstruct(AS_instrList bodyil, G_graph ssa_bg) {
       pre->tail = cur->tail;
     }
   }
+
+  // reorder the blocks
+  reorderBlocks(ssa_bg);
 
   AS_instrList result = NULL;
   for (G_nodeList p = G_nodes(ssa_bg); p; p = p->tail) {
