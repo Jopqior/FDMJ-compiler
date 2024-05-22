@@ -275,7 +275,7 @@ static void emitMovImm(Temp_temp dt, string ds, uf imm) {
 }
 
 static void munchLabel(AS_instr ins) {
-  emit(AS_Label(Stringf(".%s:", Temp_labelstring(ins->u.LABEL.label)),
+  emit(AS_Label(Stringf("%s:", Temp_labelstring(ins->u.LABEL.label)),
                 ins->u.LABEL.label));
 }
 
@@ -297,7 +297,7 @@ static void munchMove(AS_instr ins) {
 }
 
 static void munchBr(AS_instr ins) {
-  emit(AS_Oper("\tb .`j0", NULL, NULL, ins->u.OPER.jumps));
+  emit(AS_Oper("\tb `j0", NULL, NULL, ins->u.OPER.jumps));
 }
 
 static void munchRet(AS_instr ins) {
@@ -784,7 +784,7 @@ static void munchName(AS_instr ins) {
   char *name = checked_malloc(end - s + 1);
   strncpy(name, s, end - s);
   name[end - s] = '\0';
-  emit(AS_Oper(Stringf("\tldr `d0, =%s", name), ins->u.OPER.dst, NULL, NULL));
+  emit(AS_Oper(Stringf("\tldr `d0, %s", name), ins->u.OPER.dst, NULL, NULL));
 }
 
 static void munchLoad(AS_instr ins) {
@@ -1048,13 +1048,13 @@ static void munchMalloc(AS_instr ins) {
     }
     int size = atoi(s);
     emitMovImm(NULL, "r0", (uf){.i = size});
-    emit(AS_Oper("\tbl =malloc", NULL, NULL, NULL));
+    emit(AS_Oper("\tblx malloc", NULL, NULL, NULL));
     emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
                  Temp_TempList(armReg2Temp("r0"), NULL)));
   } else {
     emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
                  ins->u.OPER.src));
-    emit(AS_Oper("\tbl =malloc", NULL, NULL, NULL));
+    emit(AS_Oper("\tblx malloc", NULL, NULL, NULL));
     emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
                  Temp_TempList(armReg2Temp("r0"), NULL)));
   }
@@ -1065,7 +1065,7 @@ static void munchGetNumOrCh(AS_instr ins, string func) {
   ASSERT(!ins->u.OPER.dst->tail, "getIntOrCh dst should only have one temp");
   ASSERT(!ins->u.OPER.src, "getIntOrCh should not have src");
 
-  emit(AS_Oper(Stringf("\tbl =%s", func), NULL, NULL, NULL));
+  emit(AS_Oper(Stringf("\tblx %s", func), NULL, NULL, NULL));
 
   switch (ins->u.OPER.dst->head->type) {
     case T_int: {
@@ -1093,7 +1093,7 @@ static void munchGetArray(AS_instr ins, string func) {
 
   emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
                ins->u.OPER.src));
-  emit(AS_Oper(Stringf("\tbl =%s", func), NULL, NULL, NULL));
+  emit(AS_Oper(Stringf("\tblx %s", func), NULL, NULL, NULL));
   emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
                Temp_TempList(armReg2Temp("r0"), NULL)));
 }
@@ -1160,7 +1160,7 @@ static void munchPutNumOrCh(AS_instr ins, string func) {
     }
   }
 
-  emit(AS_Oper(Stringf("\tbl =%s", func), NULL, NULL, NULL));
+  emit(AS_Oper(Stringf("\tblx %s", func), NULL, NULL, NULL));
 }
 
 static void munchPutArray(AS_instr ins, string func) {
@@ -1191,11 +1191,11 @@ static void munchPutArray(AS_instr ins, string func) {
                  Temp_TempList(arr, NULL)));
   }
 
-  emit(AS_Oper(Stringf("\tbl =%s", func), NULL, NULL, NULL));
+  emit(AS_Oper(Stringf("\tblx %s", func), NULL, NULL, NULL));
 }
 
 static inline void munchTime(string func) {
-  emit(AS_Oper(Stringf("\tbl =%s", func), NULL, NULL, NULL));
+  emit(AS_Oper(Stringf("\tblx %s", func), NULL, NULL, NULL));
 }
 
 static void munchExtCall(AS_instr ins) {
