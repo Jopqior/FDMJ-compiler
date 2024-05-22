@@ -17,7 +17,7 @@
   } while (0)
 #endif
 
-void Assert(char *filename, unsigned int lineno, char *errInfo) {
+static void Assert(char *filename, unsigned int lineno, char *errInfo) {
   fflush(stdout);
   fprintf(stderr, "Assertion failed at %s:%u: %s\n", filename, lineno, errInfo);
   fflush(stderr);
@@ -1233,11 +1233,235 @@ static void munchExtCall(AS_instr ins) {
 }
 
 static void munchIcmpBr(AS_instr cmp, AS_instr br) {
-  // TODO: implement this
+  Temp_label t = br->u.OPER.jumps->labels->head;
+
+  string assem = cmp->u.OPER.assem;
+  // first parse the comparison op
+  string op;
+  int prelen;
+  if (!strncmp(assem, "%`d0 = icmp eq", 14)) {
+    op = "eq";
+    prelen = 14;
+  } else if (!strncmp(assem, "%`d0 = icmp ne", 14)) {
+    op = "ne";
+    prelen = 14;
+  } else if (!strncmp(assem, "%`d0 = icmp slt", 15)) {
+    op = "lt";
+    prelen = 15;
+  } else if (!strncmp(assem, "%`d0 = icmp sgt", 15)) {
+    op = "gt";
+    prelen = 15;
+  } else if (!strncmp(assem, "%`d0 = icmp sle", 15)) {
+    op = "le";
+    prelen = 15;
+  } else if (!strncmp(assem, "%`d0 = icmp sge", 15)) {
+    op = "ge";
+    prelen = 15;
+  } else {
+    fprintf(stderr, "Error: unknown icmp op\n");
+    exit(1);
+  }
+
+  if (!cmp->u.OPER.src) {
+    // parse the two const values
+    char *s = assem + prelen;
+    while (*s == ' ') {
+      s++;
+    }
+    while (*s != ' ') {
+      s++;  // skip the type
+    }
+    while (*s == ' ') {
+      s++;
+    }
+    int src1 = atoi(s);
+    while (*s != ',') {
+      s++;
+    }
+    s++;
+    while (*s == ' ') {
+      s++;
+    }
+    int src2 = atoi(s);
+    bool res;
+    if (!strcmp(op, "eq")) {
+      res = src1 == src2;
+    } else if (!strcmp(op, "ne")) {
+      res = src1 != src2;
+    } else if (!strcmp(op, "lt")) {
+      res = src1 < src2;
+    } else if (!strcmp(op, "gt")) {
+      res = src1 > src2;
+    } else if (!strcmp(op, "le")) {
+      res = src1 <= src2;
+    } else if (!strcmp(op, "ge")) {
+      res = src1 >= src2;
+    } else {
+      fprintf(stderr, "Error: unknown icmp op\n");
+      exit(1);
+    }
+    if (res) {
+      emit(AS_Oper(Stringf("\tmovs `d0, #0", op), cmp->u.OPER.dst, NULL, NULL));
+    } else {
+      emit(AS_Oper(Stringf("\tmovs `d0, #1", op), cmp->u.OPER.dst, NULL, NULL));
+    }
+    emit(AS_Oper("\tbeq `j0", NULL, NULL, AS_Targets(Temp_LabelList(t, NULL))));
+    return;
+  } else if (!cmp->u.OPER.src->tail) {
+    Temp_temp src1 = cmp->u.OPER.src->head;
+    int src2 = 0;
+    char *s = assem + prelen;
+    while (*s == ' ') {
+      s++;
+    }
+    while (*s != ' ') {
+      s++;  // skip the type
+    }
+    while (*s == ' ') {
+      s++;
+    }
+    if (*s == '%') {
+      // the second src is a temp
+      while (*s != ',') {
+        s++;
+      }
+      s++;
+      while (*s == ' ') {
+        s++;
+      }
+      src2 = atoi(s);
+    } else {
+      src2 = atoi(s);
+    }
+
+    if (isImm8(src2)) {
+      emit(AS_Oper(Stringf("\tcmp `s0, #%d", src2), NULL,
+                   Temp_TempList(src1, NULL), NULL));
+    } else {
+      Temp_temp tmp = Temp_newtemp(T_int);
+      emitMovImm(tmp, NULL, (uf){.i = src2});
+      emit(AS_Oper("\tcmp `s0, `s1", NULL,
+                   Temp_TempList(src1, Temp_TempList(tmp, NULL)), NULL));
+    }
+  } else {
+    emit(AS_Oper("\tcmp `s0, `s1", NULL, cmp->u.OPER.src, NULL));
+  }
+  emit(AS_Oper(Stringf("\tb%s `j0", op), NULL, NULL,
+               AS_Targets(Temp_LabelList(t, NULL))));
 }
 
 static void munchFcmpBr(AS_instr cmp, AS_instr br) {
-  // TODO: implement this
+  Temp_label t = br->u.OPER.jumps->labels->head;
+
+  string assem = cmp->u.OPER.assem;
+  // first parse the comparison op
+  string op;
+  int prelen;
+  if (!strncmp(assem, "%`d0 = fcmp oeq", 15)) {
+    op = "eq";
+    prelen = 15;
+  } else if (!strncmp(assem, "%`d0 = fcmp one", 15)) {
+    op = "ne";
+    prelen = 15;
+  } else if (!strncmp(assem, "%`d0 = fcmp olt", 15)) {
+    op = "lt";
+    prelen = 15;
+  } else if (!strncmp(assem, "%`d0 = fcmp ogt", 15)) {
+    op = "gt";
+    prelen = 15;
+  } else if (!strncmp(assem, "%`d0 = fcmp ole", 15)) {
+    op = "le";
+    prelen = 15;
+  } else if (!strncmp(assem, "%`d0 = fcmp oge", 15)) {
+    op = "ge";
+    prelen = 15;
+  } else {
+    fprintf(stderr, "Error: unknown fcmp op\n");
+    exit(1);
+  }
+
+  if (!cmp->u.OPER.src) {
+    // parse the two const values
+    char *s = assem + prelen;
+    while (*s == ' ') {
+      s++;
+    }
+    while (*s != ' ') {
+      s++;  // skip the type
+    }
+    while (*s == ' ') {
+      s++;
+    }
+    float src1 = atof(s);
+    while (*s != ',') {
+      s++;
+    }
+    s++;
+    while (*s == ' ') {
+      s++;
+    }
+    float src2 = atof(s);
+    bool res;
+    if (!strcmp(op, "eq")) {
+      res = src1 == src2;
+    } else if (!strcmp(op, "ne")) {
+      res = src1 != src2;
+    } else if (!strcmp(op, "lt")) {
+      res = src1 < src2;
+    } else if (!strcmp(op, "gt")) {
+      res = src1 > src2;
+    } else if (!strcmp(op, "le")) {
+      res = src1 <= src2;
+    } else if (!strcmp(op, "ge")) {
+      res = src1 >= src2;
+    } else {
+      fprintf(stderr, "Error: unknown fcmp op\n");
+      exit(1);
+    }
+    if (res) {
+      emit(AS_Oper(Stringf("\tmovs `d0, #0", op), cmp->u.OPER.dst, NULL, NULL));
+    } else {
+      emit(AS_Oper(Stringf("\tmovs `d0, #1", op), cmp->u.OPER.dst, NULL, NULL));
+    }
+    emit(AS_Oper("\tbeq `j0", NULL, NULL, AS_Targets(Temp_LabelList(t, NULL))));
+    return;
+  } else if (!cmp->u.OPER.src->tail) {
+    Temp_temp src1 = cmp->u.OPER.src->head;
+    float src2 = 0;
+    char *s = assem + prelen;
+    while (*s == ' ') {
+      s++;
+    }
+    while (*s != ' ') {
+      s++;  // skip the type
+    }
+    while (*s == ' ') {
+      s++;
+    }
+    if (*s == '%') {
+      // the second src is a temp
+      while (*s != ',') {
+        s++;
+      }
+      s++;
+      while (*s == ' ') {
+        s++;
+      }
+      src2 = atof(s);
+    } else {
+      src2 = atof(s);
+    }
+
+    Temp_temp tmp = Temp_newtemp(T_float);
+    emitMovImm(tmp, NULL, (uf){.f = src2});
+    emit(AS_Oper("\tvcmp.f32 `s0, `s1", NULL,
+                 Temp_TempList(src1, Temp_TempList(tmp, NULL)), NULL));
+  } else {
+    emit(AS_Oper("\tvcmp.f32 `s0, `s1", NULL, cmp->u.OPER.src, NULL));
+  }
+  emit(AS_Oper("\tvmrs APSR_nzcv, FPSCR", NULL, NULL, NULL));
+  emit(AS_Oper(Stringf("\tb%s `j0", op), NULL, NULL,
+               AS_Targets(Temp_LabelList(t, NULL))));
 }
 
 AS_instrList armbody(AS_instrList il) {
