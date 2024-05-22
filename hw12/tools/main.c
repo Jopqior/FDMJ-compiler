@@ -238,7 +238,7 @@ int main(int argc, const char * argv[]) {
 
     //print the AS_instrList to the arm file
     G_graph ssa_bg = Create_SSA_bg(bg);
-    AS_instrList bodyil_wo_SSA = SSA_deconstruct(bodyil_in_SSA, ssa_bg);
+    AS_instrList bodyil_wo_SSA = SSA_destruction(bodyil_in_SSA, ssa_bg);
 
     AS_instrList prologil_arm = armprolog(AS_InstrList(prologi, NULL));
     AS_instrList epilogil_arm = armepilog(AS_InstrList(epilogi, NULL));

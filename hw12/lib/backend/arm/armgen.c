@@ -199,6 +199,15 @@ AS_type gettype(AS_instr ins) {
   return ret;
 }
 
+static Temp_tempList getCalleeSavedRegs() {
+  Temp_tempList calleeSavedRegs = NULL;
+  for (int i = 4; i <= 10; i++) {
+    calleeSavedRegs = Temp_TempListSplice(
+        calleeSavedRegs, Temp_TempList(Temp_namedtemp(i, T_int), NULL));
+  }
+  return calleeSavedRegs;
+}
+
 static void emitMovImm(Temp_temp dt, string ds, uf imm) {
   ASSERT(dt || ds, "no temp for mov imm");
 
@@ -355,6 +364,8 @@ static void munchRet(AS_instr ins) {
   }
 
   // TODO: restore the callee-saved registers
+  emit(AS_Oper("\tpop {r4, r5, r6, r7, r8, r9, r10}", getCalleeSavedRegs(),
+               NULL, NULL));
 
   // restore the frame pointer
   emit(AS_Move("\tmov sp, fp", Temp_TempList(armReg2Temp("sp"), NULL),
@@ -1642,6 +1653,8 @@ AS_instrList armprolog(AS_instrList il) {
                Temp_TempList(armReg2Temp("lr"), NULL)));
 
   // TODO: save the callee-saved registers
+  emit(AS_Oper("\tpush {r4, r5, r6, r7, r8, r9, r10}", NULL,
+               getCalleeSavedRegs(), NULL));
 
   // parse the args
   int intArgNum = 0, floatArgNum = 0;

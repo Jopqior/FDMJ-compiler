@@ -1336,7 +1336,7 @@ static void reorderBlocks(G_graph ssa_bg) {
   ssa_bg->mylast = last;
 }
 
-AS_instrList SSA_deconstruct(AS_instrList bodyil, G_graph ssa_bg) {
+AS_instrList SSA_destruction(AS_instrList bodyil, G_graph ssa_bg) {
   if (!isSSA) {
     return bodyil;
   }
