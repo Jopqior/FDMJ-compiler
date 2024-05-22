@@ -366,11 +366,69 @@ static void munchRet(AS_instr ins) {
   emit(AS_Oper("\tbx `s0", NULL, Temp_TempList(lrTemp, NULL), NULL));
 }
 
-typedef enum { OP_ADD, OP_SUB, OP_MUL, OP_DIV } OP_type;
+typedef struct {
+  uf const1;
+  uf const2;
+} constPair;
+
+// parse the two const values in the op
+// e.g. for "add i64 1, 2", s is at ' ' just after add
+static constPair parseOpExpConstPair(char *s) {
+  T_type type;
+  while (*s == ' ') {
+    s++;
+  }
+  switch (*s) {
+    case 'i': {
+      type = T_int;
+      break;
+    }
+    case 'd': {
+      type = T_float;
+      break;
+    }
+    default: {
+      fprintf(stderr, "Error: unknown type in parseOpExpConstPair\n");
+      exit(1);
+    }
+  }
+  while (*s != ' ') {
+    s++;
+  }
+  while (*s == ' ') {
+    s++;
+  }
+  switch (type) {
+    case T_int: {
+      int src1 = atoi(s);
+      while (*s != ',') {
+        s++;
+      }
+      s++;
+      while (*s == ' ') {
+        s++;
+      }
+      int src2 = atoi(s);
+      return (constPair){.const1 = (uf){.i = src1}, .const2 = (uf){.i = src2}};
+    }
+    case T_float: {
+      float src1 = atof(s);
+      while (*s != ',') {
+        s++;
+      }
+      s++;
+      while (*s == ' ') {
+        s++;
+      }
+      float src2 = atof(s);
+      return (constPair){.const1 = (uf){.f = src1}, .const2 = (uf){.f = src2}};
+    }
+  }
+}
 
 // s must be at the end of op
-// e.g. for "add %r0, %r1, 1", s is at ' ' just after add
-static uf parseOpExpConst(char *s, OP_type optype, bool isBothConst) {
+// e.g. for "add i64 %`s0, 1", s is at ' ' just after add
+static uf parseOpExpConst(char *s) {
   T_type type;
   while (*s == ' ') {
     s++;
@@ -397,8 +455,9 @@ static uf parseOpExpConst(char *s, OP_type optype, bool isBothConst) {
   }
   switch (type) {
     case T_int: {
-      if (isBothConst) {
-        int src1 = atoi(s);
+      int src;
+      if (*s == '%') {
+        // first src is a temp, second src is a const
         while (*s != ',') {
           s++;
         }
@@ -406,52 +465,16 @@ static uf parseOpExpConst(char *s, OP_type optype, bool isBothConst) {
         while (*s == ' ') {
           s++;
         }
-        int src2 = atoi(s);
-        int res;
-        switch (optype) {
-          case OP_ADD: {
-            res = src1 + src2;
-            break;
-          }
-          case OP_SUB: {
-            res = src1 - src2;
-            break;
-          }
-          case OP_MUL: {
-            res = src1 * src2;
-            break;
-          }
-          case OP_DIV: {
-            if (src2 == 0) {
-              fprintf(stderr, "Error: division by zero\n");
-              exit(1);
-            }
-            res = src1 / src2;
-            break;
-          }
-        }
-        return (uf){.i = res};
+        src = atoi(s);
       } else {
-        int src;
-        if (*s == '%') {
-          // first src is a temp, second src is a const
-          while (*s != ',') {
-            s++;
-          }
-          s++;
-          while (*s == ' ') {
-            s++;
-          }
-          src = atoi(s);
-        } else {
-          src = atoi(s);
-        }
-        return (uf){.i = src};
+        src = atoi(s);
       }
+      return (uf){.i = src};
     }
     case T_float: {
-      if (isBothConst) {
-        float src1 = atof(s);
+      float src;
+      if (*s == '%') {
+        // first src is a temp, second src is a const
         while (*s != ',') {
           s++;
         }
@@ -459,48 +482,11 @@ static uf parseOpExpConst(char *s, OP_type optype, bool isBothConst) {
         while (*s == ' ') {
           s++;
         }
-        float src2 = atof(s);
-        float res;
-        switch (optype) {
-          case OP_ADD: {
-            res = src1 + src2;
-            break;
-          }
-          case OP_SUB: {
-            res = src1 - src2;
-            break;
-          }
-          case OP_MUL: {
-            res = src1 * src2;
-            break;
-          }
-          case OP_DIV: {
-            if (src2 == 0) {
-              fprintf(stderr, "Error: division by zero\n");
-              exit(1);
-            }
-            res = src1 / src2;
-            break;
-          }
-        }
-        return (uf){.f = res};
+        src = atof(s);
       } else {
-        float src;
-        if (*s == '%') {
-          // first src is a temp, second src is a const
-          while (*s != ',') {
-            s++;
-          }
-          s++;
-          while (*s == ' ') {
-            s++;
-          }
-          src = atof(s);
-        } else {
-          src = atof(s);
-        }
-        return (uf){.f = src};
+        src = atof(s);
       }
+      return (uf){.f = src};
     }
   }
 }
@@ -512,11 +498,11 @@ static void munchAdd(AS_instr ins) {
 
   if (!srcs) {
     // parse the two const values
-    uf res = parseOpExpConst(ins->u.OPER.assem + 11, OP_ADD, TRUE);
-    emitMovImm(dst, NULL, res);
+    constPair res = parseOpExpConstPair(ins->u.OPER.assem + 11);
+    emitMovImm(dst, NULL, (uf){.i = res.const1.i + res.const2.i});
   } else if (!srcs->tail) {
     Temp_temp srct = srcs->head;
-    uf srci = parseOpExpConst(ins->u.OPER.assem + 11, OP_ADD, FALSE);
+    uf srci = parseOpExpConst(ins->u.OPER.assem + 11);
     if (isImm8(srci.u)) {
       emit(AS_Oper(Stringf("\tadd `d0, `s0, #%d", srci.i),
                    Temp_TempList(dst, NULL), srcs, NULL));
@@ -538,11 +524,11 @@ static void munchFadd(AS_instr ins) {
 
   if (!srcs) {
     // parse the two const values
-    uf res = parseOpExpConst(ins->u.OPER.assem + 12, OP_ADD, TRUE);
-    emitMovImm(dst, NULL, res);
+    constPair res = parseOpExpConstPair(ins->u.OPER.assem + 12);
+    emitMovImm(dst, NULL, (uf){.f = res.const1.f + res.const2.f});
   } else if (!srcs->tail) {
     Temp_temp srct = srcs->head;
-    uf srcf = parseOpExpConst(ins->u.OPER.assem + 12, OP_ADD, FALSE);
+    uf srcf = parseOpExpConst(ins->u.OPER.assem + 12);
     Temp_temp tmp = Temp_newtemp(T_float);
     emitMovImm(tmp, NULL, srcf);
     emit(AS_Oper("\tvadd.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
@@ -560,11 +546,11 @@ static void munchSub(AS_instr ins) {
 
   if (!srcs) {
     // parse the two const values
-    uf res = parseOpExpConst(ins->u.OPER.assem + 11, OP_SUB, TRUE);
-    emitMovImm(dst, NULL, res);
+    constPair res = parseOpExpConstPair(ins->u.OPER.assem + 11);
+    emitMovImm(dst, NULL, (uf){.i = res.const1.i - res.const2.i});
   } else if (!srcs->tail) {
     Temp_temp srct = srcs->head;
-    uf srci = parseOpExpConst(ins->u.OPER.assem + 11, OP_SUB, FALSE);
+    uf srci = parseOpExpConst(ins->u.OPER.assem + 11);
     if (isImm8(srci.u)) {
       emit(AS_Oper(Stringf("\tsub `d0, `s0, #%d", srci.i),
                    Temp_TempList(dst, NULL), srcs, NULL));
@@ -586,11 +572,11 @@ static void munchFsub(AS_instr ins) {
 
   if (!srcs) {
     // parse the two const values
-    uf res = parseOpExpConst(ins->u.OPER.assem + 12, OP_SUB, TRUE);
-    emitMovImm(dst, NULL, res);
+    constPair res = parseOpExpConstPair(ins->u.OPER.assem + 12);
+    emitMovImm(dst, NULL, (uf){.f = res.const1.f - res.const2.f});
   } else if (!srcs->tail) {
     Temp_temp srct = srcs->head;
-    uf srcf = parseOpExpConst(ins->u.OPER.assem + 12, OP_SUB, FALSE);
+    uf srcf = parseOpExpConst(ins->u.OPER.assem + 12);
     Temp_temp tmp = Temp_newtemp(T_float);
     emitMovImm(tmp, NULL, srcf);
     emit(AS_Oper("\tvsub.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
@@ -608,11 +594,11 @@ static void munchMul(AS_instr ins) {
 
   if (!srcs) {
     // parse the two const values
-    uf res = parseOpExpConst(ins->u.OPER.assem + 11, OP_MUL, TRUE);
-    emitMovImm(dst, NULL, res);
+    constPair res = parseOpExpConstPair(ins->u.OPER.assem + 11);
+    emitMovImm(dst, NULL, (uf){.i = res.const1.i * res.const2.i});
   } else if (!srcs->tail) {
     Temp_temp srct = srcs->head;
-    uf srci = parseOpExpConst(ins->u.OPER.assem + 11, OP_MUL, FALSE);
+    uf srci = parseOpExpConst(ins->u.OPER.assem + 11);
     Temp_temp tmp = Temp_newtemp(T_int);
     emitMovImm(tmp, NULL, srci);
     emit(AS_Oper("\tmul `d0, `s0, `s1", Temp_TempList(dst, NULL),
@@ -630,11 +616,11 @@ static void munchFmul(AS_instr ins) {
 
   if (!srcs) {
     // parse the two const values
-    uf res = parseOpExpConst(ins->u.OPER.assem + 12, OP_MUL, TRUE);
-    emitMovImm(dst, NULL, res);
+    constPair res = parseOpExpConstPair(ins->u.OPER.assem + 12);
+    emitMovImm(dst, NULL, (uf){.f = res.const1.f * res.const2.f});
   } else if (!srcs->tail) {
     Temp_temp srct = srcs->head;
-    uf srcf = parseOpExpConst(ins->u.OPER.assem + 12, OP_MUL, FALSE);
+    uf srcf = parseOpExpConst(ins->u.OPER.assem + 12);
     Temp_temp tmp = Temp_newtemp(T_float);
     emitMovImm(tmp, NULL, srcf);
     emit(AS_Oper("\tvmul.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
@@ -652,17 +638,23 @@ static void munchDiv(AS_instr ins) {
 
   if (!srcs) {
     // parse the two const values
-    uf res = parseOpExpConst(ins->u.OPER.assem + 12, OP_DIV, TRUE);
-    emitMovImm(dst, NULL, res);
+    constPair res = parseOpExpConstPair(ins->u.OPER.assem + 11);
+    emitMovImm(NULL, "r0", (uf){.i = res.const1.i});
+    emitMovImm(NULL, "r1", (uf){.i = res.const2.i});
+    emit(AS_Oper("\tblx __aeabi_idiv", NULL, NULL, NULL));
   } else if (!srcs->tail) {
     Temp_temp srct = srcs->head;
-    uf srci = parseOpExpConst(ins->u.OPER.assem + 12, OP_DIV, FALSE);
-    Temp_temp tmp = Temp_newtemp(T_int);
-    emitMovImm(tmp, NULL, srci);
-    emit(AS_Oper("\tsdiv `d0, `s0, `s1", Temp_TempList(dst, NULL),
-                 Temp_TempList(srct, Temp_TempList(tmp, NULL)), NULL));
+    emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
+                 Temp_TempList(srct, NULL)));
+    uf srci = parseOpExpConst(ins->u.OPER.assem + 12);
+    emitMovImm(NULL, "r1", srci);
+    emit(AS_Oper("\tblx __aeabi_idiv", NULL, NULL, NULL));
   } else {
-    emit(AS_Oper("\tsdiv `d0, `s0, `s1", Temp_TempList(dst, NULL), srcs, NULL));
+    emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
+                 Temp_TempList(srcs->head, NULL)));
+    emit(AS_Move("\tmov r1, `s0", Temp_TempList(armReg2Temp("r1"), NULL),
+                 Temp_TempList(srcs->tail->head, NULL)));
+    emit(AS_Oper("\tblx __aeabi_idiv", NULL, NULL, NULL));
   }
 }
 
@@ -673,11 +665,20 @@ static void munchFdiv(AS_instr ins) {
 
   if (!srcs) {
     // parse the two const values
-    uf res = parseOpExpConst(ins->u.OPER.assem + 12, OP_DIV, TRUE);
-    emitMovImm(dst, NULL, res);
+    constPair res = parseOpExpConstPair(ins->u.OPER.assem + 12);
+    if (res.const2.f == 0) {
+      Temp_temp tmp1 = Temp_newtemp(T_float);
+      emitMovImm(tmp1, NULL, res.const1);
+      Temp_temp tmp2 = Temp_newtemp(T_float);
+      emitMovImm(tmp2, NULL, res.const2);
+      emit(AS_Oper("\tvdiv.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
+                   Temp_TempList(tmp1, Temp_TempList(tmp2, NULL)), NULL));
+    } else {
+      emitMovImm(dst, NULL, (uf){.f = res.const1.f / res.const2.f});
+    }
   } else if (!srcs->tail) {
     Temp_temp srct = srcs->head;
-    uf srcf = parseOpExpConst(ins->u.OPER.assem + 12, OP_DIV, FALSE);
+    uf srcf = parseOpExpConst(ins->u.OPER.assem + 12);
     Temp_temp tmp = Temp_newtemp(T_float);
     emitMovImm(tmp, NULL, srcf);
     emit(AS_Oper("\tvdiv.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
