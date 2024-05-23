@@ -32,8 +32,6 @@ static void Assert(char *filename, unsigned int lineno, char *errInfo) {
 
 #define IMM8_MAX 255
 
-static Temp_temp lrTemp = NULL;
-
 #define ARMREGSTART 0
 #define FLOATREGSTART 20
 
@@ -364,17 +362,16 @@ static void munchRet(AS_instr ins) {
   }
 
   // TODO: restore the callee-saved registers
-  emit(AS_Oper("\tpop {r4, r5, r6, r7, r8, r9, r10}", getCalleeSavedRegs(),
+  emit(AS_Oper("\tsub sp, fp, #32", NULL, NULL, NULL));
+  emit(AS_Oper("\tpop {r4, r5, r6, r7, r8, r9, r10, lr}", getCalleeSavedRegs(),
                NULL, NULL));
 
   // restore the frame pointer
-  emit(AS_Move("\tmov sp, fp", Temp_TempList(armReg2Temp("sp"), NULL),
-               Temp_TempList(armReg2Temp("fp"), NULL)));
   emit(AS_Oper("\tpop {fp}", Temp_TempList(armReg2Temp("fp"), NULL),
                Temp_TempList(armReg2Temp("sp"), NULL), NULL));
 
   // branch to the lrTemp
-  emit(AS_Oper("\tbx `s0", NULL, Temp_TempList(lrTemp, NULL), NULL));
+  emit(AS_Oper("\tbx lr", NULL, Temp_TempList(armReg2Temp("lr"), NULL), NULL));
 }
 
 typedef struct {
@@ -796,7 +793,7 @@ static void munchName(AS_instr ins) {
   char *name = checked_malloc(end - s + 1);
   strncpy(name, s, end - s);
   name[end - s] = '\0';
-  emit(AS_Oper(Stringf("\tldr `d0, %s", name), ins->u.OPER.dst, NULL, NULL));
+  emit(AS_Oper(Stringf("\tldr `d0, = %s", name), ins->u.OPER.dst, NULL, NULL));
 }
 
 static void munchLoad(AS_instr ins) {
@@ -1645,15 +1642,9 @@ AS_instrList armprolog(AS_instrList il) {
   // set the frame pointer
   emit(AS_Move("\tmov fp, sp", Temp_TempList(armReg2Temp("fp"), NULL),
                Temp_TempList(armReg2Temp("sp"), NULL)));
-  // save the link register in lrTemp
-  if (!lrTemp) {
-    lrTemp = Temp_newtemp(T_int);
-  }
-  emit(AS_Move("\tmov `d0, lr", Temp_TempList(lrTemp, NULL),
-               Temp_TempList(armReg2Temp("lr"), NULL)));
 
   // TODO: save the callee-saved registers
-  emit(AS_Oper("\tpush {r4, r5, r6, r7, r8, r9, r10}", NULL,
+  emit(AS_Oper("\tpush {r4, r5, r6, r7, r8, r9, r10, lr}", NULL,
                getCalleeSavedRegs(), NULL));
 
   // parse the args

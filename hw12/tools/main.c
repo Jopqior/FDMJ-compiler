@@ -40,6 +40,8 @@ static void print_to_ssa_file(string file_ssa, AS_instrList il) {
 
 static void print_to_arm_file(string file_arm, AS_instrList il, string funcname) {
     freopen(file_arm, "a", stdout);
+    fprintf(stdout, "\t.text\n");
+    fprintf(stdout, "\t.align 1\n");
     fprintf(stdout, "\t.global %s\n", funcname);
     AS_printInstrList(stdout, il, Temp_name());
     fflush(stdout);
