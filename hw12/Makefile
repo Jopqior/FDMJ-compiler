@@ -79,5 +79,5 @@ handin:
 	fi; \
 	echo "请输入'学号-姓名' (例如: 12345678910-某个人)"; \
 	read filename; \
-	zip -q -r "docs/$$filename-hw9_10.zip" \
-	  docs/report.pdf include lib
+	zip -q -r "docs/$$filename-hw12.zip" \
+	  docs/report.pdf include lib tools
