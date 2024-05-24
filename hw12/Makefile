@@ -89,7 +89,6 @@ llvm2arm: clean
 	done; \
 	cd $(CURDIR)
 
-
 handin:
 	@if [ ! -f docs/report.pdf ]; then \
 		echo "请先在docs文件夹下攥写报告, 并转换为'report.pdf'"; \
@@ -98,4 +97,4 @@ handin:
 	echo "请输入'学号-姓名' (例如: 12345678910-某个人)"; \
 	read filename; \
 	zip -q -r "docs/$$filename-hw12.zip" \
-	  docs/report.pdf include lib
+	  docs/report.pdf include lib tools
