@@ -11,7 +11,9 @@ typedef char bool;
 #define IR_MAXLEN 200
 
 void *checked_malloc(int);
+void *checked_calloc(int, int);
 string String(char *);
+string Stringf(const char *, ...);
 
 typedef struct U_boolList_ *U_boolList;
 struct U_boolList_ {
