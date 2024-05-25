@@ -1,9 +1,0 @@
-// test class
-public int main() {
-}
-
-public class my_class {
-}
-
-public class son_class extends my_class {
-}

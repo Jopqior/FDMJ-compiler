@@ -1,5 +1,0 @@
-public int main() {
-  float b=1;
-  while (b) b=0; 
-  return b;
-}

@@ -1,8 +1,0 @@
-// test call
-public int main() {
-    starttime();
-    putnum(getnum());
-    putch(6.6);
-    stoptime();
-    return 0;
-}

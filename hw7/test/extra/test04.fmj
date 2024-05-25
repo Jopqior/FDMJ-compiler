@@ -1,7 +1,0 @@
-// test eseq
-public int main() {
-    int a = 10;
-    int b;
-    b = ({a=a+1;} ({a=a+2;} a));
-    return b;
-}

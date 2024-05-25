@@ -1,4 +1,0 @@
-public int main() {
-    int a;
-    return this.a;
-}

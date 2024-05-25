@@ -1,4 +1,0 @@
-// test return
-public int main() {
-    return 0;
-}
