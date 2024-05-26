@@ -203,7 +203,18 @@ static Temp_tempList getCalleeSavedRegs() {
     calleeSavedRegs = Temp_TempListSplice(
         calleeSavedRegs, Temp_TempList(Temp_namedtemp(i, T_int), NULL));
   }
+  calleeSavedRegs = Temp_TempListSplice(
+      calleeSavedRegs, Temp_TempList(Temp_namedtemp(14, T_int), NULL));
   return calleeSavedRegs;
+}
+
+static Temp_tempList getCallerSavedRegs() {
+  Temp_tempList callerSavedRegs = NULL;
+  for (int i = 0; i <= 3; ++i) {
+    callerSavedRegs = Temp_TempListSplice(
+        callerSavedRegs, Temp_TempList(Temp_namedtemp(i, T_int), NULL));
+  }
+  return callerSavedRegs;
 }
 
 static void emitMovImm(Temp_temp dt, string ds, uf imm) {
@@ -367,8 +378,7 @@ static void munchRet(AS_instr ins) {
                NULL, NULL));
 
   // restore the frame pointer
-  emit(AS_Oper("\tpop {fp}", Temp_TempList(armReg2Temp("fp"), NULL),
-               Temp_TempList(armReg2Temp("sp"), NULL), NULL));
+  emit(AS_Oper("\tpop {fp}", NULL, NULL, NULL));
 
   // branch to the lrTemp
   emit(AS_Oper("\tbx lr", NULL, Temp_TempList(armReg2Temp("lr"), NULL), NULL));
@@ -664,6 +674,8 @@ static void munchDiv(AS_instr ins) {
                  Temp_TempList(srcs->tail->head, NULL)));
     emit(AS_Oper("\tblx __aeabi_idiv", NULL, NULL, NULL));
   }
+  emit(AS_Move("\tmov `d0, r0", Temp_TempList(dst, NULL),
+               Temp_TempList(armReg2Temp("r0"), NULL)));
 }
 
 static void munchFdiv(AS_instr ins) {
@@ -940,10 +952,7 @@ static void munchCall(AS_instr ins) {
                 Temp_TempList(armReg2Temp(Stringf("r%d", intArgNum)), NULL),
                 Temp_TempList(arg, NULL)));
           } else {
-            emit(AS_Oper(
-                "\tpush {`s0}", NULL,
-                Temp_TempList(arg, Temp_TempList(armReg2Temp("sp"), NULL)),
-                NULL));
+            emit(AS_Oper("\tpush {`s0}", NULL, Temp_TempList(arg, NULL), NULL));
             stackArgNum++;
           }
           intArgNum++;
@@ -956,10 +965,7 @@ static void munchCall(AS_instr ins) {
                 Temp_TempList(armReg2Temp(Stringf("s%d", floatArgNum)), NULL),
                 Temp_TempList(arg, NULL)));
           } else {
-            emit(AS_Oper(
-                "\tpush {`s0}", NULL,
-                Temp_TempList(arg, Temp_TempList(armReg2Temp("sp"), NULL)),
-                NULL));
+            emit(AS_Oper("\tpush {`s0}", NULL, Temp_TempList(arg, NULL), NULL));
             stackArgNum++;
           }
           floatArgNum++;
@@ -980,10 +986,7 @@ static void munchCall(AS_instr ins) {
           } else {
             Temp_temp tmp = Temp_newtemp(T_int);
             emitMovImm(tmp, NULL, (uf){.i = arg});
-            emit(AS_Oper(
-                "\tpush {`s0}", NULL,
-                Temp_TempList(tmp, Temp_TempList(armReg2Temp("sp"), NULL)),
-                NULL));
+            emit(AS_Oper("\tpush {`s0}", NULL, Temp_TempList(tmp, NULL), NULL));
             stackArgNum++;
           }
           intArgNum++;
@@ -996,10 +999,7 @@ static void munchCall(AS_instr ins) {
           } else {
             Temp_temp tmp = Temp_newtemp(T_float);
             emitMovImm(tmp, NULL, (uf){.f = arg});
-            emit(AS_Oper(
-                "\tpush {`s0}", NULL,
-                Temp_TempList(tmp, Temp_TempList(armReg2Temp("sp"), NULL)),
-                NULL));
+            emit(AS_Oper("\tpush {`s0}", NULL, Temp_TempList(tmp, NULL), NULL));
             stackArgNum++;
           }
           floatArgNum++;
@@ -1635,13 +1635,9 @@ AS_instrList armprolog(AS_instrList il) {
   emit(AS_Oper(Stringf("%s:", funcname), NULL, NULL, NULL));
 
   // save the frame pointer
-  emit(AS_Oper(
-      "\tpush {fp}", NULL,
-      Temp_TempList(armReg2Temp("fp"), Temp_TempList(armReg2Temp("sp"), NULL)),
-      NULL));
+  emit(AS_Oper("\tpush {fp}", NULL, NULL, NULL));
   // set the frame pointer
-  emit(AS_Move("\tmov fp, sp", Temp_TempList(armReg2Temp("fp"), NULL),
-               Temp_TempList(armReg2Temp("sp"), NULL)));
+  emit(AS_Move("\tmov fp, sp", NULL, NULL));
 
   // TODO: save the callee-saved registers
   emit(AS_Oper("\tpush {r4, r5, r6, r7, r8, r9, r10, lr}", NULL,
@@ -1661,8 +1657,7 @@ AS_instrList armprolog(AS_instrList il) {
         } else {
           emit(AS_Oper(
               Stringf("\tldr `d0, [fp, #%d]", (++stackArgNum) * ARCH_SIZE),
-              Temp_TempList(arg, NULL), Temp_TempList(armReg2Temp("fp"), NULL),
-              NULL));
+              Temp_TempList(arg, NULL), NULL, NULL));
         }
         ++intArgNum;
         break;
@@ -1676,8 +1671,7 @@ AS_instrList armprolog(AS_instrList il) {
         } else {
           emit(AS_Oper(
               Stringf("\tvldr.f32 `d0, [fp, #%d]", (++stackArgNum) * ARCH_SIZE),
-              Temp_TempList(arg, NULL), Temp_TempList(armReg2Temp("fp"), NULL),
-              NULL));
+              Temp_TempList(arg, NULL), NULL, NULL));
         }
         ++floatArgNum;
         break;
