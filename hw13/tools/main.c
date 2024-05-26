@@ -114,6 +114,8 @@ int main(int argc, const char * argv[]) {
   sprintf(file_ssa, "%s.8.ssa", file);
   string file_arm= checked_malloc(IR_MAXLEN);
   sprintf(file_arm, "%s.9.arm", file);
+  string file_rpi= checked_malloc(IR_MAXLEN);
+  sprintf(file_rpi, "%s.10.rpi", file);
 
   XMLDocument doc;
 
@@ -243,6 +245,22 @@ int main(int argc, const char * argv[]) {
   fclose(stdout);
   // print the runtime functions for the 9.arm file
   freopen(file_arm,"a",stdout);
+  fprintf(stdout, ".global malloc\n");
+  fprintf(stdout, ".global getint\n");
+  fprintf(stdout, ".global getch\n");
+  fprintf(stdout, ".global getfloat\n");
+  fprintf(stdout, ".global getarray\n");
+  fprintf(stdout, ".global getfarray\n");
+  fprintf(stdout, ".global putint\n");
+  fprintf(stdout, ".global putch\n");
+  fprintf(stdout, ".global putfloat\n");
+  fprintf(stdout, ".global putarray\n");
+  fprintf(stdout, ".global putfarray\n");
+  fprintf(stdout, ".global starttime\n");
+  fprintf(stdout, ".global stoptime\n");
+  fclose(stdout);
+  
+  freopen(file_rpi,"a",stdout);
   fprintf(stdout, ".global malloc\n");
   fprintf(stdout, ".global getint\n");
   fprintf(stdout, ".global getch\n");
