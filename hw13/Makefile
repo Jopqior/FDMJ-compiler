@@ -30,6 +30,7 @@ clean:
 		-o -name "*.cfg" \
 		-o -name "*.arm" \
 		-o -name "*.debug" \
+		-o -name "*.ig" \
 		\) -exec $(RM) {} \;
 
 veryclean: clean

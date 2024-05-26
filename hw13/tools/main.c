@@ -12,6 +12,7 @@
 #include "print_ins.h"
 #include "armgen.h"
 #include "ssa.h"
+#include "regalloc.h"
 
 #define __DEBUG
 #undef __DEBUG
@@ -126,6 +127,10 @@ int main(int argc, const char * argv[]) {
   sprintf(file_ssa, "%s.8.ssa", file);
   string file_arm= checked_malloc(IR_MAXLEN);
   sprintf(file_arm, "%s.9.arm", file);
+  string file_rpi = checked_malloc(IR_MAXLEN);
+  sprintf(file_rpi, "%s.10.rpi", file);
+  string file_ig = checked_malloc(IR_MAXLEN);
+  sprintf(file_ig, "%s.11.ig", file);
 
   XMLDocument doc;
 
@@ -245,7 +250,35 @@ int main(int argc, const char * argv[]) {
     AS_instrList prologil_arm = armprolog(AS_InstrList(prologi, NULL));
     AS_instrList epilogil_arm = armepilog(AS_InstrList(epilogi, NULL));
     AS_instrList bodyil_arm = armbody(bodyil_wo_SSA);
-    print_to_arm_file(file_arm, AS_splice(AS_splice(prologil_arm, bodyil_arm), epilogil_arm), funcname);
+    AS_instrList finalarm = AS_splice(AS_splice(prologil_arm, bodyil_arm), epilogil_arm);
+    print_to_arm_file(file_arm, finalarm, funcname);
+
+    // rebuild liveness graph
+    G_graph arm_fg = FG_AssemFlowGraph(bodyil_arm);
+    freopen(file_ig, "a", stdout);
+    fprintf(stdout, "------Flow Graph------\n");
+    fflush(stdout);
+    G_show(stdout, G_nodes(arm_fg), (void*)FG_show);
+    fflush(stdout);
+    fclose(stdout);
+
+    G_nodeList arm_lg = Liveness(G_nodes(arm_fg));
+    freopen(file_ig, "a", stdout);
+    fprintf(stdout, "/* ------Liveness Graph------*/\n");
+    Show_Liveness(stdout, arm_lg);
+    fflush(stdout);
+    fclose(stdout);
+
+    // create interference graph
+    G_nodeList arm_ig = Create_ig(arm_lg);
+    freopen(file_ig, "a", stdout);
+    fprintf(stdout, "------Interference Graph------\n");
+    Show_ig(stdout, arm_ig);
+    fflush(stdout);
+    fclose(stdout);
+
+    // register allocation
+    AS_instrList arm_regalloc = regalloc(bodyil_arm, arm_ig);
   }
   // print the runtime functions for the 8.ssa file
   freopen(file_ssa, "a", stdout);
