@@ -374,8 +374,11 @@ static void munchRet(AS_instr ins) {
 
   // TODO: restore the callee-saved registers
   emit(AS_Oper("\tsub sp, fp, #32", NULL, NULL, NULL));
-  emit(AS_Oper("\tpop {r4, r5, r6, r7, r8, r9, r10, lr}", getCalleeSavedRegs(),
-               NULL, NULL));
+  emit(AS_Oper("\tpop {r4, r5, r6, r7, r8, r9, r10}", NULL, NULL, NULL));
+
+  // restore the link register
+  emit(AS_Oper("\tpop {lr}", Temp_TempList(armReg2Temp("lr"), NULL), NULL,
+               NULL));
 
   // restore the frame pointer
   emit(AS_Oper("\tpop {fp}", NULL, NULL, NULL));
@@ -1640,10 +1643,12 @@ AS_instrList armprolog(AS_instrList il) {
   emit(AS_Oper("\tpush {fp}", NULL, NULL, NULL));
   // set the frame pointer
   emit(AS_Move("\tmov fp, sp", NULL, NULL));
+  // save the link register
+  emit(AS_Oper("\tpush {lr}", NULL, Temp_TempList(armReg2Temp("lr"), NULL),
+               NULL));
 
   // TODO: save the callee-saved registers
-  emit(AS_Oper("\tpush {r4, r5, r6, r7, r8, r9, r10, lr}", NULL,
-               getCalleeSavedRegs(), NULL));
+  emit(AS_Oper("\tpush {r4, r5, r6, r7, r8, r9, r10}", NULL, NULL, NULL));
 
   // parse the args
   int intArgNum = 0, floatArgNum = 0;

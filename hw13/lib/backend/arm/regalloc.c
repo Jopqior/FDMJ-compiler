@@ -1,5 +1,7 @@
 #include "regalloc.h"
 
+#include "bitmap.h"
+
 #define ASSERT_DEBUG
 
 #ifdef ASSERT_DEBUG
@@ -30,16 +32,17 @@ static void Assert(char *filename, unsigned int lineno, char *errInfo) {
 #define REGALLOC_DEBUG
 #undef REGALLOC_DEBUG
 
-#define ARMREGSTART 0
-#define FLOATREGSTART 20
+#define ARM_REG_START 0
+#define FLOAT_REG_START 20
 
-#define MAX_NUM_REG 9        // r0-r7, and r8~r10 are reserved for spill
-#define MAX_NUM_FLOATREG 16  // s0-s15
+#define MAX_NUM_REG 10      // r0-r8 + lr, and r9~r10 are reserved for spill
+#define MAX_NUM_FLOATREG 32  // s0-s31
 
 typedef struct COL_tempInfo_ *COL_tempInfo;
 struct COL_tempInfo_ {
   G_node node;
   int degree;
+  int color;
 };
 
 typedef struct COL_result_ *COL_result;
@@ -55,10 +58,11 @@ static G_nodeList selectStack = NULL;
 
 static bool Temp_isPrecolored(Temp_temp temp) { return temp->num < 99; }
 
-static COL_tempInfo COL_TempInfo(G_node node, int degree) {
+static COL_tempInfo COL_TempInfo(G_node node, int degree, int color) {
   COL_tempInfo info = checked_malloc(sizeof(*info));
   info->node = node;
   info->degree = degree;
+  info->color = color;
   return info;
 }
 
@@ -97,14 +101,14 @@ static void COL_initPreColor(Temp_map coloring) {
   ASSERT(coloring, "coloring is NULL");
   Temp_temp reg;
   for (int i = 0; i <= 10; ++i) {
-    reg = Temp_namedtemp(i + ARMREGSTART, T_int);
+    reg = Temp_namedtemp(i + ARM_REG_START, T_int);
     Temp_enter(coloring, reg, Stringf("r%d", i));
   }
-  reg = Temp_namedtemp(14 + ARMREGSTART, T_int);
+  reg = Temp_namedtemp(14 + ARM_REG_START, T_int);
   Temp_enter(coloring, reg, "lr");
 
   for (int i = 0; i <= 15; ++i) {
-    reg = Temp_namedtemp(i + FLOATREGSTART, T_float);
+    reg = Temp_namedtemp(i + FLOAT_REG_START, T_float);
     Temp_enter(coloring, reg, Stringf("s%d", i));
   }
 #ifdef COLOR_DEBUG
@@ -112,10 +116,7 @@ static void COL_initPreColor(Temp_map coloring) {
 #endif
 }
 
-static void COL_buildWorklist(G_graph ig) {
-#ifdef COLOR_DEBUG
-  fprintf(stderr, "Start building worklist\n");
-#endif
+static void COL_initColEnv(G_graph ig) {
   if (!colEnv) {
     colEnv = TAB_empty();
   }
@@ -123,12 +124,36 @@ static void COL_buildWorklist(G_graph ig) {
   for (G_nodeList nl = G_nodes(ig); nl; nl = nl->tail) {
     G_node n = nl->head;
     Temp_temp temp = G_nodeInfo(n);
+    COL_tempInfo info = COL_TempInfo(n, G_degree(n), -1);
+
+    if (Temp_isPrecolored(temp)) {
+      switch (temp->type) {
+        case T_int:
+          info->color = temp->num == 14 ? MAX_NUM_REG - 1 : temp->num;
+          break;
+        case T_float:
+          info->color = temp->num - FLOAT_REG_START;
+          break;
+        default:
+          ASSERT(0, "Unknown temp type");
+      }
+    }
+
+    TAB_enter(colEnv, temp, info);
+  }
+}
+
+static void COL_buildWorklist(G_graph ig) {
+#ifdef COLOR_DEBUG
+  fprintf(stderr, "Start building worklist\n");
+#endif
+  for (G_nodeList nl = G_nodes(ig); nl; nl = nl->tail) {
+    G_node n = nl->head;
+    Temp_temp temp = G_nodeInfo(n);
     if (Temp_isPrecolored(temp)) {
       continue;
     }
-    COL_tempInfo info = COL_TempInfo(n, G_degree(n));
-    TAB_enter(colEnv, temp, info);
-
+    COL_tempInfo info = TAB_look(colEnv, temp);
     switch (temp->type) {
       case T_int:
         if (info->degree >= MAX_NUM_REG) {
@@ -240,12 +265,60 @@ static void COL_spill(COL_result res) {
   }
 }
 
+static void COL_assignColor(Temp_map coloring) {
+  for (G_nodeList nl = selectStack; nl; nl = nl->tail) {
+    G_node n = nl->head;
+    Temp_temp temp = G_nodeInfo(n);
+    switch (temp->type) {
+      case T_int: {
+        bitmap b = Bitmap(MAX_NUM_REG);
+        bitmap_set_all(b);
+        for (G_nodeList nl = G_adj(n); nl; nl = nl->tail) {
+          Temp_temp t = G_nodeInfo(nl->head);
+          COL_tempInfo info = TAB_look(colEnv, t);
+          ASSERT(info, "info is NULL");
+          if (info->color != -1) {
+            bitmap_clear(b, info->color);
+          }
+        }
+        int c = bitmap_get_first(b);
+        ASSERT(c != -1, "No available color");
+        COL_tempInfo info = TAB_look(colEnv, temp);
+        info->color = c;
+        Temp_enter(coloring, temp, Stringf("r%d", c));
+        break;
+      }
+      case T_float: {
+        bitmap b = Bitmap(MAX_NUM_FLOATREG);
+        bitmap_set_all(b);
+        for (G_nodeList nl = G_adj(n); nl; nl = nl->tail) {
+          Temp_temp t = G_nodeInfo(nl->head);
+          COL_tempInfo info = TAB_look(colEnv, t);
+          ASSERT(info, "info is NULL");
+          if (info->color != -1) {
+            bitmap_clear(b, info->color);
+          }
+        }
+        int c = bitmap_get_first(b);
+        ASSERT(c != -1, "No available color");
+        COL_tempInfo info = TAB_look(colEnv, temp);
+        info->color = c;
+        Temp_enter(coloring, temp, Stringf("s%d", c));
+        break;
+      }
+      default:
+        ASSERT(0, "type error");
+    }
+  }
+}
+
 static COL_result COL_color(G_graph ig) {
 #ifdef COLOR_DEBUG
   fprintf(stderr, "Start coloring\n");
 #endif
   COL_result res = COL_Result(Temp_empty(), NULL);
   COL_initPreColor(res->coloring);
+  COL_initColEnv(ig);
   COL_buildWorklist(ig);
 #ifdef COLOR_DEBUG
   fprintf(stderr, "simplifyWorklist: ");
@@ -260,7 +333,6 @@ static COL_result COL_color(G_graph ig) {
   fprintf(stderr, "\n");
 #endif
 
-  int nodeCnt = ig->nodecount;
   while (simplyfyWorklist || spillWorklist) {
     if (simplyfyWorklist) {
       COL_simplify();
@@ -268,6 +340,28 @@ static COL_result COL_color(G_graph ig) {
       COL_spill(res);
     }
   }
+#ifdef COLOR_DEBUG
+  fprintf(stderr, "Select stack: ");
+  for (G_nodeList nl = selectStack; nl; nl = nl->tail) {
+    fprintf(stderr, "t%d ", ((Temp_temp)G_nodeInfo(nl->head))->num);
+  }
+  fprintf(stderr, "\n");
+  fprintf(stderr, "Spills: ");
+  for (Temp_tempList tl = res->spills; tl; tl = tl->tail) {
+    fprintf(stderr, "t%d ", tl->head->num);
+  }
+  fprintf(stderr, "\n");
+#endif
+
+  COL_assignColor(res->coloring);
+#ifdef COLOR_DEBUG
+  fprintf(stderr, "Coloring: \n");
+  for (G_nodeList nl = G_nodes(ig); nl; nl = nl->tail) {
+    Temp_temp temp = G_nodeInfo(nl->head);
+    if (Temp_isPrecolored(temp)) continue;
+    fprintf(stderr, "t%d: %s\n", temp->num, Temp_look(res->coloring, temp));
+  }
+#endif
 
 #ifdef COLOR_DEBUG
   fprintf(stderr, "Finish coloring\n");
