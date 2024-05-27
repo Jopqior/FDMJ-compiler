@@ -12,5 +12,6 @@ build
 *.cfg
 *.ssa
 *.arm
+*.rpi
 *.debug
 *.ig

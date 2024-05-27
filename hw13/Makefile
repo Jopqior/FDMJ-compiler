@@ -16,7 +16,7 @@ TEST_DIR  = "$(CURDIR)/test"
 
 MAKEFLAGS = --no-print-directory
 
-.PHONY: build clean veryclean rebuild test test-extra handin
+.PHONY: build clean veryclean rebuild test test-extra test-run handin
 
 build:
 	@cmake -G Ninja -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release; \
@@ -27,8 +27,8 @@ clean:
 		-name "*.ll" -o -name "*.xml" -o -name "*.output" \
 		-o -name "*.src" -o -name "*.ast" -o -name "*.irp" \
 		-o -name "*.stm" -o -name "*.ins" -o -name "*.ssa" \
-		-o -name "*.cfg" \
-		-o -name "*.arm" \
+		-o -name "*.cfg" -o -name "*.rpi" -o -name "*.arm" \
+		-o -name "*.s" \
 		-o -name "*.debug" \
 		-o -name "*.ig" \
 		\) -exec $(RM) {} \;
@@ -60,6 +60,23 @@ test-extra: clean
 			$(FMJ2AST) "$${file%%.*}"; \
 			$(AST2IRP) -f xml "$${file%%.*}"; \
 			$(IRP2LLVM) "$${file%%.*}"; \
+			$(MAIN_EXE) "$${file%%.*}"; \
+		fi \
+	done; \
+	cd $(CURDIR)
+
+test-run: clean
+	@cd $(TEST_DIR); \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(AST2IRP) -f xml "$${file%%.*}" && \
+			$(IRP2LLVM) "$${file%%.*}" && \
+			$(MAIN_EXE)  "$${file%%.*}" && \
+			$(ARMCC) -mcpu=cortex-a72 "$${file%%.*}".10.rpi $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$${file%%.*}".s && \
+			$(QEMU) -B 0x1000 "$${file%%.*}".s > "$${file%%.*}".output && \
+			echo $$?; \
 		fi \
 	done; \
 	cd $(CURDIR)
