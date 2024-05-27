@@ -278,6 +278,7 @@ int main(int argc, const char * argv[]) {
     fclose(stdout);
 
     // TODO: register allocation
+    RA_result ra = RA_regAlloc(finalarm, arm_ig);
   }
   // print the runtime functions for the 8.ssa file
   freopen(file_ssa, "a", stdout);
