@@ -33,10 +33,22 @@ static void Assert(char *filename, unsigned int lineno, char *errInfo) {
 #define MAX_NUM_REG 8        // r0-r7, and r8~r10 are reserved for spill
 #define MAX_NUM_FLOATREG 16  // s0-s15
 
-typedef struct {
-  Temp_map coloring;
-  Temp_tempList spills;
-} RA_result;
+typedef struct RA_tempInfo_ *RA_tempInfo;
+struct RA_tempInfo_ {
+  Temp_temp temp;
+  G_node node;
+  bool precolored;
+  bool spilled;
+  int degree;
+  int color;
+};
+
+static RA_result RA_Result(Temp_map coloring, AS_instrList il) {
+  RA_result res = checked_malloc(sizeof(*res));
+  res->coloring = coloring;
+  res->il = il;
+  return res;
+}
 
 static void init_precolored_regs(Temp_map coloring) {
   Temp_temp reg;
@@ -53,7 +65,7 @@ static void init_precolored_regs(Temp_map coloring) {
   }
 }
 
-AS_instrList regalloc(AS_instrList il, G_nodeList ig_local) {
+RA_result RA_regAlloc(AS_instrList il, G_nodeList ig_local) {
   if (!il) return NULL;
   // TODO regalloc
 }

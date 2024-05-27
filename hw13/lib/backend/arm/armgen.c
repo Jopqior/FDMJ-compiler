@@ -1021,7 +1021,9 @@ static void munchCall(AS_instr ins) {
   }
 
   // call the method
-  emit(AS_Oper("\tblx `s0", NULL, Temp_TempList(methAddr, NULL), NULL));
+  emit(AS_Oper("\tblx `s0",
+               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()),
+               Temp_TempList(methAddr, NULL), NULL));
 
   // move the return value to dst
   switch (ins->u.OPER.dst->head->type) {

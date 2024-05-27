@@ -254,7 +254,7 @@ int main(int argc, const char * argv[]) {
     print_to_arm_file(file_arm, finalarm, funcname);
 
     // rebuild liveness graph
-    G_graph arm_fg = FG_AssemFlowGraph(bodyil_arm);
+    G_graph arm_fg = FG_AssemFlowGraph(finalarm);
     freopen(file_ig, "a", stdout);
     fprintf(stdout, "------Flow Graph------\n");
     fflush(stdout);
@@ -277,8 +277,7 @@ int main(int argc, const char * argv[]) {
     fflush(stdout);
     fclose(stdout);
 
-    // register allocation
-    AS_instrList arm_regalloc = regalloc(bodyil_arm, arm_ig);
+    // TODO: register allocation
   }
   // print the runtime functions for the 8.ssa file
   freopen(file_ssa, "a", stdout);
