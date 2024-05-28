@@ -657,20 +657,37 @@ static void munchDiv(AS_instr ins) {
     constPair res = parseOpExpConstPair(ins->u.OPER.assem + 11);
     emitMovImm(NULL, "r0", (uf){.i = res.const1.i});
     emitMovImm(NULL, "r1", (uf){.i = res.const2.i});
-    emit(AS_Oper("\tblx __aeabi_idiv", NULL, NULL, NULL));
+    emit(AS_Oper("\tblx __aeabi_idiv",
+                 Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
+                 NULL));
   } else if (!srcs->tail) {
     Temp_temp srct = srcs->head;
-    emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
-                 Temp_TempList(srct, NULL)));
     uf srci = parseOpExpConst(ins->u.OPER.assem + 12);
-    emitMovImm(NULL, "r1", srci);
-    emit(AS_Oper("\tblx __aeabi_idiv", NULL, NULL, NULL));
+
+    char *s1 = strchr(ins->u.OPER.assem, ',');
+    char *s2 = strchr(ins->u.OPER.assem, '`');
+    if (s1 < s2) {
+      // first src is a const, second src is a temp
+      emitMovImm(NULL, "r0", srci);
+      emit(AS_Move("\tmov r1, `s0", Temp_TempList(armReg2Temp("r1"), NULL),
+                   Temp_TempList(srct, NULL)));
+    } else {
+      // first src is a temp, second src is a const
+      emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
+                   Temp_TempList(srct, NULL)));
+      emitMovImm(NULL, "r1", srci);
+    }
+    emit(AS_Oper("\tblx __aeabi_idiv",
+                 Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
+                 NULL));
   } else {
     emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
                  Temp_TempList(srcs->head, NULL)));
     emit(AS_Move("\tmov r1, `s0", Temp_TempList(armReg2Temp("r1"), NULL),
                  Temp_TempList(srcs->tail->head, NULL)));
-    emit(AS_Oper("\tblx __aeabi_idiv", NULL, NULL, NULL));
+    emit(AS_Oper("\tblx __aeabi_idiv",
+                 Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
+                 NULL));
   }
   emit(AS_Move("\tmov `d0, r0", Temp_TempList(dst, NULL),
                Temp_TempList(armReg2Temp("r0"), NULL)));
@@ -1063,13 +1080,17 @@ static void munchMalloc(AS_instr ins) {
     }
     int size = atoi(s);
     emitMovImm(NULL, "r0", (uf){.i = size});
-    emit(AS_Oper("\tblx malloc", NULL, NULL, NULL));
+    emit(AS_Oper("\tblx malloc",
+                 Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
+                 NULL));
     emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
                  Temp_TempList(armReg2Temp("r0"), NULL)));
   } else {
     emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
                  ins->u.OPER.src));
-    emit(AS_Oper("\tblx malloc", getCallerSavedRegs(), NULL, NULL));
+    emit(AS_Oper("\tblx malloc",
+                 Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
+                 NULL));
     emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
                  Temp_TempList(armReg2Temp("r0"), NULL)));
   }
@@ -1080,7 +1101,9 @@ static void munchGetNumOrCh(AS_instr ins, string func) {
   ASSERT(!ins->u.OPER.dst->tail, "getIntOrCh dst should only have one temp");
   ASSERT(!ins->u.OPER.src, "getIntOrCh should not have src");
 
-  emit(AS_Oper(Stringf("\tblx %s", func), getCallerSavedRegs(), NULL, NULL));
+  emit(AS_Oper(Stringf("\tblx %s", func),
+               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
+               NULL));
 
   switch (ins->u.OPER.dst->head->type) {
     case T_int: {
@@ -1108,7 +1131,9 @@ static void munchGetArray(AS_instr ins, string func) {
 
   emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
                ins->u.OPER.src));
-  emit(AS_Oper(Stringf("\tblx %s", func), getCallerSavedRegs(), NULL, NULL));
+  emit(AS_Oper(Stringf("\tblx %s", func),
+               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
+               NULL));
   emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
                Temp_TempList(armReg2Temp("r0"), NULL)));
 }
@@ -1175,7 +1200,9 @@ static void munchPutNumOrCh(AS_instr ins, string func) {
     }
   }
 
-  emit(AS_Oper(Stringf("\tblx %s", func), getCallerSavedRegs(), NULL, NULL));
+  emit(AS_Oper(Stringf("\tblx %s", func),
+               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
+               NULL));
 }
 
 static void munchPutArray(AS_instr ins, string func) {
@@ -1206,11 +1233,15 @@ static void munchPutArray(AS_instr ins, string func) {
                  Temp_TempList(arr, NULL)));
   }
 
-  emit(AS_Oper(Stringf("\tblx %s", func), getCallerSavedRegs(), NULL, NULL));
+  emit(AS_Oper(Stringf("\tblx %s", func),
+               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
+               NULL));
 }
 
 static inline void munchTime(string func) {
-  emit(AS_Oper(Stringf("\tblx %s", func), getCallerSavedRegs(), NULL, NULL));
+  emit(AS_Oper(Stringf("\tblx %s", func),
+               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
+               NULL));
 }
 
 static void munchExtCall(AS_instr ins) {
