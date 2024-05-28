@@ -32,8 +32,8 @@ static void Assert(char *filename, unsigned int lineno, char *errInfo) {
 
 #define IMM8_MAX 255
 
-#define ARMREGSTART 0
-#define FLOATREGSTART 20
+#define ARM_REG_START 0
+#define FLOAT_REG_START 20
 
 static Temp_temp armReg2Temp(string reg) {
   if (!strcmp(reg, "pc")) {
@@ -46,10 +46,10 @@ static Temp_temp armReg2Temp(string reg) {
     return Temp_namedtemp(11, T_int);
   } else if (reg[0] == 'r') {
     int regnum = atoi(reg + 1);
-    return Temp_namedtemp(regnum + ARMREGSTART, T_int);
+    return Temp_namedtemp(regnum + ARM_REG_START, T_int);
   } else if (reg[0] == 's') {
     int regnum = atoi(reg + 1);
-    return Temp_namedtemp(regnum + FLOATREGSTART, T_float);
+    return Temp_namedtemp(regnum + FLOAT_REG_START, T_float);
   } else {
     fprintf(stderr, "Error: unknown register\n");
     exit(1);
@@ -197,22 +197,17 @@ AS_type gettype(AS_instr ins) {
   return ret;
 }
 
-static Temp_tempList getCalleeSavedRegs() {
-  Temp_tempList calleeSavedRegs = NULL;
-  for (int i = 4; i <= 10; i++) {
-    calleeSavedRegs = Temp_TempListSplice(
-        calleeSavedRegs, Temp_TempList(Temp_namedtemp(i, T_int), NULL));
-  }
-  calleeSavedRegs = Temp_TempListSplice(
-      calleeSavedRegs, Temp_TempList(Temp_namedtemp(14, T_int), NULL));
-  return calleeSavedRegs;
-}
-
 static Temp_tempList getCallerSavedRegs() {
   Temp_tempList callerSavedRegs = NULL;
   for (int i = 0; i <= 3; ++i) {
     callerSavedRegs = Temp_TempListSplice(
-        callerSavedRegs, Temp_TempList(Temp_namedtemp(i, T_int), NULL));
+        callerSavedRegs,
+        Temp_TempList(Temp_namedtemp(i + ARM_REG_START, T_int), NULL));
+  }
+  for (int i = 0; i <= 13; ++i) {
+    callerSavedRegs = Temp_TempListSplice(
+        callerSavedRegs,
+        Temp_TempList(Temp_namedtemp(i + FLOAT_REG_START, T_float), NULL));
   }
   return callerSavedRegs;
 }
@@ -1642,7 +1637,7 @@ AS_instrList armprolog(AS_instrList il) {
   // save the frame pointer
   emit(AS_Oper("\tpush {fp}", NULL, NULL, NULL));
   // set the frame pointer
-  emit(AS_Move("\tmov fp, sp", NULL, NULL));
+  emit(AS_Oper("\tmov fp, sp", NULL, NULL, NULL));
   // save the link register
   emit(AS_Oper("\tpush {lr}", NULL, Temp_TempList(armReg2Temp("lr"), NULL),
                NULL));
