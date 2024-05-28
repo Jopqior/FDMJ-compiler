@@ -1279,8 +1279,6 @@ static void munchExtCall(AS_instr ins) {
 }
 
 static void munchIcmpBr(AS_instr cmp, AS_instr br) {
-  Temp_label t = br->u.OPER.jumps->labels->head;
-
   string assem = cmp->u.OPER.assem;
   // first parse the comparison op
   string op;
@@ -1351,7 +1349,7 @@ static void munchIcmpBr(AS_instr cmp, AS_instr br) {
     } else {
       emit(AS_Oper(Stringf("\tmovs `d0, #1", op), cmp->u.OPER.dst, NULL, NULL));
     }
-    emit(AS_Oper("\tbeq `j0", NULL, NULL, AS_Targets(Temp_LabelList(t, NULL))));
+    emit(AS_Oper("\tbeq `j0", NULL, NULL, br->u.OPER.jumps));
     return;
   } else if (!cmp->u.OPER.src->tail) {
     Temp_temp src1 = cmp->u.OPER.src->head;
@@ -1392,13 +1390,10 @@ static void munchIcmpBr(AS_instr cmp, AS_instr br) {
   } else {
     emit(AS_Oper("\tcmp `s0, `s1", NULL, cmp->u.OPER.src, NULL));
   }
-  emit(AS_Oper(Stringf("\tb%s `j0", op), NULL, NULL,
-               AS_Targets(Temp_LabelList(t, NULL))));
+  emit(AS_Oper(Stringf("\tb%s `j0", op), NULL, NULL, br->u.OPER.jumps));
 }
 
 static void munchFcmpBr(AS_instr cmp, AS_instr br) {
-  Temp_label t = br->u.OPER.jumps->labels->head;
-
   string assem = cmp->u.OPER.assem;
   // first parse the comparison op
   string op;
@@ -1469,7 +1464,7 @@ static void munchFcmpBr(AS_instr cmp, AS_instr br) {
     } else {
       emit(AS_Oper(Stringf("\tmovs `d0, #1", op), cmp->u.OPER.dst, NULL, NULL));
     }
-    emit(AS_Oper("\tbeq `j0", NULL, NULL, AS_Targets(Temp_LabelList(t, NULL))));
+    emit(AS_Oper("\tbeq `j0", NULL, NULL, br->u.OPER.jumps));
     return;
   } else if (!cmp->u.OPER.src->tail) {
     Temp_temp src1 = cmp->u.OPER.src->head;
@@ -1506,8 +1501,7 @@ static void munchFcmpBr(AS_instr cmp, AS_instr br) {
     emit(AS_Oper("\tvcmp.f32 `s0, `s1", NULL, cmp->u.OPER.src, NULL));
   }
   emit(AS_Oper("\tvmrs APSR_nzcv, FPSCR", NULL, NULL, NULL));
-  emit(AS_Oper(Stringf("\tb%s `j0", op), NULL, NULL,
-               AS_Targets(Temp_LabelList(t, NULL))));
+  emit(AS_Oper(Stringf("\tb%s `j0", op), NULL, NULL, br->u.OPER.jumps));
 }
 
 AS_instrList armbody(AS_instrList il) {
