@@ -68,10 +68,32 @@ test-extra: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}"; \
-			$(AST2IRP) -f xml "$${file%%.*}"; \
-			$(IRP2LLVM) "$${file%%.*}"; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(AST2IRP) -f xml "$${file%%.*}" && \
+			$(IRP2LLVM) "$${file%%.*}" && \
+			$(MAIN_EXE)  "$${file%%.*}" && \
+			$(LLVMLINK) --opaque-pointers "$${file%%.*}".8.ssa $(BUILD_DIR)/vendor/libsysy/libsysy64.ll -S -o "$${file%%.*}".ll && \
+			$(LLI) -opaque-pointers "$${file%%.*}".ll > "$${file%%.*}".output && \
+			echo $$?; \
 		fi \
+	done; \
+	cd $(CURDIR)
+
+diff_all:
+	@cd $(TEST_DIR)/extra; \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "ans" ]; then \
+			base_name=$${file%%.*}; \
+			ans_file="$${base_name}.ans"; \
+			output_file="$${base_name}.output"; \
+			echo "test $${base_name}"; \
+			if [ -f "$${output_file}" ]; then \
+				# echo "Comparing $${output_file} and $${ans_file}"; \
+				diff "$${output_file}" "$${ans_file}"; \
+			else \
+				echo "Skipping $${base_name} as $${output_file} does not generated"; \
+			fi; \
+		fi; \
 	done; \
 	cd $(CURDIR)
 
@@ -86,6 +108,8 @@ irp2llvm:clean
 		fi \
 	done; \
 	cd $(CURDIR)
+
+
 
 handin:
 	@if [ ! -f docs/report.pdf ]; then \

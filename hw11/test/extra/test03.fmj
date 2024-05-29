@@ -1,0 +1,29 @@
+// test calculate
+public int main() {
+    int a = 1024;
+    int b = 32;
+    int ans;
+    float c;
+    b = a / b;
+    putnum(b);
+    putch(10);
+    putnum(a + 5 - 3 * 0);
+    putch(10);
+    b = ({a = - b + a;} b * b);
+    putnum(a);
+    putch(10);
+    putnum(b);
+    putch(10);
+    c = b + 1.2 - a * 5.6 / 7;
+    putnum(c);
+    putch(10);
+    return 0;
+}
+
+/*
+32 
+1029
+992
+1024
+231.600000
+*/

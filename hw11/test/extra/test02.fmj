@@ -1,0 +1,28 @@
+// test comments
+public int main() 
+/*{
+    putnum(32);
+    return 0;
+}*/
+{
+    /*
+    putnum(16);
+    return 0;
+    *///putnum(8);
+    putnum(4);//putnum(2);
+    putch(10);
+    //return -1;
+    starttime();
+    putnum(getnum());
+    putch(10);
+    stoptime();
+    return 0;
+}
+
+/*
+input: 
+2
+output:
+4
+2.000000
+*/

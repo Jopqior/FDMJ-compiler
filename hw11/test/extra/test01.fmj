@@ -1,0 +1,23 @@
+// test initialize
+public int main() {
+    int a;
+    int not_true = 233;
+    int [] c_;
+    int [] CS19={1975};
+    int [] cs_1024={1905,5,27};
+    float b=1.0;
+    float [] b_;
+    float [] b_19={19.75};
+    float [] b_1024={19.5,5.5,2.7};
+    class c1 FudanUniversity;
+    c_[] = {2024,5,22};
+    return 0;
+}
+
+public class c1 {
+}
+
+
+/*
+no output
+*/

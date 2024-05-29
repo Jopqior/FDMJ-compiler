@@ -1,0 +1,33 @@
+// Longest Increasing Subsequence
+public int main() {
+    int [] a = {2, 0, 2, 3, 6, 2, 5, 4, 2, 8};
+    int [] d;
+    int i = 1;
+    int j;
+    int n;
+    int ans = 1;
+    n = length(a);
+    d = new int[20];
+    d[0] = 1;
+    while (i < n) {
+        d[i] = 1;
+        j = 0;
+        while (j < i) {
+            if (a[j] < a[i]) {
+                if (d[j] + 1 > d[i])
+                    d[i] = d[j] + 1;
+            }
+            j = j + 1;
+        }
+        if (d[i] > ans)
+            ans = d[i];
+        i = i + 1;
+    }
+    putnum(ans);
+    putch(10);
+    return 0;
+}
+
+/*
+5
+*/

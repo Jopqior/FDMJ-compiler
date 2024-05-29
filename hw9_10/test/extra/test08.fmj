@@ -1,0 +1,39 @@
+// test method
+public int main() {
+    int[] a = {1, 2};
+    class c1 c;
+    class d1_m1 d;
+    c = new c1();
+    c.x = 5;
+    putnum(c.m(c, a, 233));
+    putch(10);
+    d = new d1_m1();
+    putnum(d.m2());
+    putch(10);
+    return 0;
+}
+
+public class c1 {
+    int x;
+    public int m (class c1 f1, int[] f2, int f3) {
+        return f1.x + f2[1] + f3;
+    }
+}
+
+public class d1 {
+    int x;
+    public int m1_m2() {
+        return 200;
+    }
+}
+
+public class d1_m1 extends d1 {
+    public int m2() {
+        return 300;
+    }
+}
+
+/*
+240
+300
+*/
