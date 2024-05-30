@@ -71,7 +71,7 @@ test-run: clean
 			$(AST2IRP) -f xml "$${file%%.*}" && \
 			$(IRP2LLVM) "$${file%%.*}" && \
 			$(MAIN_EXE)  "$${file%%.*}" && \
-			$(ARMCC) -mcpu=cortex-a72 "$${file%%.*}".10.rpi $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$${file%%.*}".s && \
+			$(ARMCC) -mcpu=cortex-a72 "$${file%%.*}".10.s $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$${file%%.*}".s && \
 			$(QEMU) -B 0x1000 "$${file%%.*}".s > "$${file%%.*}".output && \
 			echo $$?; \
 		fi \

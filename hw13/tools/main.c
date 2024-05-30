@@ -115,7 +115,7 @@ int main(int argc, const char * argv[]) {
   string file_arm= checked_malloc(IR_MAXLEN);
   sprintf(file_arm, "%s.9.arm", file);
   string file_rpi= checked_malloc(IR_MAXLEN);
-  sprintf(file_rpi, "%s.10.rpi", file);
+  sprintf(file_rpi, "%s.10.s", file);
 
   XMLDocument doc;
 
