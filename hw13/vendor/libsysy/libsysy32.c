@@ -1,5 +1,11 @@
 #include "libsysy32.h"
 
+float getfloat(){
+    float n;
+    scanf("%a", &n);
+    return n;
+}
+
 int getint() {
   int t;
   scanf("%d", &t);
@@ -20,6 +26,15 @@ int getarray(int a[]) {
   return n;
 }
 
+int getfarray(float a[]) {
+    int n;
+    scanf("%d", &n);
+    for (int i = 0; i < n; i++) {
+        scanf("%a", &a[i]);
+    }
+    return n;
+}
+
 void putint(int a) {
   printf("%d", a);
 }
@@ -28,11 +43,23 @@ void putch(int a) {
   printf("%c", a);
 }
 
+void putfloat(float a) {
+  printf("%f", a);
+}
+
 void putarray(int n, int a[]) {
   printf("%d:", n);
   for (int i = 0; i < n; i++)
     printf(" %d", a[i]);
   printf("\n");
+}
+
+void putfarray(int n, float a[]) {
+    printf("%d:", n);
+    for (int i = 0; i < n; i++) {
+        printf(" %a", a[i]);
+    }
+    printf("\n");
 }
 
 /* Timing function implementation */
