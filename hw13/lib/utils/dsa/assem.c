@@ -82,17 +82,27 @@ static void format(char *result, string assem,
       case 's': {
         int n = atoi(++p);
         string s = Temp_look(m, nthTemp(src, n));
-        strcpy(result + i, "r");
-        strcpy(result + i + 1, s);
-        i += (strlen(s) + 1);
+        if (s[0] >= '0' && s[0] <= '9') {
+          strcpy(result + i, "r");
+          strcpy(result + i + 1, s);
+          i += (strlen(s) + 1);
+        } else {
+          strcpy(result + i, s);
+          i += strlen(s);
+        }
       }
       break;
       case 'd': {
         int n = atoi(++p);
         string s = Temp_look(m, nthTemp(dst, n));
-        strcpy(result + i, "r");
-        strcpy(result + i + 1, s);
-        i += (strlen(s) + 1);
+        if (s[0] >= '0' && s[0] <= '9') {
+          strcpy(result + i, "r");
+          strcpy(result + i + 1, s);
+          i += (strlen(s) + 1);
+        } else {
+          strcpy(result + i, s);
+          i += strlen(s);
+        }        
       }
       break;
       case 'j':
