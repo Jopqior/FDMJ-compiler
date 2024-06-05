@@ -279,6 +279,15 @@ int main(int argc, const char * argv[]) {
 
     // TODO: register allocation
     RA_result ra = RA_regAlloc(finalarm, arm_ig);
+    Temp_map coloring = ra->coloring;
+    AS_instrList il = ra->il;
+    freopen(file_rpi, "a", stdout);
+    fprintf(stdout, "\t.text\n");
+    fprintf(stdout, "\t.align 2\n");
+    fprintf(stdout, "\t.global %s\n", funcname);
+    AS_printInstrList(stdout, il, coloring);
+    fflush(stdout);
+    fclose(stdout);
   }
   // print the runtime functions for the 8.ssa file
   freopen(file_ssa, "a", stdout);

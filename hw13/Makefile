@@ -74,11 +74,25 @@ test-run: clean
 			$(AST2IRP) -f xml "$${file%%.*}" && \
 			$(IRP2LLVM) "$${file%%.*}" && \
 			$(MAIN_EXE)  "$${file%%.*}" && \
-			$(ARMCC) -mcpu=cortex-a72 "$${file%%.*}".10.rpi $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$${file%%.*}".s && \
+			cp "$${file%%.*}".10.rpi "$${file%%.*}".10.s && \
+			$(ARMCC) -mcpu=cortex-a72 "$${file%%.*}".10.s $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$${file%%.*}".s && \
 			$(QEMU) -B 0x1000 "$${file%%.*}".s > "$${file%%.*}".output && \
 			echo $$?; \
 		fi \
 	done; \
+	cd $(CURDIR)
+
+run-one: clean
+	@cd $(TEST_DIR); \
+	echo "[$(FILE)]"; \
+	$(FMJ2AST) "$(FILE)" && \
+	$(AST2IRP) -f xml "$(FILE)" && \
+	$(IRP2LLVM) "$(FILE)" && \
+	$(MAIN_EXE)  "$(FILE)" && \
+	mv "$(FILE)".10.rpi "$(FILE)".10.s && \
+	$(ARMCC) -mcpu=cortex-a72 "$(FILE)".10.s $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$(FILE)".s && \
+	$(QEMU) -B 0x1000 "$(FILE)".s > "$(FILE)".output && \
+	echo $$?; \
 	cd $(CURDIR)
 
 irp2llvm:clean
