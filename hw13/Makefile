@@ -89,7 +89,7 @@ run-one: clean
 	$(IRP2LLVM) "$(FILE)" && \
 	$(MAIN_EXE)  "$(FILE)" && \
 	$(ARMCC) -mcpu=cortex-a72 "$(FILE)".10.s $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$(FILE)".s && \
-	$(QEMU) -B 0x1000 "$(FILE)".s > "$(FILE)".output && \
+	$(QEMU) -B 0x1000 "$(FILE)".s && \
 	echo $$?; \
 	cd $(CURDIR)
 
@@ -128,3 +128,41 @@ handin:
 	read filename; \
 	zip -q -r "docs/$$filename-hw13.zip" \
 	  docs/report.pdf include lib tools
+
+TEST_EXTERNAL_DIR=../../FDMJ-tests
+TEXT_EXTERNAL_HW=hw13
+TESTFILE_EXTERNAL_DIR=$(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/test
+CHECK_PY_SCRIPT := check.py
+
+clean_external: 
+	@$(RM) $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/yours
+	@$(RM) $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/correct
+	
+	@find $(TESTFILE_EXTERNAL_DIR) -type f \( \
+		-name "*.txt" -o -name "*.ast" -o -name "*.src" -o -name "*.xml" -o -name "*.irp"  \
+		-o -name "*.stm" -o -name "*.ins" -o -name "*.cfg" -o -name "*.ssa" -o -name "*.ll" \
+		-o -name "*.output" -o -name "gen_program_*" -o -name "*.s" -o -name "*.ig" \
+		-o -name "*.arm" \
+	\) -exec $(RM) {} \; ;\
+	
+SHELL:=/bin/bash
+
+test_external: clean build clean_external
+	@mkdir -p $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/yours
+	@mkdir -p $(TEST_EXTERNAL_DIR)/$(TEXT_EXTERNAL_HW)/correct
+	@cd $(TESTFILE_EXTERNAL_DIR); \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "fmj" ]; then \
+			echo "[$${file%%.*}]"; \
+			$(FMJ2AST) "$${file%%.*}"; \
+			$(AST2IRP) -f xml "$${file%%.*}"; \
+			$(IRP2LLVM) "$${file%%.*}" && \
+			$(MAIN_EXE) "$${file%%.*}"; \
+			$(ARMCC) -mcpu=cortex-a72 "$${file%%.*}".10.s $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$${file%%.*}".s && \
+			$(QEMU) -B 0x1000 "$${file%%.*}".s > "$${file%%.*}".output; \
+			mv "$${file%%.*}.output" "../yours/$${file%%.*}".txt; \
+			cp "$${file%%.*}.ans" "../correct/$${file%%.*}".txt; \
+		fi; \
+	done; \
+	python3 ../${CHECK_PY_SCRIPT}; \
+	cd $(CURDIR)

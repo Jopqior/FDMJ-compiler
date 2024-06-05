@@ -180,9 +180,7 @@ static void COL_initPreColor(Temp_map coloring) {
 }
 
 static void COL_initColEnv(G_graph ig) {
-  if (!colEnv) {
-    colEnv = TAB_empty();
-  }
+  colEnv = TAB_empty();
 
   for (G_nodeList nl = G_nodes(ig); nl; nl = nl->tail) {
     G_node n = nl->head;
@@ -340,7 +338,7 @@ static void COL_assignColor(COL_result res) {
         for (G_nodeList nl = G_adj(n); nl; nl = nl->tail) {
           Temp_temp t = G_nodeInfo(nl->head);
           COL_tempInfo info = TAB_look(colEnv, t);
-          ASSERT(info, "info is NULL");
+          ASSERT(info, Stringf("t%d's info is NULL", t->num));
           if (info->regId != -1) {
             bitmap_clear(b, info->regId);
           }
@@ -434,6 +432,12 @@ static COL_result COL_color(G_graph ig) {
     fprintf(stderr, "t%d: %s\n", temp->num, Temp_look(res->coloring, temp));
   }
 #endif
+
+  // free worklist and env
+  simplyfyWorklist = NULL;
+  spillWorklist = NULL;
+  selectStack = NULL;
+  colEnv = NULL;
 
 #ifdef COLOR_DEBUG
   fprintf(stderr, "Finish coloring\n");
