@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "fdmjast.h"
+#include "canon.h"
+#include "tigerirp.h"
 #include "util.h"
 #include "temp.h"
 #include "assem.h"
@@ -8,8 +10,12 @@
 #include "bg.h"
 #include "ig.h"
 #include "lxml.h"
+#include "xml2irp.h"
+#include "print_irp.h"
+#include "print_stm.h"
 #include "xml2ins.h"
 #include "print_ins.h"
+#include "llvmgen.h"
 #include "armgen.h"
 #include "ssa.h"
 #include "regalloc.h"
@@ -47,6 +53,18 @@ static void print_to_arm_file(string file_arm, AS_instrList il, string funcname)
     AS_printInstrList(stdout, il, Temp_name());
     fflush(stdout);
     fclose(stdout);
+}
+
+static void print_to_rpi_file(string file_rpi, RA_result ra, string funcname) {
+  Temp_map coloring = ra->coloring;
+  AS_instrList il = ra->il;
+  freopen(file_rpi, "a", stdout);
+  fprintf(stdout, "\t.text\n");
+  fprintf(stdout, "\t.align 2\n");
+  fprintf(stdout, "\t.global %s\n", funcname);
+  AS_printInstrList(stdout, il, coloring);
+  fflush(stdout);
+  fclose(stdout);
 }
 
 static AS_blockList instrList2BL(AS_instrList il) {
@@ -132,54 +150,98 @@ int main(int argc, const char * argv[]) {
   string file_ig = checked_malloc(IR_MAXLEN);
   sprintf(file_ig, "%s.11.ig", file);
 
+  // read the XML IRP file
   XMLDocument doc;
-
-  if (XMLDocument_load(&doc, file_insxml)) {
+  if (XMLDocument_load(&doc, file_irp)) {
     if (!doc.root) {
-      fprintf(stderr, "Error: Invalid ins XML file\n");
+      fprintf(stderr, "Error: Invalid TigerIR+ XML file\n");
       return -1;
     }
     if (doc.root->children.size == 0) {
-      fprintf(stderr, "Error: Nothing in the ins XML file\n");
+      fprintf(stderr, "Error: Nothing in the TigerIR+ XML file\n");
       return -1;
     }
   }
 
-  XMLNode *insroot = doc.root->children.data[0]; //this is the <root> node
-  if (!insroot || insroot->children.size == 0) {
-    fprintf(stderr, "Error: No function in the ins XML file\n");
+  T_funcDeclList fdl = xmlirpfunclist(XMLNode_child(doc.root, 0));
+  if (!fdl) {
+    fprintf(stderr, "Error: No function in the TigerIR+ XML file\n");
     return -1;
-  } 
+  }
 
-  AS_instrList inslist_func;
+  // now fdl is the function declaration list. 
+  // We now linearize and canonicalize each function.
+  while (fdl) {
+    T_stm s = fdl->head->stm; //get the statement list of the function
 
-  for (int i = 0; i < insroot->children.size; i++) {
-    XMLNode *fn = insroot->children.data[i];
-#ifdef __DEBUG
-    fprintf(stderr, "==Now reading Function %d: %s\n", i, fn->attributes.data->value);
-#endif
-    if (!fn || strcmp(fn->tag, "function")) {
-      fprintf(stderr, "Error: Invalid function in the ins XML file\n");
-      return -1;
+    freopen(file_stm, "a", stdout);
+    fprintf(stdout, "------Original IR Tree------\n");
+    printIRP_set(IRP_parentheses);
+    printIRP_FuncDecl(stdout, fdl->head);
+    fprintf(stdout, "\n\n");
+    fflush(stdout);
+    fclose(stdout);
+
+    T_stmList sl = C_linearize(s);
+    freopen(file_stm, "a", stdout);
+    fprintf(stdout, "------Linearized IR Tree------\n");
+    printStm_StmList(stdout, sl, 0);
+    fprintf(stdout, "\n\n");
+    fflush(stdout);
+    fclose(stdout);
+
+    struct C_block b = C_basicBlocks(sl); // break the linearized IR tree into basic blocks
+    freopen(file_stm, "a", stdout);
+    fprintf(stdout, "------Basic Blocks------\n");
+    for (C_stmListList sll = b.stmLists; sll; sll = sll->tail) { // print the basic blocks. 
+      // Each block is a list of statements starting with a label, ending with a jump
+      fprintf(stdout, "For Label=%s\n", S_name(sll->head->head->u.LABEL));
+      printStm_StmList(stdout, sll->head, 0); // print the statements in the block
     }
-    //read from xml to an AS_instrList
-    inslist_func = insxml2func(fn);
-    string funcname = fn->attributes.data->value;
+    fprintf(stdout, "\n\n");
+    fflush(stdout);
+    fclose(stdout);
 
-#ifdef __DEBUG
-    fprintf(stderr, "------ now got Function %d, %s------\n", i, fn->attributes.data->value);
-    fflush(stderr);
-#endif
+    sl = C_traceSchedule(b);
+    freopen(file_stm, "a", stdout);
+    fprintf(stdout, "------Canonical IR Tree------\n");
+    printStm_StmList(stdout, sl, 0);
+    fprintf(stdout, "\n\n");
+    fflush(stdout);
+    fclose(stdout);
 
-    // get the prologi and epilogi from the inslist_func
-    // remove them from the inslist_func, and form the bodyil = instruction body of the function
-    AS_instr prologi = inslist_func->head;
-#ifdef __DEBUG
+    b = C_basicBlocks(sl);
+
+    // llvm instruction selection. 
+    // First making the head of the function, then the body, then the epilog
+    AS_instrList prologil = llvmprolog(fdl->head->name, fdl->head->args, fdl->head->ret_type);
+    AS_blockList bodybl = NULL;
+    for (C_stmListList sll = b.stmLists; sll; sll = sll->tail) {
+      AS_instrList bil = llvmbody(sll->head);
+      AS_blockList bbl = AS_BlockList(AS_Block(bil), NULL);
+      bodybl = AS_BlockSplice(bodybl, bbl);
+    }
+    AS_instrList epilogil = llvmepilog(b.label);
+
+    G_nodeList bg = Create_bg(bodybl); // CFG
+    freopen(file_ins, "a", stdout);
+    fprintf(stdout, "\n------For function ----- %s\n\n", fdl->head->name); 
+    fprintf(stdout, "------Basic Block Graph---------\n");
+    Show_bg(stdout, bg);
+    // put all the blocks into one AS list
+    AS_instrList il = AS_traceSchedule(bodybl, prologil, epilogil, FALSE);
+
+    printf("------~Final traced AS instructions ---------\n");
+    AS_printInstrList(stdout, il, Temp_name());
+    fflush(stdout);
+    fclose(stdout);
+
+    AS_instr prologi = il->head;
+  #ifdef __DEBUG
     fprintf(stderr, "prologi->assem = %s\n", prologi->u.OPER.assem);
     fflush(stderr);
 #endif
-    AS_instrList bodyil = inslist_func->tail;
-    inslist_func->tail = NULL; // remove the prologi from the inslist_func
+    AS_instrList bodyil = il->tail;
     AS_instrList til = bodyil;
     AS_instr epilogi;
     if (til->tail == NULL) {
@@ -204,7 +266,6 @@ int main(int argc, const char * argv[]) {
 #endif
       til->tail=NULL;
     }
-
 #ifdef __DEBUG
     fprintf(stderr, "------ now we've seperated body into prolog, body, and epilog -----\n");
     fflush(stderr);
@@ -229,7 +290,7 @@ int main(int argc, const char * argv[]) {
     fflush(stdout);
     fclose(stdout);
   
-    G_nodeList bg = Create_bg(instrList2BL(bodyil)); // create a basic block graph
+    bg = Create_bg(instrList2BL(bodyil)); // create a basic block graph
     freopen(file_cfg, "a", stdout);
     fprintf(stdout, "------Basic Block Graph------\n");
     Show_bg(stdout, bg);
@@ -251,7 +312,7 @@ int main(int argc, const char * argv[]) {
     AS_instrList epilogil_arm = armepilog(AS_InstrList(epilogi, NULL));
     AS_instrList bodyil_arm = armbody(bodyil_wo_SSA);
     AS_instrList finalarm = AS_splice(AS_splice(prologil_arm, bodyil_arm), epilogil_arm);
-    print_to_arm_file(file_arm, finalarm, funcname);
+    print_to_arm_file(file_arm, finalarm, fdl->head->name);
 
     // rebuild liveness graph
     G_graph arm_fg = FG_AssemFlowGraph(finalarm);
@@ -279,16 +340,168 @@ int main(int argc, const char * argv[]) {
 
     // TODO: register allocation
     RA_result ra = RA_regAlloc(finalarm, arm_ig);
-    Temp_map coloring = ra->coloring;
-    AS_instrList il = ra->il;
-    freopen(file_rpi, "a", stdout);
-    fprintf(stdout, "\t.text\n");
-    fprintf(stdout, "\t.align 2\n");
-    fprintf(stdout, "\t.global %s\n", funcname);
-    AS_printInstrList(stdout, il, coloring);
-    fflush(stdout);
-    fclose(stdout);
+    print_to_rpi_file(file_rpi, ra, fdl->head->name);
+
+    fdl = fdl->tail;
   }
+
+//   XMLDocument doc;
+
+//   if (XMLDocument_load(&doc, file_insxml)) {
+//     if (!doc.root) {
+//       fprintf(stderr, "Error: Invalid ins XML file\n");
+//       return -1;
+//     }
+//     if (doc.root->children.size == 0) {
+//       fprintf(stderr, "Error: Nothing in the ins XML file\n");
+//       return -1;
+//     }
+//   }
+
+//   XMLNode *insroot = doc.root->children.data[0]; //this is the <root> node
+//   if (!insroot || insroot->children.size == 0) {
+//     fprintf(stderr, "Error: No function in the ins XML file\n");
+//     return -1;
+//   } 
+
+//   AS_instrList inslist_func;
+
+//   for (int i = 0; i < insroot->children.size; i++) {
+//     XMLNode *fn = insroot->children.data[i];
+// #ifdef __DEBUG
+//     fprintf(stderr, "==Now reading Function %d: %s\n", i, fn->attributes.data->value);
+// #endif
+//     if (!fn || strcmp(fn->tag, "function")) {
+//       fprintf(stderr, "Error: Invalid function in the ins XML file\n");
+//       return -1;
+//     }
+//     //read from xml to an AS_instrList
+//     inslist_func = insxml2func(fn);
+//     string funcname = fn->attributes.data->value;
+
+// #ifdef __DEBUG
+//     fprintf(stderr, "------ now got Function %d, %s------\n", i, fn->attributes.data->value);
+//     fflush(stderr);
+// #endif
+
+//     // get the prologi and epilogi from the inslist_func
+//     // remove them from the inslist_func, and form the bodyil = instruction body of the function
+//     AS_instr prologi = inslist_func->head;
+// #ifdef __DEBUG
+//     fprintf(stderr, "prologi->assem = %s\n", prologi->u.OPER.assem);
+//     fflush(stderr);
+// #endif
+//     AS_instrList bodyil = inslist_func->tail;
+//     inslist_func->tail = NULL; // remove the prologi from the inslist_func
+//     AS_instrList til = bodyil;
+//     AS_instr epilogi;
+//     if (til->tail == NULL) {
+// #ifdef __DEBUG
+//         fprintf(stderr, "Empty body");
+//         fflush(stderr);
+// #endif
+//         epilogi = til->head;
+//         bodyil = NULL;
+//     } else {
+//       while (til ->tail->tail != NULL) {
+// #ifdef __DEBUG
+//         fprintf(stderr, "til->head->kind = %s\n", til->head->u.OPER.assem);
+//         fflush(stderr);
+// #endif
+//         til = til->tail;
+//       }
+//       epilogi = til->tail->head;
+// #ifdef __DEBUG
+//     fprintf(stderr, "epilogi->assem = %s\n", epilogi->u.OPER.assem);
+//     fflush(stderr);
+// #endif
+//       til->tail=NULL;
+//     }
+
+// #ifdef __DEBUG
+//     fprintf(stderr, "------ now we've seperated body into prolog, body, and epilog -----\n");
+//     fflush(stderr);
+// #endif
+
+//     /* doing the control graph and print to *.8.cfg*/
+//     // get the control flow and print out the control flow graph to *.8.cfg
+//     G_graph fg = FG_AssemFlowGraph(bodyil);
+//     freopen(file_cfg, "a", stdout);
+//     fprintf(stdout, "------Flow Graph------\n");
+//     fflush(stdout);
+//     G_show(stdout, G_nodes(fg), (void*)FG_show);
+//     fflush(stdout);
+//     fclose(stdout);
+
+//     // data flow analysis
+//     freopen(file_cfg, "a", stdout);
+//     G_nodeList lg = Liveness(G_nodes(fg));
+//     freopen(file_cfg, "a", stdout);
+//     fprintf(stdout, "/* ------Liveness Graph------*/\n");
+//     Show_Liveness(stdout, lg);
+//     fflush(stdout);
+//     fclose(stdout);
+  
+//     G_nodeList bg = Create_bg(instrList2BL(bodyil)); // create a basic block graph
+//     freopen(file_cfg, "a", stdout);
+//     fprintf(stdout, "------Basic Block Graph------\n");
+//     Show_bg(stdout, bg);
+//     fprintf(stdout, "\n\n");
+//     fflush(stdout);
+//     fclose(stdout);
+
+//     AS_instrList bodyil_in_SSA = AS_instrList_to_SSA(bodyil, lg, bg); 
+
+//     //print the AS_instrList to the ssa file`
+//     AS_instrList finalssa = AS_splice(AS_InstrList(prologi, bodyil_in_SSA), AS_InstrList(epilogi, NULL));
+//     print_to_ssa_file(file_ssa, finalssa);
+
+//     //print the AS_instrList to the arm file
+//     G_graph ssa_bg = Create_SSA_bg(bg);
+//     AS_instrList bodyil_wo_SSA = SSA_destruction(bodyil_in_SSA, ssa_bg);
+
+//     AS_instrList prologil_arm = armprolog(AS_InstrList(prologi, NULL));
+//     AS_instrList epilogil_arm = armepilog(AS_InstrList(epilogi, NULL));
+//     AS_instrList bodyil_arm = armbody(bodyil_wo_SSA);
+//     AS_instrList finalarm = AS_splice(AS_splice(prologil_arm, bodyil_arm), epilogil_arm);
+//     print_to_arm_file(file_arm, finalarm, funcname);
+
+//     // rebuild liveness graph
+//     G_graph arm_fg = FG_AssemFlowGraph(finalarm);
+//     freopen(file_ig, "a", stdout);
+//     fprintf(stdout, "------Flow Graph------\n");
+//     fflush(stdout);
+//     G_show(stdout, G_nodes(arm_fg), (void*)FG_show);
+//     fflush(stdout);
+//     fclose(stdout);
+
+//     G_nodeList arm_lg = Liveness(G_nodes(arm_fg));
+//     freopen(file_ig, "a", stdout);
+//     fprintf(stdout, "/* ------Liveness Graph------*/\n");
+//     Show_Liveness(stdout, arm_lg);
+//     fflush(stdout);
+//     fclose(stdout);
+
+//     // create interference graph
+//     G_nodeList arm_ig = Create_ig(arm_lg);
+//     freopen(file_ig, "a", stdout);
+//     fprintf(stdout, "------Interference Graph------\n");
+//     Show_ig(stdout, arm_ig);
+//     fflush(stdout);
+//     fclose(stdout);
+
+//     // TODO: register allocation
+//     RA_result ra = RA_regAlloc(finalarm, arm_ig);
+//     Temp_map coloring = ra->coloring;
+//     AS_instrList il = ra->il;
+//     freopen(file_rpi, "a", stdout);
+//     fprintf(stdout, "\t.text\n");
+//     fprintf(stdout, "\t.align 2\n");
+//     fprintf(stdout, "\t.global %s\n", funcname);
+//     AS_printInstrList(stdout, il, coloring);
+//     fflush(stdout);
+//     fclose(stdout);
+//   }
   // print the runtime functions for the 8.ssa file
   freopen(file_ssa, "a", stdout);
   fprintf(stdout, "declare void @starttime()\n");
