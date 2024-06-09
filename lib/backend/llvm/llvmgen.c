@@ -60,9 +60,6 @@ static Temp_labelList LL(Temp_label l, Temp_labelList ll) {
   return Temp_LabelList(l, ll);
 }
 
-/* ********************************************************/
-/* YOU ARE TO IMPLEMENT THE FOLLOWING FUNCTION FOR HW9_10 */
-/* ********************************************************/
 #ifdef LLVMGEN_DEBUG
 static int depth = 0;
 static void printIndent() {
@@ -1012,10 +1009,6 @@ static expres munchCastExp(T_exp e, Temp_temp dst) {
   return TempRes(dst);
 }
 
-/* ********************************************************/
-/* YOU ARE TO IMPLEMENT THE ABOVE FUNCTION FOR HW9_10 */
-/* ********************************************************/
-
 /* The following are some auxiliary functions to be used by the main */
 
 // This function is to make the beginning of the function that jumps to the
@@ -1036,7 +1029,6 @@ AS_instrList llvmbodybeg(Temp_label lbeg) {
 
 // This function is to make the prolog of the function that takes the method
 // name and the arguments.
-// WE ARE MISSING THE RETURN TYPE in tigherirp.h. YOU NEED TO ADD IT!
 AS_instrList llvmprolog(string methodname, Temp_tempList args, T_type rettype) {
 #ifdef LLVMGEN_DEBUG
   fprintf(stderr, "llvmprolog: methodname=%s, rettype=%d\n", methodname,
