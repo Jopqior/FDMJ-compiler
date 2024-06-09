@@ -1,6 +1,7 @@
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-result")
 
-set(LIBS 
+set(LIBS
+  frontend
   optimizer
   utils
   vendor_lxml

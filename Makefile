@@ -44,7 +44,6 @@ test: clean
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
 			$(FMJ2AST) "$${file%%.*}"; \
-			$(AST2IRP) -f xml "$${file%%.*}"; \
 			$(MAIN_EXE) "$${file%%.*}"; \
 		fi \
 	done; \

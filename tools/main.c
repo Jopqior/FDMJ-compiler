@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "fdmjast.h"
+#include "semant.h"
 #include "canon.h"
 #include "tigerirp.h"
 #include "util.h"
@@ -10,6 +11,7 @@
 #include "bg.h"
 #include "ig.h"
 #include "lxml.h"
+#include "xml2ast.h"
 #include "xml2irp.h"
 #include "print_irp.h"
 #include "print_stm.h"
@@ -139,27 +141,21 @@ int main(int argc, const char * argv[]) {
   string file_ig = checked_malloc(IR_MAXLEN);
   sprintf(file_ig, "%s.11.ig", file);
 
-  // read the XML IRP file
   XMLDocument doc;
-  if (XMLDocument_load(&doc, file_irp)) {
+  if (XMLDocument_load(&doc, file_ast)) {
     if (!doc.root) {
-      fprintf(stderr, "Error: Invalid TigerIR+ XML file\n");
+      fprintf(stderr, "Error: Invalid FDMJ AST XML file\n");
       return -1;
     }
-    if (doc.root->children.size == 0) {
-      fprintf(stderr, "Error: Nothing in the TigerIR+ XML file\n");
-      return -1;
-    }
+    root = xmlprog(XMLNode_child(doc.root, 0));
   }
-
-  T_funcDeclList fdl = xmlirpfunclist(XMLNode_child(doc.root, 0));
-  if (!fdl) {
-    fprintf(stderr, "Error: No function in the TigerIR+ XML file\n");
+  if (!root) {
+    fprintf(stderr, "Error: No program in the FDMJ AST XML file\n");
     return -1;
   }
 
-  // now fdl is the function declaration list. 
-  // We now linearize and canonicalize each function.
+  T_funcDeclList fdl = transA_Prog(stderr, root, 4);
+
   while (fdl) {
     /* Canonicalization */
     struct C_block b = canonicalize(fdl->head, file_stm);
@@ -168,7 +164,7 @@ int main(int argc, const char * argv[]) {
     AS_instrList il = llvmInsSelect(fdl->head, b, file_ins);
 
     AS_instr prologi = il->head;
-  #ifdef __DEBUG
+#ifdef __DEBUG
     fprintf(stderr, "prologi->assem = %s\n", prologi->u.OPER.assem);
     fflush(stderr);
 #endif
@@ -294,6 +290,7 @@ int main(int argc, const char * argv[]) {
   fprintf(stdout, "declare void @putarray(i64, i64*)\n");
   fprintf(stdout, "declare void @putfarray(i64, i64*)\n");
   fclose(stdout);
+
   // print the runtime functions for the 9.arm file
   freopen(file_arm, "a", stdout);
   fprintf(stdout, ".global malloc\n");
@@ -311,6 +308,7 @@ int main(int argc, const char * argv[]) {
   fprintf(stdout, ".global stoptime\n");
   fclose(stdout);
 
+  // print the runtime functions for the 10.s file
   freopen(file_rpi, "a", stdout);
   fprintf(stdout, ".global malloc\n");
   fprintf(stdout, ".global getint\n");
