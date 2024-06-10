@@ -16,7 +16,7 @@ TEST_DIR  = "$(CURDIR)/test"
 
 MAKEFLAGS = --no-print-directory
 
-.PHONY: build clean veryclean rebuild test test-extra test-run handin
+.PHONY: build clean veryclean rebuild test test-extra test-run handin compile run-llvm run-rpi
 
 build:
 	@cmake -G Ninja -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release; \
@@ -43,7 +43,7 @@ test: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(MAIN_EXE) "$${file%%.*}"; \
+			$(MAIN_EXE) "$${file%%.*}" < "$${file%%.*}".fmj; \
 		fi \
 	done; \
 	cd $(CURDIR)
@@ -67,10 +67,7 @@ test-run: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}" && \
-			$(AST2IRP) -f xml "$${file%%.*}" && \
-			$(IRP2LLVM) "$${file%%.*}" && \
-			$(MAIN_EXE)  "$${file%%.*}" && \
+			$(MAIN_EXE)  "$${file%%.*}" < "$${file%%.*}".fmj && \
 			$(ARMCC) -mcpu=cortex-a72 "$${file%%.*}".10.s $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$${file%%.*}".s && \
 			$(QEMU) -B 0x1000 "$${file%%.*}".s && \
 			echo $$?; \
@@ -81,10 +78,7 @@ test-run: clean
 run-one: clean
 	@cd $(TEST_DIR); \
 	echo "[$(FILE)]"; \
-	$(FMJ2AST) "$(FILE)" && \
-	$(AST2IRP) -f xml "$(FILE)" && \
-	$(IRP2LLVM) "$(FILE)" && \
-	$(MAIN_EXE)  "$(FILE)" && \
+	$(MAIN_EXE) "$(FILE)" < "$(FILE)".fmj && \
 	$(ARMCC) -mcpu=cortex-a72 "$(FILE)".10.s $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$(FILE)".s && \
 	$(QEMU) -B 0x1000 "$(FILE)".s && \
 	echo $$?; \

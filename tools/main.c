@@ -164,18 +164,17 @@ int main(int argc, const char * argv[]) {
   fflush(stdout);
   fclose(stdout);
 
-  // XMLDocument doc;
-  // if (XMLDocument_load(&doc, file_ast)) {
-  //   if (!doc.root) {
-  //     fprintf(stderr, "Error: Invalid FDMJ AST XML file\n");
-  //     return -1;
-  //   }
-  //   root = xmlprog(XMLNode_child(doc.root, 0));
-  // }
-
   T_funcDeclList fdl = transA_Prog(stderr, root, 4);
 
   while (fdl) {
+    freopen(file_irp, "a", stdout);
+    fprintf(stdout, "------Original IR Tree------\n");
+    printIRP_set(IRP_parentheses);
+    printIRP_FuncDecl(stdout, fdl->head);
+    fprintf(stdout, "\n\n");
+    fflush(stdout);
+    fclose(stdout);
+
     /* Canonicalization */
     struct C_block b = canonicalize(fdl->head, file_stm);
 
@@ -350,13 +349,13 @@ int main(int argc, const char * argv[]) {
 static struct C_block canonicalize(T_funcDecl func, string file_stm) {
   T_stm s = func->stm; // get the statement list of the function
 
-  freopen(file_stm, "a", stdout);
-  fprintf(stdout, "------Original IR Tree------\n");
-  printIRP_set(IRP_parentheses);
-  printIRP_FuncDecl(stdout, func);
-  fprintf(stdout, "\n\n");
-  fflush(stdout);
-  fclose(stdout);
+  // freopen(file_stm, "a", stdout);
+  // fprintf(stdout, "------Original IR Tree------\n");
+  // printIRP_set(IRP_parentheses);
+  // printIRP_FuncDecl(stdout, func);
+  // fprintf(stdout, "\n\n");
+  // fflush(stdout);
+  // fclose(stdout);
 
   T_stmList sl = C_linearize(s);
   freopen(file_stm, "a", stdout);
