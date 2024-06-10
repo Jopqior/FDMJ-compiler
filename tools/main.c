@@ -13,6 +13,8 @@
 #include "lxml.h"
 #include "xml2ast.h"
 #include "xml2irp.h"
+#include "print_src.h"
+#include "print_ast.h"
 #include "print_irp.h"
 #include "print_stm.h"
 #include "xml2ins.h"
@@ -26,6 +28,8 @@
 #undef __DEBUG
 
 A_prog root;
+
+extern int yyparse();
 
 static struct C_block canonicalize(T_funcDecl, string);
 static AS_instrList llvmInsSelect(T_funcDecl, struct C_block, string);
@@ -141,18 +145,33 @@ int main(int argc, const char * argv[]) {
   string file_ig = checked_malloc(IR_MAXLEN);
   sprintf(file_ig, "%s.11.ig", file);
 
-  XMLDocument doc;
-  if (XMLDocument_load(&doc, file_ast)) {
-    if (!doc.root) {
-      fprintf(stderr, "Error: Invalid FDMJ AST XML file\n");
-      return -1;
-    }
-    root = xmlprog(XMLNode_child(doc.root, 0));
-  }
+  // lex & parse
+  yyparse();
   if (!root) {
-    fprintf(stderr, "Error: No program in the FDMJ AST XML file\n");
+    fprintf(stderr, "Error: No program in the FDMJ file\n");
     return -1;
   }
+
+  // ast2src
+  freopen(file_src, "w", stdout);
+  printA_Prog(stdout, root);
+  fflush(stdout);
+  fclose(stdout);
+
+  // ast2xml
+  freopen(file_ast, "w", stdout);
+  printX_Prog(stdout, root);
+  fflush(stdout);
+  fclose(stdout);
+
+  // XMLDocument doc;
+  // if (XMLDocument_load(&doc, file_ast)) {
+  //   if (!doc.root) {
+  //     fprintf(stderr, "Error: Invalid FDMJ AST XML file\n");
+  //     return -1;
+  //   }
+  //   root = xmlprog(XMLNode_child(doc.root, 0));
+  // }
 
   T_funcDeclList fdl = transA_Prog(stderr, root, 4);
 
