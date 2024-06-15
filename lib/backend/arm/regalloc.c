@@ -638,6 +638,15 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
         cur = pre->tail;
       }
 
+      // due to putfloat constraint, #regs must be even
+      if ((spillInfo.regs + spillInfo.num_reservedRegUsed +
+           spillInfo.floatRegs + spillInfo.spillStackSize) %
+          2) {
+        AS_instr newInstr = AS_Oper("\tpush {r8}", NULL, NULL, NULL);
+        pre->tail = AS_InstrList(newInstr, cur);
+        cur = pre->tail;
+      }
+
       cur = tmpCur;
       while (pre->tail != cur) {
         pre = pre->tail;
@@ -648,6 +657,15 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
       pre->tail = cur->tail->tail;
       cur = pre->tail;
       AS_instrList tmpCur = cur;
+
+      // due to putfloat constraint, #regs must be even
+      if ((spillInfo.regs + spillInfo.num_reservedRegUsed +
+           spillInfo.floatRegs + spillInfo.spillStackSize) %
+          2) {
+        AS_instr newInstr = AS_Oper("\tpop {r8}", NULL, NULL, NULL);
+        pre->tail = AS_InstrList(newInstr, cur);
+        cur = pre->tail;
+      }
 
       if (toStoreRegs) {
         AS_instr newInstr =
