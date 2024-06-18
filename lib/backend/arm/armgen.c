@@ -567,14 +567,31 @@ static void munchSub(AS_instr ins) {
   } else if (!srcs->tail) {
     Temp_temp srct = srcs->head;
     uf srci = parseOpExpConst(ins->u.OPER.assem + 11);
-    if (isImm8(srci.u)) {
-      emit(AS_Oper(Stringf("\tsub `d0, `s0, #%d", srci.i),
-                   Temp_TempList(dst, NULL), srcs, NULL));
+
+    char *s1 = strchr(ins->u.OPER.assem + 11, ',');
+    char *s2 = strchr(ins->u.OPER.assem + 11, '`');
+    if (s1 < s2) {
+      // first src is a const, second src is a temp
+      if (isImm8(srci.u)) {
+        emit(AS_Oper(Stringf("\trsb `d0, `s0, #%d", srci.i),
+                     Temp_TempList(dst, NULL), srcs, NULL));
+      } else {
+        Temp_temp tmp = Temp_newtemp(T_int);
+        emitMovImm(tmp, NULL, srci);
+        emit(AS_Oper("\trsb `d0, `s0, `s1", Temp_TempList(dst, NULL),
+                     Temp_TempList(srct, Temp_TempList(tmp, NULL)), NULL));
+      }
     } else {
-      Temp_temp tmp = Temp_newtemp(T_int);
-      emitMovImm(tmp, NULL, srci);
-      emit(AS_Oper("\tsub `d0, `s0, `s1", Temp_TempList(dst, NULL),
-                   Temp_TempList(srct, Temp_TempList(tmp, NULL)), NULL));
+      // first src is a temp, second src is a const
+      if (isImm8(srci.u)) {
+        emit(AS_Oper(Stringf("\tsub `d0, `s0, #%d", srci.i),
+                     Temp_TempList(dst, NULL), srcs, NULL));
+      } else {
+        Temp_temp tmp = Temp_newtemp(T_int);
+        emitMovImm(tmp, NULL, srci);
+        emit(AS_Oper("\tsub `d0, `s0, `s1", Temp_TempList(dst, NULL),
+                     Temp_TempList(srct, Temp_TempList(tmp, NULL)), NULL));
+      }
     }
   } else {
     emit(AS_Oper("\tsub `d0, `s0, `s1", Temp_TempList(dst, NULL), srcs, NULL));
@@ -595,8 +612,18 @@ static void munchFsub(AS_instr ins) {
     uf srcf = parseOpExpConst(ins->u.OPER.assem + 12);
     Temp_temp tmp = Temp_newtemp(T_float);
     emitMovImm(tmp, NULL, srcf);
-    emit(AS_Oper("\tvsub.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
-                 Temp_TempList(srct, Temp_TempList(tmp, NULL)), NULL));
+
+    char *s1 = strchr(ins->u.OPER.assem + 12, ',');
+    char *s2 = strchr(ins->u.OPER.assem + 12, '`');
+    if (s1 < s2) {
+      // first src is a const, second src is a temp
+      emit(AS_Oper("\tvsub.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
+                   Temp_TempList(tmp, Temp_TempList(srct, NULL)), NULL));
+    } else {
+      // first src is a temp, second src is a const
+      emit(AS_Oper("\tvsub.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
+                   Temp_TempList(srct, Temp_TempList(tmp, NULL)), NULL));
+    }
   } else {
     emit(AS_Oper("\tvsub.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL), srcs,
                  NULL));
@@ -664,8 +691,8 @@ static void munchDiv(AS_instr ins) {
     Temp_temp srct = srcs->head;
     uf srci = parseOpExpConst(ins->u.OPER.assem + 12);
 
-    char *s1 = strchr(ins->u.OPER.assem, ',');
-    char *s2 = strchr(ins->u.OPER.assem, '`');
+    char *s1 = strchr(ins->u.OPER.assem + 12, ',');
+    char *s2 = strchr(ins->u.OPER.assem + 12, '`');
     if (s1 < s2) {
       // first src is a const, second src is a temp
       emitMovImm(NULL, "r0", srci);
@@ -716,8 +743,18 @@ static void munchFdiv(AS_instr ins) {
     uf srcf = parseOpExpConst(ins->u.OPER.assem + 12);
     Temp_temp tmp = Temp_newtemp(T_float);
     emitMovImm(tmp, NULL, srcf);
-    emit(AS_Oper("\tvdiv.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
-                 Temp_TempList(srct, Temp_TempList(tmp, NULL)), NULL));
+
+    char *s1 = strchr(ins->u.OPER.assem + 12, ',');
+    char *s2 = strchr(ins->u.OPER.assem + 12, '`');
+    if (s1 < s2) {
+      // first src is a const, second src is a temp
+      emit(AS_Oper("\tvdiv.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
+                   Temp_TempList(tmp, Temp_TempList(srct, NULL)), NULL));
+    } else {
+      // first src is a temp, second src is a const
+      emit(AS_Oper("\tvdiv.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL),
+                   Temp_TempList(srct, Temp_TempList(tmp, NULL)), NULL));
+    }
   } else {
     emit(AS_Oper("\tvdiv.f32 `d0, `s0, `s1", Temp_TempList(dst, NULL), srcs,
                  NULL));
