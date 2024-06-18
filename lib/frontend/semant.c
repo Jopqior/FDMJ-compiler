@@ -23,7 +23,7 @@ struct loopstack_ {
   loopstack next;
 };
 
-static loopstack loopstack_head = NULL;
+static loopstack loopstack_head;
 
 static void loopstack_push(Temp_label whiletest, Temp_label whileend) {
   loopstack new = checked_malloc(sizeof(*new));
@@ -50,7 +50,7 @@ static S_symbol MAIN_CLASS;
 static string curClassId;
 static string curMethodId;
 
-static int globaloff = 0;
+static int globaloff;
 static S_table varoff;
 static S_table methoff;
 
@@ -60,17 +60,28 @@ void transError(FILE *out, A_pos pos, string msg) {
   exit(1);
 }
 
+static void transA_Reset() {
+  venv = S_empty();
+  cenv = S_empty();
+
+  MAIN_CLASS = S_Symbol("main");
+  curClassId = NULL;
+  curMethodId = NULL;
+
+  globaloff = 0;
+  varoff = S_empty();
+  methoff = S_empty();
+
+  loopstack_head = NULL;
+}
+
 T_funcDeclList transA_Prog(FILE *out, A_prog p, int arch_size) {
 #ifdef SM_DEBUG
   fprintf(out, "Entering transA_Prog...\n");
 #endif
   // init
   SEM_ARCH_SIZE = arch_size;
-  venv = S_empty();
-  cenv = S_empty();
-  MAIN_CLASS = S_Symbol("main");
-  varoff = S_empty();
-  methoff = S_empty();
+  transA_Reset();
 
   if (p->cdl) {
     transPreprocess(out, p->cdl);

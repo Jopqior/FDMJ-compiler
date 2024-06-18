@@ -349,14 +349,6 @@ int main(int argc, const char * argv[]) {
 static struct C_block canonicalize(T_funcDecl func, string file_stm) {
   T_stm s = func->stm; // get the statement list of the function
 
-  // freopen(file_stm, "a", stdout);
-  // fprintf(stdout, "------Original IR Tree------\n");
-  // printIRP_set(IRP_parentheses);
-  // printIRP_FuncDecl(stdout, func);
-  // fprintf(stdout, "\n\n");
-  // fflush(stdout);
-  // fclose(stdout);
-
   T_stmList sl = C_linearize(s);
   freopen(file_stm, "a", stdout);
   fprintf(stdout, "------Linearized IR Tree------\n");

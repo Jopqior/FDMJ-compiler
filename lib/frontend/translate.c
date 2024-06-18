@@ -150,7 +150,7 @@ static T_expList unTrExpList(Tr_expList el) {
   return T_ExpList(unEx(el->head), unTrExpList(el->tail));
 }
 
-/* TODO: translate */
+/* translate */
 
 // methods
 T_funcDeclList Tr_FuncDeclList(T_funcDecl fd, T_funcDeclList fdl) {
