@@ -962,6 +962,7 @@ static void munchCall(AS_instr ins) {
 
   // parse the args
   Temp_tempList tempArgs = ins->u.OPER.src->tail;
+  Temp_tempList usedRegs = NULL;
 
   int intArgNum = 0, floatArgNum = 0;
   int stackArgNum = 0;
@@ -1005,6 +1006,9 @@ static void munchCall(AS_instr ins) {
       switch (argType) {
         case T_int: {
           if (intArgNum < 4) {
+            usedRegs = Temp_TempListSplice(
+                usedRegs,
+                Temp_TempList(armReg2Temp(Stringf("r%d", intArgNum)), NULL));
             emit(AS_Move(
                 Stringf("\tmov r%d, `s0", intArgNum),
                 Temp_TempList(armReg2Temp(Stringf("r%d", intArgNum)), NULL),
@@ -1018,6 +1022,9 @@ static void munchCall(AS_instr ins) {
         }
         case T_float: {
           if (floatArgNum < 4) {
+            usedRegs = Temp_TempListSplice(
+                usedRegs,
+                Temp_TempList(armReg2Temp(Stringf("s%d", floatArgNum)), NULL));
             emit(AS_Move(
                 Stringf("\tvmov.f32 s%d, `s0", floatArgNum),
                 Temp_TempList(armReg2Temp(Stringf("s%d", floatArgNum)), NULL),
@@ -1040,6 +1047,9 @@ static void munchCall(AS_instr ins) {
         case T_int: {
           int arg = atoi(s);
           if (intArgNum < 4) {
+            usedRegs = Temp_TempListSplice(
+                usedRegs,
+                Temp_TempList(armReg2Temp(Stringf("r%d", intArgNum)), NULL));
             emitMovImm(NULL, Stringf("r%d", intArgNum), (uf){.i = arg});
           } else {
             Temp_temp tmp = Temp_newtemp(T_int);
@@ -1053,6 +1063,9 @@ static void munchCall(AS_instr ins) {
         case T_float: {
           float arg = atof(s);
           if (floatArgNum < 4) {
+            usedRegs = Temp_TempListSplice(
+                usedRegs,
+                Temp_TempList(armReg2Temp(Stringf("s%d", floatArgNum)), NULL));
             emitMovImm(NULL, Stringf("s%d", floatArgNum), (uf){.f = arg});
           } else {
             Temp_temp tmp = Temp_newtemp(T_float);
@@ -1081,7 +1094,7 @@ static void munchCall(AS_instr ins) {
   // call the method
   emit(AS_Oper("\tblx `s0",
                Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()),
-               Temp_TempList(methAddr, NULL), NULL));
+               Temp_TempList(methAddr, usedRegs), NULL));
 
   // move the return value to dst
   switch (ins->u.OPER.dst->head->type) {
@@ -1118,16 +1131,16 @@ static void munchMalloc(AS_instr ins) {
     int size = atoi(s);
     emitMovImm(NULL, "r0", (uf){.i = size});
     emit(AS_Oper("\tblx malloc",
-                 Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
-                 NULL));
+                 Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()),
+                 Temp_TempList(armReg2Temp("r0"), NULL), NULL));
     emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
                  Temp_TempList(armReg2Temp("r0"), NULL)));
   } else {
     emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
                  ins->u.OPER.src));
     emit(AS_Oper("\tblx malloc",
-                 Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
-                 NULL));
+                 Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()),
+                 Temp_TempList(armReg2Temp("r0"), NULL), NULL));
     emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
                  Temp_TempList(armReg2Temp("r0"), NULL)));
   }
@@ -1169,8 +1182,8 @@ static void munchGetArray(AS_instr ins, string func) {
   emit(AS_Move("\tmov r0, `s0", Temp_TempList(armReg2Temp("r0"), NULL),
                ins->u.OPER.src));
   emit(AS_Oper(Stringf("\tblx %s", func),
-               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
-               NULL));
+               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()),
+               Temp_TempList(armReg2Temp("r0"), NULL), NULL));
   emit(AS_Move("\tmov `d0, r0", ins->u.OPER.dst,
                Temp_TempList(armReg2Temp("r0"), NULL)));
 }
@@ -1238,8 +1251,8 @@ static void munchPutNumOrCh(AS_instr ins, string func) {
   }
 
   emit(AS_Oper(Stringf("\tblx %s", func),
-               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
-               NULL));
+               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()),
+               Temp_TempList(armReg2Temp("r0"), NULL), NULL));
 }
 
 static void munchPutArray(AS_instr ins, string func) {
@@ -1270,9 +1283,11 @@ static void munchPutArray(AS_instr ins, string func) {
                  Temp_TempList(arr, NULL)));
   }
 
-  emit(AS_Oper(Stringf("\tblx %s", func),
-               Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()), NULL,
-               NULL));
+  emit(AS_Oper(
+      Stringf("\tblx %s", func),
+      Temp_TempList(armReg2Temp("lr"), getCallerSavedRegs()),
+      Temp_TempList(armReg2Temp("r0"), Temp_TempList(armReg2Temp("r1"), NULL)),
+      NULL));
 }
 
 static inline void munchTime(string func) {
