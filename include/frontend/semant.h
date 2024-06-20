@@ -17,10 +17,11 @@ typedef struct expty_ *expty;
 
 struct expty_ {
   Tr_exp exp;
-  Ty_ty value, location;
+  Ty_ty value;
+  bool location;
 };
 
-expty ExpTy(Tr_exp exp, Ty_ty value, Ty_ty location);
+expty ExpTy(Tr_exp exp, Ty_ty value, bool location);
 
 /* API */
 
