@@ -7,7 +7,7 @@ int SEM_ARCH_SIZE;  // to be set by arch_size in transA_Prog
 
 /* structs */
 
-expty ExpTy(Tr_exp exp, Ty_ty value, Ty_ty location) {
+expty ExpTy(Tr_exp exp, Ty_ty value, bool location) {
   expty et = checked_malloc(sizeof(*et));
   et->exp = exp;
   et->value = value;
@@ -853,11 +853,11 @@ Tr_exp transA_AssignStm(FILE *out, A_stm s) {
     return NULL;
   }
   // check if the types match
-  if (!equalTyCast(left->location, right->value)) {
+  if (!equalTyCast(left->value, right->value)) {
     transError(
         out, s->pos,
         Stringf("error: right side of assignment expected '%s', got '%s'",
-                ty2str(left->location), ty2str(right->value)));
+                ty2str(left->value), ty2str(right->value)));
   }
 
   return Tr_AssignStm(left->exp, right->exp);
@@ -880,20 +880,20 @@ Tr_exp transA_ArrayInit(FILE *out, A_stm s) {
                String("error: left side of array initialization must be a "
                       "location value"));
   }
-  if (arr->location->kind != Ty_array) {
+  if (arr->value->kind != Ty_array) {
     transError(out, s->pos,
                String("error: left side of array initialization must be an "
                       "array type"));
   }
 
-  Tr_expList initExp = transA_ExpList_Num(out, s->u.array_init.init_values,
-                                          arr->location->u.array);
+  Tr_expList initExp =
+      transA_ExpList_Num(out, s->u.array_init.init_values, arr->value->u.array);
   if (!initExp) {
     return NULL;
   }
 
   T_type type;
-  switch (arr->location->u.array->kind) {
+  switch (arr->value->u.array->kind) {
     case Ty_int:
       type = T_int;
       break;
@@ -1348,15 +1348,15 @@ expty transA_OpExp(FILE *out, A_exp e) {
     case A_ge:
     case A_eq:
     case A_ne:
-      return ExpTy(opexp, Ty_Int(), NULL);
+      return ExpTy(opexp, Ty_Int(), FALSE);
     case A_plus:
     case A_minus:
     case A_times:
     case A_div: {
       if (left->value->kind == Ty_int && right->value->kind == Ty_int) {
-        return ExpTy(opexp, Ty_Int(), NULL);
+        return ExpTy(opexp, Ty_Int(), FALSE);
       } else {
-        return ExpTy(opexp, Ty_Float(), NULL);
+        return ExpTy(opexp, Ty_Float(), FALSE);
       }
     }
     default:
@@ -1408,7 +1408,7 @@ expty transA_ArrayExp(FILE *out, A_exp e) {
   }
 
   return ExpTy(Tr_ArrayExp(array->exp, pos->exp, type), array->value->u.array,
-               array->value->u.array);
+               TRUE);
 }
 
 expty transA_CallExp(FILE *out, A_exp e) {
@@ -1448,7 +1448,7 @@ expty transA_CallExp(FILE *out, A_exp e) {
   Tr_exp methAddr = Tr_ClassMethExp(obj->exp, offset);
 
   return ExpTy(Tr_CallExp(e->u.call.fun, obj->exp, methAddr, expl, ret),
-               me->u.meth.ret, NULL);
+               me->u.meth.ret, FALSE);
 }
 
 expty transA_ClassVarExp(FILE *out, A_exp e) {
@@ -1479,8 +1479,7 @@ expty transA_ClassVarExp(FILE *out, A_exp e) {
 
   int offset = offtable_look(varoff, S_Symbol(e->u.classvar.var));
   T_type type = ve->u.var.ty->kind == Ty_float ? T_float : T_int;
-  return ExpTy(Tr_ClassVarExp(obj->exp, offset, type), ve->u.var.ty,
-               ve->u.var.ty);
+  return ExpTy(Tr_ClassVarExp(obj->exp, offset, type), ve->u.var.ty, TRUE);
 }
 
 expty transA_BoolConst(FILE *out, A_exp e) {
@@ -1491,7 +1490,7 @@ expty transA_BoolConst(FILE *out, A_exp e) {
     return NULL;
   }
 
-  return ExpTy(Tr_BoolConst(e->u.b), Ty_Int(), NULL);
+  return ExpTy(Tr_BoolConst(e->u.b), Ty_Int(), FALSE);
 }
 
 expty transA_NumConst(FILE *out, A_exp e, Ty_ty type) {
@@ -1513,9 +1512,9 @@ expty transA_NumConst(FILE *out, A_exp e, Ty_ty type) {
   Tr_exp exp = Tr_NumConst(num, t);
   switch (t) {
     case T_int:
-      return ExpTy(exp, Ty_Int(), NULL);
+      return ExpTy(exp, Ty_Int(), FALSE);
     case T_float:
-      return ExpTy(exp, Ty_Float(), NULL);
+      return ExpTy(exp, Ty_Float(), FALSE);
     default:
       return NULL;  // unreachable
   }
@@ -1538,7 +1537,7 @@ expty transA_LengthExp(FILE *out, A_exp e) {
                String("error: argument of length() must be an array"));
   }
 
-  return ExpTy(Tr_LengthExp(array->exp), Ty_Int(), NULL);
+  return ExpTy(Tr_LengthExp(array->exp), Ty_Int(), FALSE);
 }
 
 expty transA_IdExp(FILE *out, A_exp e) {
@@ -1554,7 +1553,7 @@ expty transA_IdExp(FILE *out, A_exp e) {
     transError(out, e->pos, String("error: variable not declared"));
   }
 
-  return ExpTy(Tr_IdExp(x->u.var.tmp), x->u.var.ty, x->u.var.ty);
+  return ExpTy(Tr_IdExp(x->u.var.tmp), x->u.var.ty, TRUE);
 }
 
 expty transA_ThisExp(FILE *out, A_exp e) {
@@ -1570,8 +1569,7 @@ expty transA_ThisExp(FILE *out, A_exp e) {
                String("error: 'this' cannot be used in main method"));
   }
 
-  return ExpTy(Tr_ThisExp(this()), Ty_Name(S_Symbol(curClassId)),
-               Ty_Name(S_Symbol(curClassId)));
+  return ExpTy(Tr_ThisExp(this()), Ty_Name(S_Symbol(curClassId)), TRUE);
 }
 
 expty transA_NewIntArrExp(FILE *out, A_exp e) {
@@ -1594,7 +1592,7 @@ expty transA_NewIntArrExp(FILE *out, A_exp e) {
     size->exp = Tr_Cast(size->exp, T_int);
   }
 
-  return ExpTy(Tr_NewArrExp(size->exp), Ty_Array(Ty_Int()), NULL);
+  return ExpTy(Tr_NewArrExp(size->exp), Ty_Array(Ty_Int()), FALSE);
 }
 
 expty transA_NewFloatArrExp(FILE *out, A_exp e) {
@@ -1618,7 +1616,7 @@ expty transA_NewFloatArrExp(FILE *out, A_exp e) {
     size->exp = Tr_Cast(size->exp, T_int);
   }
 
-  return ExpTy(Tr_NewArrExp(size->exp), Ty_Array(Ty_Float()), NULL);
+  return ExpTy(Tr_NewArrExp(size->exp), Ty_Array(Ty_Float()), FALSE);
 }
 
 expty transA_NewObjExp(FILE *out, A_exp e) {
@@ -1647,7 +1645,7 @@ expty transA_NewObjExp(FILE *out, A_exp e) {
 
   Tr_exp newObjFinal = Tr_EscExp(newObjStm, tmpobj);
 
-  return ExpTy(newObjFinal, Ty_Name(S_Symbol(e->u.v)), NULL);
+  return ExpTy(newObjFinal, Ty_Name(S_Symbol(e->u.v)), FALSE);
 }
 
 Tr_exp transA_NewObjClassVar(FILE *out, S_table vtbl, Tr_exp tmpobj,
@@ -1757,7 +1755,7 @@ expty transA_NotExp(FILE *out, A_exp e) {
     transError(out, e->pos, String("error: ! must operate on int or float"));
   }
 
-  return ExpTy(Tr_NotExp(exp->exp), Ty_Int(), NULL);
+  return ExpTy(Tr_NotExp(exp->exp), Ty_Int(), FALSE);
 }
 
 expty transA_MinusExp(FILE *out, A_exp e) {
@@ -1776,7 +1774,7 @@ expty transA_MinusExp(FILE *out, A_exp e) {
     transError(out, e->pos, String("error: - must operate on int or float"));
   }
 
-  return ExpTy(Tr_MinusExp(exp->exp), exp->value, NULL);
+  return ExpTy(Tr_MinusExp(exp->exp), exp->value, FALSE);
 }
 
 expty transA_EscExp(FILE *out, A_exp e) {
@@ -1794,7 +1792,7 @@ expty transA_EscExp(FILE *out, A_exp e) {
     return NULL;
   }
 
-  return ExpTy(Tr_EscExp(stm, exp->exp), exp->value, NULL);
+  return ExpTy(Tr_EscExp(stm, exp->exp), exp->value, FALSE);
 }
 
 expty transA_Getnum(FILE *out, A_exp e) {
@@ -1805,7 +1803,7 @@ expty transA_Getnum(FILE *out, A_exp e) {
     return NULL;
   }
 
-  return ExpTy(Tr_Getfloat(), Ty_Float(), NULL);
+  return ExpTy(Tr_Getfloat(), Ty_Float(), FALSE);
 }
 
 expty transA_Getch(FILE *out, A_exp e) {
@@ -1816,7 +1814,7 @@ expty transA_Getch(FILE *out, A_exp e) {
     return NULL;
   }
 
-  return ExpTy(Tr_Getch(), Ty_Int(), NULL);
+  return ExpTy(Tr_Getch(), Ty_Int(), FALSE);
 }
 
 expty transA_Getarray(FILE *out, A_exp e) {
@@ -1838,9 +1836,9 @@ expty transA_Getarray(FILE *out, A_exp e) {
 
   switch (array->value->u.array->kind) {
     case Ty_int:
-      return ExpTy(Tr_Getarray(array->exp), Ty_Int(), NULL);
+      return ExpTy(Tr_Getarray(array->exp), Ty_Int(), FALSE);
     case Ty_float:
-      return ExpTy(Tr_Getfarray(array->exp), Ty_Int(), NULL);
+      return ExpTy(Tr_Getfarray(array->exp), Ty_Int(), FALSE);
     default:
       return NULL;  // unreachable
   }
