@@ -9,8 +9,7 @@
 #include "symbol.h"
 #include "util.h"
 
-AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg, G_nodeList bg);
-G_graph Create_SSA_bg(G_nodeList bg);
-AS_instrList SSA_destruction(AS_instrList bodyil, G_graph ssa_bg);
+AS_instrList SSA_construction(AS_instrList bodyil, G_nodeList lg, G_nodeList bg);
+AS_instrList SSA_destruction(AS_instrList bodyil, G_nodeList bg);
 
 #endif

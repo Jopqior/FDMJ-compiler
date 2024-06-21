@@ -32,145 +32,25 @@ A_prog root;
 
 extern int yyparse();
 
+typedef struct {
+  AS_instr prologi;
+  AS_instrList bodyil;
+  AS_instr epilogi;
+} llvmFunc;
+
 static struct C_block canonicalize(T_funcDecl, string, bool);
 static AS_instrList llvmInsSelect(T_funcDecl, struct C_block, string, bool);
 static G_nodeList livenessAnalyze(AS_instrList, string);
 
-static void printIrpIns(string file_irp, T_funcDecl func) {
-  freopen(file_irp, "a", stdout);
-  fprintf(stdout, "------Original IR Tree------\n");
-  printIRP_set(IRP_parentheses);
-  printIRP_FuncDecl(stdout, func);
-  fprintf(stdout, "\n\n");
-  fflush(stdout);
-  fclose(stdout);
-}
+static void print_irp_ins(string, T_funcDecl);
+static void print_ssa_ins(string, AS_instrList);
+static void print_arm_ins(string, AS_instrList, string);
+static void print_rpi_ins(string, RA_result, string);
+static void print_llvm_runtime_funcs(string);
+static void print_arm_runtime_funcs(string);
 
-static void printSSAIns(string file_ssa, AS_instrList il) {
-  freopen(file_ssa, "a", stdout);
-  AS_printInstrList(stdout, il, Temp_name());
-  fclose(stdout);
-}
-
-static void printArmIns(string file_arm, AS_instrList il, string funcname) {
-  freopen(file_arm, "a", stdout);
-  fprintf(stdout, "\t.text\n");
-  fprintf(stdout, "\t.align 1\n");
-  fprintf(stdout, "\t.global %s\n", funcname);
-  AS_printInstrList(stdout, il, Temp_name());
-  fflush(stdout);
-  fclose(stdout);
-}
-
-static void printRpiIns(string file_rpi, RA_result ra, string funcname) {
-  Temp_map coloring = ra->coloring;
-  AS_instrList il = ra->il;
-  freopen(file_rpi, "a", stdout);
-  fprintf(stdout, "\t.text\n");
-  fprintf(stdout, "\t.align 2\n");
-  fprintf(stdout, "\t.global %s\n", funcname);
-  AS_printInstrList(stdout, il, coloring);
-  fflush(stdout);
-  fclose(stdout);
-}
-
-static void print_llvm_runtime_funcs(string filename) {
-  freopen(filename, "a", stdout);
-  fprintf(stdout, "declare void @starttime()\n");
-  fprintf(stdout, "declare void @stoptime()\n");
-  fprintf(stdout, "declare i64* @malloc(i64)\n");
-  fprintf(stdout, "declare void @putch(i64)\n");
-  fprintf(stdout, "declare void @putint(i64)\n");
-  fprintf(stdout, "declare void @putfloat(double)\n");
-  fprintf(stdout, "declare i64 @getint()\n");
-  fprintf(stdout, "declare float @getfloat()\n");
-  fprintf(stdout, "declare i64* @getarray(i64)\n");
-  fprintf(stdout, "declare i64 @getch(i64)\n");
-  fprintf(stdout, "declare i64* @getfarray(i64)\n");
-  fprintf(stdout, "declare void @putarray(i64, i64*)\n");
-  fprintf(stdout, "declare void @putfarray(i64, i64*)\n");
-  fclose(stdout);
-}
-
-static void print_arm_runtime_funcs(string filename) {
-  freopen(filename, "a", stdout);
-  fprintf(stdout, ".global malloc\n");
-  fprintf(stdout, ".global getint\n");
-  fprintf(stdout, ".global getch\n");
-  fprintf(stdout, ".global getfloat\n");
-  fprintf(stdout, ".global getarray\n");
-  fprintf(stdout, ".global getfarray\n");
-  fprintf(stdout, ".global putint\n");
-  fprintf(stdout, ".global putch\n");
-  fprintf(stdout, ".global putfloat\n");
-  fprintf(stdout, ".global putarray\n");
-  fprintf(stdout, ".global putfarray\n");
-  fprintf(stdout, ".global starttime\n");
-  fprintf(stdout, ".global stoptime\n");
-  fclose(stdout);
-}
-
-static AS_blockList llvmInstrList2BL(AS_instrList il) {
-  AS_instrList b = NULL;
-  AS_blockList bl = NULL;
-  AS_instrList til = il;
-
-  while (til) {
-    if (til->head->kind == I_LABEL) {
-      if (b) {  // if we have a label but the current block is not empty, then
-                // we have to stop the block
-        Temp_label l = til->head->u.LABEL.label;
-        b = AS_splice(b,
-                      AS_InstrList(AS_Oper(String("br label `j0"), NULL, NULL,
-                                           AS_Targets(Temp_LabelList(l, NULL))),
-                                   NULL));
-        // add a jump to the block to be stopped, only for LLVM IR
-        bl = AS_BlockSplice(
-            bl, AS_BlockList(AS_Block(b),
-                             NULL));  // add the block to the block list
-#ifdef __DEBUG
-        fprintf(stderr, "1----Start a new Block %s\n", Temp_labelstring(l));
-        fflush(stderr);
-#endif
-        b = NULL;  // start a new block
-      }
-    }
-
-    assert(b ||
-           til->head->kind ==
-               I_LABEL);  // if not a label to start a block, something's wrong!
-
-#ifdef __DEBUG
-    if (!b && til->head->kind == I_LABEL)
-      fprintf(stderr, "2----Start a new Block %s\n",
-              Temp_labelstring(til->head->u.LABEL.label));
-    fflush(stderr);
-#endif
-
-    // now add the instruction to the block
-    b = AS_splice(b, AS_InstrList(til->head, NULL));
-
-    if (til->head->kind == I_OPER &&
-        ((til->head->u.OPER.jumps && til->head->u.OPER.jumps->labels) ||
-         (!strcmp(til->head->u.OPER.assem, "ret i64 -1") ||
-          !strcmp(til->head->u.OPER.assem, "ret double -1.0")))) {
-#ifdef __DEBUG
-      fprintf(stderr, "----Got a jump, ending the block for label = %s\n",
-              Temp_labelstring(b->head->u.LABEL.label));
-      fflush(stderr);
-#endif
-      bl = AS_BlockSplice(
-          bl, AS_BlockList(AS_Block(b), NULL));  // got a jump, stop a block
-      b = NULL;                                  // and start a new block
-    }
-    til = til->tail;
-  }
-#ifdef __DEBUG
-  fprintf(stderr, "----Processed all instructions\n");
-  fflush(stderr);
-#endif
-  return bl;
-}
+static AS_blockList llvmInstrList2BL(AS_instrList);
+static llvmFunc llvmSeperate(AS_instrList);
 
 int main(int argc, const char* argv[]) {
   if (argc != 4) {
@@ -228,50 +108,20 @@ int main(int argc, const char* argv[]) {
     T_funcDeclList fdl = transA_Prog(stderr, root, 8);
 
     for (T_funcDeclList f = fdl; f; f = f->tail) {
-      printIrpIns(file_irp, f->head);
+      print_irp_ins(file_irp, f->head);
 
       struct C_block b = canonicalize(f->head, file_stm, TRUE);
 
-      AS_instrList il = llvmInsSelect(f->head, b, file_ins, FALSE);
+      AS_instrList il = llvmInsSelect(f->head, b, file_ins, TRUE);
 
-      AS_instr prologi = il->head;
-#ifdef __DEBUG
-      fprintf(stderr, "prologi->assem = %s\n", prologi->u.OPER.assem);
-      fflush(stderr);
-#endif
-      AS_instrList bodyil = il->tail;
-      AS_instrList til = bodyil;
-      AS_instr epilogi;
-      if (til->tail == NULL) {
-#ifdef __DEBUG
-        fprintf(stderr, "Empty body");
-        fflush(stderr);
-#endif
-        epilogi = til->head;
-        bodyil = NULL;
-      } else {
-        while (til->tail->tail != NULL) {
-#ifdef __DEBUG
-          fprintf(stderr, "til->head->kind = %s\n", til->head->u.OPER.assem);
-          fflush(stderr);
-#endif
-          til = til->tail;
-        }
-        epilogi = til->tail->head;
-#ifdef __DEBUG
-        fprintf(stderr, "epilogi->assem = %s\n", epilogi->u.OPER.assem);
-        fflush(stderr);
-#endif
-        til->tail = NULL;
-      }
-#ifdef __DEBUG
-      fprintf(stderr,
-              "------ now we've seperated body into prolog, body, and epilog "
-              "-----\n");
-      fflush(stderr);
-#endif
+      /* seperate body into prolog, body, and epilog */
+      llvmFunc lf = llvmSeperate(il);
+      AS_instr prologi = lf.prologi;
+      AS_instrList bodyil = lf.bodyil;
+      AS_instr epilogi = lf.epilogi;
 
-      // get the control flow and print out the control flow graph to *.8.cfg
+      /* SSA prerequisites: build liveness and block CFG */
+      // get the control flow
       G_graph fg = FG_AssemFlowGraph(bodyil);
       freopen(file_cfg, "a", stdout);
       fprintf(stdout, "------Flow Graph------\n");
@@ -280,8 +130,7 @@ int main(int argc, const char* argv[]) {
       fflush(stdout);
       fclose(stdout);
 
-      // data flow analysis
-      freopen(file_cfg, "a", stdout);
+      // liveness analysis
       G_nodeList lg = Liveness(G_nodes(fg));
       freopen(file_cfg, "a", stdout);
       fprintf(stdout, "/* ------Liveness Graph------*/\n");
@@ -289,8 +138,8 @@ int main(int argc, const char* argv[]) {
       fflush(stdout);
       fclose(stdout);
 
-      G_nodeList bg =
-          Create_bg(llvmInstrList2BL(bodyil));  // create a basic block graph
+      // create a basic block graph
+      G_nodeList bg = Create_bg(llvmInstrList2BL(bodyil));
       freopen(file_cfg, "a", stdout);
       fprintf(stdout, "------Basic Block Graph------\n");
       Show_bg(stdout, bg);
@@ -298,128 +147,65 @@ int main(int argc, const char* argv[]) {
       fflush(stdout);
       fclose(stdout);
 
-      AS_instrList bodyil_in_SSA = AS_instrList_to_SSA(bodyil, lg, bg);
+      AS_instrList bodyil_in_SSA = SSA_construction(bodyil, lg, bg);
 
       // print the AS_instrList to the ssa file
       AS_instrList finalssa = AS_splice(AS_InstrList(prologi, bodyil_in_SSA),
                                         AS_InstrList(epilogi, NULL));
-      printSSAIns(file_ssa, finalssa);
+      print_ssa_ins(file_ssa, finalssa);
     }
 
     print_llvm_runtime_funcs(file_ssa);
+  } else {
+    T_funcDeclList fdl = transA_Prog(stderr, root, 4);
 
-    return 0;
-  }
+    while (fdl) {
+      /* Canonicalization */
+      struct C_block b = canonicalize(fdl->head, file_stm, FALSE);
 
-  T_funcDeclList fdl = transA_Prog(stderr, root, 4);
+      /* LLVM Instruction selection */
+      AS_instrList il = llvmInsSelect(fdl->head, b, file_ins, FALSE);
 
-  while (fdl) {
-    // printIrpIns(file_irp, fdl->head);
+      /* seperate body into prolog, body, and epilog */
+      llvmFunc lf = llvmSeperate(il);
+      AS_instr prologi = lf.prologi;
+      AS_instrList bodyil = lf.bodyil;
+      AS_instr epilogi = lf.epilogi;
 
-    /* Canonicalization */
-    struct C_block b = canonicalize(fdl->head, file_stm, FALSE);
+      /* SSA prerequisites: build liveness and block CFG */
+      G_graph fg = FG_AssemFlowGraph(bodyil);
+      G_nodeList lg = Liveness(G_nodes(fg));
+      G_nodeList bg = Create_bg(llvmInstrList2BL(bodyil));
 
-    /* LLVM Instruction selection */
-    AS_instrList il = llvmInsSelect(fdl->head, b, file_ins, FALSE);
+      /* SSA */
+      AS_instrList bodyil_in_SSA = SSA_construction(bodyil, lg, bg);
 
-    AS_instr prologi = il->head;
-#ifdef __DEBUG
-    fprintf(stderr, "prologi->assem = %s\n", prologi->u.OPER.assem);
-    fflush(stderr);
-#endif
-    AS_instrList bodyil = il->tail;
-    AS_instrList til = bodyil;
-    AS_instr epilogi;
-    if (til->tail == NULL) {
-#ifdef __DEBUG
-      fprintf(stderr, "Empty body");
-      fflush(stderr);
-#endif
-      epilogi = til->head;
-      bodyil = NULL;
-    } else {
-      while (til->tail->tail != NULL) {
-#ifdef __DEBUG
-        fprintf(stderr, "til->head->kind = %s\n", til->head->u.OPER.assem);
-        fflush(stderr);
-#endif
-        til = til->tail;
-      }
-      epilogi = til->tail->head;
-#ifdef __DEBUG
-      fprintf(stderr, "epilogi->assem = %s\n", epilogi->u.OPER.assem);
-      fflush(stderr);
-#endif
-      til->tail = NULL;
+      /* RPi Instruction selection */
+      AS_instrList bodyil_wo_SSA = SSA_destruction(bodyil_in_SSA, bg);
+
+      AS_instrList prologil_arm = armprolog(AS_InstrList(prologi, NULL));
+      AS_instrList epilogil_arm = armepilog(AS_InstrList(epilogi, NULL));
+      AS_instrList bodyil_arm = armbody(bodyil_wo_SSA);
+      AS_instrList finalarm =
+          AS_splice(AS_splice(prologil_arm, bodyil_arm), epilogil_arm);
+      print_arm_ins(file_arm, finalarm, fdl->head->name);
+
+      /* Liveness analysis */
+      G_nodeList arm_ig = livenessAnalyze(finalarm, file_ig);
+
+      /* Register allocation */
+      RA_result ra = RA_regAlloc(finalarm, arm_ig);
+      print_rpi_ins(file_rpi, ra, fdl->head->name);
+
+      fdl = fdl->tail;
     }
-#ifdef __DEBUG
-    fprintf(stderr,
-            "------ now we've seperated body into prolog, body, and epilog "
-            "-----\n");
-    fflush(stderr);
-#endif
 
-    /* doing the control graph and print to *.8.cfg*/
-    // get the control flow and print out the control flow graph to *.8.cfg
-    G_graph fg = FG_AssemFlowGraph(bodyil);
-    // freopen(file_cfg, "a", stdout);
-    // fprintf(stdout, "------Flow Graph------\n");
-    // fflush(stdout);
-    // G_show(stdout, G_nodes(fg), (void*)FG_show);
-    // fflush(stdout);
-    // fclose(stdout);
+    // print the runtime functions for the 8.arm file
+    print_arm_runtime_funcs(file_arm);
 
-    // data flow analysis
-    G_nodeList lg = Liveness(G_nodes(fg));
-    // freopen(file_cfg, "a", stdout);
-    // fprintf(stdout, "/* ------Liveness Graph------*/\n");
-    // Show_Liveness(stdout, lg);
-    // fflush(stdout);
-    // fclose(stdout);
-
-    // create a basic block graph
-    G_nodeList bg = Create_bg(llvmInstrList2BL(bodyil));
-    // freopen(file_cfg, "a", stdout);
-    // fprintf(stdout, "------Basic Block Graph------\n");
-    // Show_bg(stdout, bg);
-    // fprintf(stdout, "\n\n");
-    // fflush(stdout);
-    // fclose(stdout);
-
-    /* SSA */
-    AS_instrList bodyil_in_SSA = AS_instrList_to_SSA(bodyil, lg, bg);
-
-    // print the AS_instrList to the ssa file`
-    AS_instrList finalssa = AS_splice(AS_InstrList(prologi, bodyil_in_SSA),
-                                      AS_InstrList(epilogi, NULL));
-    // printSSAIns(file_ssa, finalssa);
-
-    /* RPi Instruction selection */
-    G_graph ssa_bg = Create_SSA_bg(bg);
-    AS_instrList bodyil_wo_SSA = SSA_destruction(bodyil_in_SSA, ssa_bg);
-
-    AS_instrList prologil_arm = armprolog(AS_InstrList(prologi, NULL));
-    AS_instrList epilogil_arm = armepilog(AS_InstrList(epilogi, NULL));
-    AS_instrList bodyil_arm = armbody(bodyil_wo_SSA);
-    AS_instrList finalarm =
-        AS_splice(AS_splice(prologil_arm, bodyil_arm), epilogil_arm);
-    printArmIns(file_arm, finalarm, fdl->head->name);
-
-    /* Liveness analysis */
-    G_nodeList arm_ig = livenessAnalyze(finalarm, file_ig);
-
-    /* Register allocation */
-    RA_result ra = RA_regAlloc(finalarm, arm_ig);
-    printRpiIns(file_rpi, ra, fdl->head->name);
-
-    fdl = fdl->tail;
+    // print the runtime functions for the 9.s file
+    print_arm_runtime_funcs(file_rpi);
   }
-
-  // print the runtime functions for the 9.arm file
-  print_arm_runtime_funcs(file_arm);
-
-  // print the runtime functions for the 10.s file
-  print_arm_runtime_funcs(file_rpi);
 
   return 0;
 }
@@ -533,4 +319,180 @@ static G_nodeList livenessAnalyze(AS_instrList finalarm, string file_ig) {
   fclose(stdout);
 
   return arm_ig;
+}
+
+static void print_irp_ins(string file_irp, T_funcDecl func) {
+  freopen(file_irp, "a", stdout);
+  fprintf(stdout, "------Original IR Tree------\n");
+  printIRP_set(IRP_parentheses);
+  printIRP_FuncDecl(stdout, func);
+  fprintf(stdout, "\n\n");
+  fflush(stdout);
+  fclose(stdout);
+}
+
+static void print_ssa_ins(string file_ssa, AS_instrList il) {
+  freopen(file_ssa, "a", stdout);
+  AS_printInstrList(stdout, il, Temp_name());
+  fclose(stdout);
+}
+
+static void print_arm_ins(string file_arm, AS_instrList il, string funcname) {
+  freopen(file_arm, "a", stdout);
+  fprintf(stdout, "\t.text\n");
+  fprintf(stdout, "\t.align 1\n");
+  fprintf(stdout, "\t.global %s\n", funcname);
+  AS_printInstrList(stdout, il, Temp_name());
+  fflush(stdout);
+  fclose(stdout);
+}
+
+static void print_rpi_ins(string file_rpi, RA_result ra, string funcname) {
+  Temp_map coloring = ra->coloring;
+  AS_instrList il = ra->il;
+  freopen(file_rpi, "a", stdout);
+  fprintf(stdout, "\t.text\n");
+  fprintf(stdout, "\t.align 2\n");
+  fprintf(stdout, "\t.global %s\n", funcname);
+  AS_printInstrList(stdout, il, coloring);
+  fflush(stdout);
+  fclose(stdout);
+}
+
+static void print_llvm_runtime_funcs(string filename) {
+  freopen(filename, "a", stdout);
+  fprintf(stdout, "declare void @starttime()\n");
+  fprintf(stdout, "declare void @stoptime()\n");
+  fprintf(stdout, "declare i64* @malloc(i64)\n");
+  fprintf(stdout, "declare void @putch(i64)\n");
+  fprintf(stdout, "declare void @putint(i64)\n");
+  fprintf(stdout, "declare void @putfloat(double)\n");
+  fprintf(stdout, "declare i64 @getint()\n");
+  fprintf(stdout, "declare float @getfloat()\n");
+  fprintf(stdout, "declare i64* @getarray(i64)\n");
+  fprintf(stdout, "declare i64 @getch(i64)\n");
+  fprintf(stdout, "declare i64* @getfarray(i64)\n");
+  fprintf(stdout, "declare void @putarray(i64, i64*)\n");
+  fprintf(stdout, "declare void @putfarray(i64, i64*)\n");
+  fclose(stdout);
+}
+
+static void print_arm_runtime_funcs(string filename) {
+  freopen(filename, "a", stdout);
+  fprintf(stdout, ".global malloc\n");
+  fprintf(stdout, ".global getint\n");
+  fprintf(stdout, ".global getch\n");
+  fprintf(stdout, ".global getfloat\n");
+  fprintf(stdout, ".global getarray\n");
+  fprintf(stdout, ".global getfarray\n");
+  fprintf(stdout, ".global putint\n");
+  fprintf(stdout, ".global putch\n");
+  fprintf(stdout, ".global putfloat\n");
+  fprintf(stdout, ".global putarray\n");
+  fprintf(stdout, ".global putfarray\n");
+  fprintf(stdout, ".global starttime\n");
+  fprintf(stdout, ".global stoptime\n");
+  fclose(stdout);
+}
+
+static AS_blockList llvmInstrList2BL(AS_instrList il) {
+  AS_instrList b = NULL;
+  AS_blockList bl = NULL;
+  AS_instrList til = il;
+
+  while (til) {
+    if (til->head->kind == I_LABEL) {
+      if (b) {  // if we have a label but the current block is not empty, then
+                // we have to stop the block
+        Temp_label l = til->head->u.LABEL.label;
+        b = AS_splice(b,
+                      AS_InstrList(AS_Oper(String("br label `j0"), NULL, NULL,
+                                           AS_Targets(Temp_LabelList(l, NULL))),
+                                   NULL));
+        // add a jump to the block to be stopped, only for LLVM IR
+        bl = AS_BlockSplice(
+            bl, AS_BlockList(AS_Block(b),
+                             NULL));  // add the block to the block list
+#ifdef __DEBUG
+        fprintf(stderr, "1----Start a new Block %s\n", Temp_labelstring(l));
+        fflush(stderr);
+#endif
+        b = NULL;  // start a new block
+      }
+    }
+
+    assert(b ||
+           til->head->kind ==
+               I_LABEL);  // if not a label to start a block, something's wrong!
+
+#ifdef __DEBUG
+    if (!b && til->head->kind == I_LABEL)
+      fprintf(stderr, "2----Start a new Block %s\n",
+              Temp_labelstring(til->head->u.LABEL.label));
+    fflush(stderr);
+#endif
+
+    // now add the instruction to the block
+    b = AS_splice(b, AS_InstrList(til->head, NULL));
+
+    if (til->head->kind == I_OPER &&
+        ((til->head->u.OPER.jumps && til->head->u.OPER.jumps->labels) ||
+         (!strcmp(til->head->u.OPER.assem, "ret i64 -1") ||
+          !strcmp(til->head->u.OPER.assem, "ret double -1.0")))) {
+#ifdef __DEBUG
+      fprintf(stderr, "----Got a jump, ending the block for label = %s\n",
+              Temp_labelstring(b->head->u.LABEL.label));
+      fflush(stderr);
+#endif
+      bl = AS_BlockSplice(
+          bl, AS_BlockList(AS_Block(b), NULL));  // got a jump, stop a block
+      b = NULL;                                  // and start a new block
+    }
+    til = til->tail;
+  }
+#ifdef __DEBUG
+  fprintf(stderr, "----Processed all instructions\n");
+  fflush(stderr);
+#endif
+  return bl;
+}
+
+static llvmFunc llvmSeperate(AS_instrList il) {
+  AS_instr prologi = il->head;
+#ifdef __DEBUG
+  fprintf(stderr, "prologi->assem = %s\n", prologi->u.OPER.assem);
+  fflush(stderr);
+#endif
+  AS_instrList bodyil = il->tail;
+  AS_instrList til = bodyil;
+  AS_instr epilogi;
+  if (til->tail == NULL) {
+#ifdef __DEBUG
+    fprintf(stderr, "Empty body");
+    fflush(stderr);
+#endif
+    epilogi = til->head;
+    bodyil = NULL;
+  } else {
+    while (til->tail->tail != NULL) {
+#ifdef __DEBUG
+      fprintf(stderr, "til->head->kind = %s\n", til->head->u.OPER.assem);
+      fflush(stderr);
+#endif
+      til = til->tail;
+    }
+    epilogi = til->tail->head;
+#ifdef __DEBUG
+    fprintf(stderr, "epilogi->assem = %s\n", epilogi->u.OPER.assem);
+    fflush(stderr);
+#endif
+    til->tail = NULL;
+  }
+#ifdef __DEBUG
+  fprintf(stderr,
+          "------ now we've seperated body into prolog, body, and epilog "
+          "-----\n");
+  fflush(stderr);
+#endif
+  return (llvmFunc){prologi, bodyil, epilogi};
 }

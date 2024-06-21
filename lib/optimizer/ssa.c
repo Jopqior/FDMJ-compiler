@@ -511,7 +511,7 @@ static LT_info *lt_infos;
 static int *vertex;  // vertex[i]=u means u is the ith vertex in the DFS tree
 static int dfscnt;
 
-static void dfs(int v) {
+static void LT_dfs(int v) {
   lt_infos[v]->semi_dfsnum = dfscnt;
   vertex[dfscnt] = v;
   lt_infos[v]->label = v;
@@ -520,24 +520,24 @@ static void dfs(int v) {
     int w = p->head->mykey;
     if (lt_infos[w]->semi_dfsnum == -1) {
       lt_infos[w]->parent = v;
-      dfs(w);
+      LT_dfs(w);
     }
   }
 }
 
-static void link(int v, int w) {
+static void LT_link(int v, int w) {
   // make w a child of v
   lt_infos[w]->ancestor = v;
 }
 
-static void compress(int v) {
+static void LT_compress(int v) {
   if (lt_infos[v]->ancestor == -1) {
     fprintf(stderr, "compress: ancestor is -1\n");
     exit(1);
   }
 
   if (lt_infos[lt_infos[v]->ancestor]->ancestor != -1) {
-    compress(lt_infos[v]->ancestor);
+    LT_compress(lt_infos[v]->ancestor);
     if (lt_infos[lt_infos[lt_infos[v]->ancestor]->label]->semi_dfsnum <
         lt_infos[lt_infos[v]->label]->semi_dfsnum) {
       lt_infos[v]->label = lt_infos[lt_infos[v]->ancestor]->label;
@@ -548,16 +548,16 @@ static void compress(int v) {
 
 /* eval(v) returns the vertex with the minimum semi_dfsnum on the path from v to
  * the root of the DFS tree, but not including the root */
-static int eval(int v) {
+static int LT_eval(int v) {
   if (lt_infos[v]->ancestor == -1) {
     return v;
   }
 
-  compress(v);
+  LT_compress(v);
   return lt_infos[v]->label;
 }
 
-static void lengauer_tarjan_idoms() {
+static void LT_findIdoms() {
   // initialize the LT_info
   lt_infos = (LT_info *)checked_malloc(num_bg_nodes * sizeof *lt_infos);
   for (int i = 0; i < num_bg_nodes; ++i) {
@@ -567,7 +567,7 @@ static void lengauer_tarjan_idoms() {
   // DFS and initialize the vertex, semi_dfsnum, label
   vertex = (int *)checked_malloc(num_bg_nodes * sizeof *vertex);
   dfscnt = 0;
-  dfs(0);
+  LT_dfs(0);
 #ifdef LT_DEBUG
   for (int i = 0; i < num_bg_nodes; ++i) {
     fprintf(stderr, "vertex[%d]=%d\n", i, vertex[i]);
@@ -580,7 +580,7 @@ static void lengauer_tarjan_idoms() {
     int w = vertex[i];
     for (G_nodeList s = G_pred(blockInfoEnv[w]->mynode); s; s = s->tail) {
       int v = s->head->mykey;
-      int u = eval(v);
+      int u = LT_eval(v);
       if (lt_infos[u]->semi_dfsnum < lt_infos[w]->semi_dfsnum) {
         lt_infos[w]->semi_dfsnum = lt_infos[u]->semi_dfsnum;
       }
@@ -588,12 +588,12 @@ static void lengauer_tarjan_idoms() {
     // add w to the bucket of vertex[semi_dfsnum[w]]
     bitmap_set(lt_infos[vertex[lt_infos[w]->semi_dfsnum]]->bucket, w);
     // link w to its parent
-    link(lt_infos[w]->parent, w);
+    LT_link(lt_infos[w]->parent, w);
 
     // compute idom
     for (int v = 0; v < num_bg_nodes; ++v) {
       if (bitmap_read(lt_infos[lt_infos[w]->parent]->bucket, v)) {
-        int u = eval(v);
+        int u = LT_eval(v);
         if (lt_infos[u]->semi_dfsnum < lt_infos[v]->semi_dfsnum) {
           // idom[v] = idom[u], need to reconsider v later
           blockInfoEnv[v]->idom = u;
@@ -618,19 +618,19 @@ static void lengauer_tarjan_idoms() {
   }
 }
 
-static void lt_dfs_dom_tree(int u) {
+static void LT_computeDoms_recur(int u) {
   for (blockIdList p = blockInfoEnv[u]->dom_tree_children; p; p = p->tail) {
     int v = p->blockid;
     bitmap_set(blockInfoEnv[v]->doms, v);
     bitmap_union_into(blockInfoEnv[v]->doms, blockInfoEnv[u]->doms);
-    lt_dfs_dom_tree(v);
+    LT_computeDoms_recur(v);
   }
 }
 
-static void lengauer_tarjan_doms() {
+static void LT_computeDoms() {
   // after constructing the dominator tree, compute the dominators
   bitmap_set(blockInfoEnv[0]->doms, 0);
-  lt_dfs_dom_tree(0);
+  LT_computeDoms_recur(0);
 }
 
 static void construct_bg_dom_tree() {
@@ -986,14 +986,20 @@ static AS_instrList get_final_result() {
   return result;
 }
 
-static bool isSSA = TRUE;
+void SSA_writeBackToBg(G_nodeList bg) {
+  for (G_nodeList p = bg; p; p = p->tail) {
+    AS_instrList instrs = NULL;
+    for (instrInfoList q = blockInfoEnv[p->head->mykey]->instrInfos; q;
+         q = q->tail) {
+      instrs = AS_splice(instrs, AS_InstrList(q->instr, NULL));
+    }
+    p->head->info = AS_Block(instrs);
+  }
+}
 
-AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
-                                 G_nodeList bg) {
-  /* here is your implementation of translating to ssa */
-
+AS_instrList SSA_construction(AS_instrList bodyil, G_nodeList lg,
+                              G_nodeList bg) {
   if (!lg || !bg) {
-    isSSA = FALSE;
     return bodyil;
   }
   out = stderr;
@@ -1027,7 +1033,7 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
     print_bg_dom_tree(out);
 #endif
   } else {
-    lengauer_tarjan_idoms();
+    LT_findIdoms();
 #ifdef SSA_DEBUG
     fprintf(out, "----------------- bg_idoms -----------------\n");
     print_bg_idoms(out);
@@ -1039,7 +1045,7 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
     print_bg_dom_tree(out);
 #endif
 
-    lengauer_tarjan_doms();
+    LT_computeDoms();
 #ifdef SSA_DEBUG
     print_bg_doms(out, 0);
 #endif
@@ -1063,22 +1069,9 @@ AS_instrList AS_instrList_to_SSA(AS_instrList bodyil, G_nodeList lg,
 
   rename_vars();
 
-  return get_final_result();
-}
+  SSA_writeBackToBg(bg);
 
-G_graph Create_SSA_bg(G_nodeList bg) {
-  if (!isSSA) {
-    return bg ? bg->head->mygraph : NULL;
-  }
-  for (G_nodeList p = bg; p; p = p->tail) {
-    AS_instrList instrs = NULL;
-    for (instrInfoList q = blockInfoEnv[p->head->mykey]->instrInfos; q;
-         q = q->tail) {
-      instrs = AS_splice(instrs, AS_InstrList(q->instr, NULL));
-    }
-    p->head->info = AS_Block(instrs);
-  }
-  return bg->head->mygraph;
+  return get_final_result();
 }
 
 static bool isBlockContainPhi(AS_block b) {
@@ -1336,10 +1329,12 @@ static void reorderBlocks(G_graph ssa_bg) {
   ssa_bg->mylast = last;
 }
 
-AS_instrList SSA_destruction(AS_instrList bodyil, G_graph ssa_bg) {
-  if (!isSSA) {
+AS_instrList SSA_destruction(AS_instrList bodyil, G_nodeList bg) {
+  if (!bg) {
     return bodyil;
   }
+
+  G_graph ssa_bg = bg->head->mygraph;
 
   int originNodeCnt = ssa_bg->nodecount;
   for (G_nodeList p = G_nodes(ssa_bg); p && originNodeCnt;
