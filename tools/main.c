@@ -150,8 +150,7 @@ int main(int argc, const char* argv[]) {
       AS_instrList bodyil_in_SSA = SSA_construction(bodyil, lg, bg);
 
       // print the AS_instrList to the ssa file
-      AS_instrList finalssa = AS_splice(AS_InstrList(prologi, bodyil_in_SSA),
-                                        AS_InstrList(epilogi, NULL));
+      AS_instrList finalssa = AS_splice(AS_InstrList(prologi, bodyil_in_SSA), AS_InstrList(epilogi, NULL));
       print_ssa_ins(file_ssa, finalssa);
     }
 
@@ -186,8 +185,7 @@ int main(int argc, const char* argv[]) {
       AS_instrList prologil_arm = armprolog(AS_InstrList(prologi, NULL));
       AS_instrList epilogil_arm = armepilog(AS_InstrList(epilogi, NULL));
       AS_instrList bodyil_arm = armbody(bodyil_wo_SSA);
-      AS_instrList finalarm =
-          AS_splice(AS_splice(prologil_arm, bodyil_arm), epilogil_arm);
+      AS_instrList finalarm = AS_splice(AS_splice(prologil_arm, bodyil_arm), epilogil_arm);
       print_arm_ins(file_arm, finalarm, fdl->head->name);
 
       /* Liveness analysis */
@@ -210,8 +208,7 @@ int main(int argc, const char* argv[]) {
   return 0;
 }
 
-static struct C_block canonicalize(T_funcDecl func, string file_stm,
-                                   bool isPrint) {
+static struct C_block canonicalize(T_funcDecl func, string file_stm, bool isPrint) {
   T_stm s = func->stm;  // get the statement list of the function
 
   T_stmList sl = C_linearize(s);
@@ -229,10 +226,8 @@ static struct C_block canonicalize(T_funcDecl func, string file_stm,
   if (isPrint) {
     freopen(file_stm, "a", stdout);
     fprintf(stdout, "------Basic Blocks------\n");
-    for (C_stmListList sll = b.stmLists; sll;
-         sll = sll->tail) {  // print the basic blocks.
-      // Each block is a list of statements starting with a label, ending with a
-      // jump
+    for (C_stmListList sll = b.stmLists; sll; sll = sll->tail) {  // print the basic blocks.
+      // Each block is a list of statements starting with a label, ending with a jump
       fprintf(stdout, "For Label=%s\n", S_name(sll->head->head->u.LABEL));
       printStm_StmList(stdout, sll->head,
                        0);  // print the statements in the block
@@ -257,8 +252,7 @@ static struct C_block canonicalize(T_funcDecl func, string file_stm,
   return b;
 }
 
-static AS_instrList llvmInsSelect(T_funcDecl func, struct C_block b,
-                                  string file_ins, bool isPrint) {
+static AS_instrList llvmInsSelect(T_funcDecl func, struct C_block b, string file_ins, bool isPrint) {
   // First making the head of the function, then the body, then the epilog
   AS_instrList prologil = llvmprolog(func->name, func->args, func->ret_type);
   AS_blockList bodybl = NULL;
@@ -300,6 +294,7 @@ static G_nodeList livenessAnalyze(AS_instrList finalarm, string file_ig) {
   fprintf(stdout, "------Flow Graph------\n");
   fflush(stdout);
   G_show(stdout, G_nodes(arm_fg), (void*)FG_show);
+  fprintf(stdout, "\n");
   fflush(stdout);
   fclose(stdout);
 
@@ -307,6 +302,7 @@ static G_nodeList livenessAnalyze(AS_instrList finalarm, string file_ig) {
   freopen(file_ig, "a", stdout);
   fprintf(stdout, "/* ------Liveness Graph------*/\n");
   Show_Liveness(stdout, arm_lg);
+  fprintf(stdout, "\n");
   fflush(stdout);
   fclose(stdout);
 
@@ -315,6 +311,7 @@ static G_nodeList livenessAnalyze(AS_instrList finalarm, string file_ig) {
   freopen(file_ig, "a", stdout);
   fprintf(stdout, "------Interference Graph------\n");
   Show_ig(stdout, arm_ig);
+  fprintf(stdout, "\n\n");
   fflush(stdout);
   fclose(stdout);
 
@@ -405,14 +402,11 @@ static AS_blockList llvmInstrList2BL(AS_instrList il) {
       if (b) {  // if we have a label but the current block is not empty, then
                 // we have to stop the block
         Temp_label l = til->head->u.LABEL.label;
-        b = AS_splice(b,
-                      AS_InstrList(AS_Oper(String("br label `j0"), NULL, NULL,
-                                           AS_Targets(Temp_LabelList(l, NULL))),
-                                   NULL));
+        b = AS_splice(
+            b, AS_InstrList(AS_Oper(String("br label `j0"), NULL, NULL, AS_Targets(Temp_LabelList(l, NULL))), NULL));
         // add a jump to the block to be stopped, only for LLVM IR
-        bl = AS_BlockSplice(
-            bl, AS_BlockList(AS_Block(b),
-                             NULL));  // add the block to the block list
+        bl = AS_BlockSplice(bl, AS_BlockList(AS_Block(b),
+                                             NULL));  // add the block to the block list
 #ifdef __DEBUG
         fprintf(stderr, "1----Start a new Block %s\n", Temp_labelstring(l));
         fflush(stderr);
@@ -421,14 +415,11 @@ static AS_blockList llvmInstrList2BL(AS_instrList il) {
       }
     }
 
-    assert(b ||
-           til->head->kind ==
-               I_LABEL);  // if not a label to start a block, something's wrong!
+    assert(b || til->head->kind == I_LABEL);  // if not a label to start a block, something's wrong!
 
 #ifdef __DEBUG
     if (!b && til->head->kind == I_LABEL)
-      fprintf(stderr, "2----Start a new Block %s\n",
-              Temp_labelstring(til->head->u.LABEL.label));
+      fprintf(stderr, "2----Start a new Block %s\n", Temp_labelstring(til->head->u.LABEL.label));
     fflush(stderr);
 #endif
 
@@ -437,16 +428,13 @@ static AS_blockList llvmInstrList2BL(AS_instrList il) {
 
     if (til->head->kind == I_OPER &&
         ((til->head->u.OPER.jumps && til->head->u.OPER.jumps->labels) ||
-         (!strcmp(til->head->u.OPER.assem, "ret i64 -1") ||
-          !strcmp(til->head->u.OPER.assem, "ret double -1.0")))) {
+         (!strcmp(til->head->u.OPER.assem, "ret i64 -1") || !strcmp(til->head->u.OPER.assem, "ret double -1.0")))) {
 #ifdef __DEBUG
-      fprintf(stderr, "----Got a jump, ending the block for label = %s\n",
-              Temp_labelstring(b->head->u.LABEL.label));
+      fprintf(stderr, "----Got a jump, ending the block for label = %s\n", Temp_labelstring(b->head->u.LABEL.label));
       fflush(stderr);
 #endif
-      bl = AS_BlockSplice(
-          bl, AS_BlockList(AS_Block(b), NULL));  // got a jump, stop a block
-      b = NULL;                                  // and start a new block
+      bl = AS_BlockSplice(bl, AS_BlockList(AS_Block(b), NULL));  // got a jump, stop a block
+      b = NULL;                                                  // and start a new block
     }
     til = til->tail;
   }
