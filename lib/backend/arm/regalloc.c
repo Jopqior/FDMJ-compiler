@@ -475,7 +475,7 @@ typedef struct {
 } RA_spillInfo;
 
 static inline int RA_getCalleeStackSize(int maxRegId) {
-  return maxRegId > 4 ? maxRegId - 4 : 0;
+  return maxRegId > 5 ? maxRegId - 5 : 0;
 }
 
 static inline int RA_getFloatCalleeStackSize(int maxFloatRegId) {
@@ -557,7 +557,7 @@ static inline string RA_getToStoreRegs(int regs, int num_reservedRegUsed) {
   string toPushAndPop = checked_calloc(IR_MAXLEN, sizeof(char));
   strcat(toPushAndPop, "{");
 
-  for (int i = 0; i < regs; ++i) {
+  for (int i = 1; i < regs; ++i) {
     strcat(toPushAndPop, regId2Name[4 + i]);
     if (i != regs - 1) {
       strcat(toPushAndPop, ", ");
