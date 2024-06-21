@@ -81,4 +81,4 @@ handin:
 	echo "请输入'学号-姓名' (例如: 12345678910-某个人)"; \
 	read filename; \
 	zip -q -r "docs/$$filename-final.zip" \
-	  docs/report.pdf include lib test tools vendor CMakeLists.txt Makefile README.md
+	  docs include lib test tools vendor CMakeLists.txt Makefile README.md
