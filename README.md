@@ -20,11 +20,11 @@
 
 ### LLVM IR
 
-运行 `make run-llvm` 会使用 `lli` 运行 `test` 目录下的所有 LLVM IR 可执行的文件。
+运行 `make run-llvm` 会使用 `lli` 运行 `test` 目录下的所有 LLVM IR 可执行的文件，并echo返回值。
 
 ### RPi
 
-运行 `make run-rpi` 会使用 `qemu-arm` 运行 `test` 目录下的所有 RPi 可执行的文件。
+运行 `make run-rpi` 会使用 `qemu-arm` 运行 `test` 目录下的所有 RPi 可执行的文件，并echo返回值。
 
 
 ## 输出文件
