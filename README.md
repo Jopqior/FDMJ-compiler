@@ -2,6 +2,10 @@
 
 本项目是一个基于FDMJ语言的编译器，FDMJ是一种miniJava语言，为简化编译器的实现而设计。目前支持将FDMJ语言编译为 LLVM IR (64 bit) 和 RPi (32 bit) 两种目标指令集运行。
 
+## FDMJ语法
+
+见 `docs/FDMJ2024.md`。
+
 ## 编译方法
 
 运行 `make build` 编译项目，生成可执行文件用于编译FDMJ语言。
