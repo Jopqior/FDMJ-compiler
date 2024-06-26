@@ -61,15 +61,12 @@ static G_nodeList spillWorklist = NULL;
 static G_nodeList selectStack = NULL;
 
 static int regId2Color[] = {0, 1, 2, 3, 14, 4, 5, 6, 7, 8};
-static int floatRegId2Color[] = {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
-                                 10, 11, 12, 13, 16, 17, 18, 19, 20, 21,
-                                 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
-static string regId2Name[] = {"r0", "r1", "r2", "r3", "lr",
-                              "r4", "r5", "r6", "r7", "r8"};
-static string floatRegId2Name[] = {
-    "s0",  "s1",  "s2",  "s3",  "s4",  "s5",  "s6",  "s7",  "s8",  "s9",
-    "s10", "s11", "s12", "s13", "s16", "s17", "s18", "s19", "s20", "s21",
-    "s22", "s23", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"};
+static int floatRegId2Color[] = {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 16,
+                                 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+static string regId2Name[] = {"r0", "r1", "r2", "r3", "lr", "r4", "r5", "r6", "r7", "r8"};
+static string floatRegId2Name[] = {"s0",  "s1",  "s2",  "s3",  "s4",  "s5",  "s6",  "s7",  "s8",  "s9",
+                                   "s10", "s11", "s12", "s13", "s16", "s17", "s18", "s19", "s20", "s21",
+                                   "s22", "s23", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"};
 
 static bool Temp_isPrecolored(Temp_temp temp) { return temp->num < 99; }
 
@@ -112,8 +109,7 @@ static inline int COL_color2RegId(int color) {
 }
 
 static inline int COL_floatColor2RegId(int color) {
-  ASSERT(color >= 0 && color < 32 && color != 14 && color != 15,
-         "Invalid color");
+  ASSERT(color >= 0 && color < 32 && color != 14 && color != 15, "Invalid color");
   if (color < 14) return color;
   return color - 2;
 }
@@ -126,8 +122,7 @@ static COL_tempInfo COL_TempInfo(G_node node, int degree, int regId) {
   return info;
 }
 
-static COL_result COL_Result(Temp_map coloring, Temp_tempList spills,
-                             int maxRegId, int maxFloatRegId) {
+static COL_result COL_Result(Temp_map coloring, Temp_tempList spills, int maxRegId, int maxFloatRegId) {
   COL_result res = checked_malloc(sizeof(*res));
   res->coloring = coloring;
   res->spills = spills;
@@ -216,20 +211,22 @@ static void COL_buildWorklist(G_graph ig) {
     }
     COL_tempInfo info = TAB_look(colEnv, temp);
     switch (temp->type) {
-      case T_int:
+      case T_int: {
         if (info->degree >= MAX_NUM_REG) {
           spillWorklist = G_NodeList(n, spillWorklist);
         } else {
           simplyfyWorklist = G_NodeList(n, simplyfyWorklist);
         }
         break;
-      case T_float:
+      }
+      case T_float: {
         if (info->degree >= MAX_NUM_FLOATREG) {
           spillWorklist = G_NodeList(n, spillWorklist);
         } else {
           simplyfyWorklist = G_NodeList(n, simplyfyWorklist);
         }
         break;
+      }
       default:
         ASSERT(0, "Unknown temp type");
     }
@@ -246,22 +243,25 @@ static void COL_decrementDegree(G_node m) {
 
   COL_tempInfo info = TAB_look(colEnv, temp);
 #ifdef COLOR_DEBUG
-  fprintf(stderr, "Decrement degree of t%d, %d -> %d\n", temp->num,
-          info->degree, info->degree - 1);
+  fprintf(stderr, "Decrement degree of t%d, %d -> %d\n", temp->num, info->degree, info->degree - 1);
 #endif
   info->degree--;
   switch (temp->type) {
     case T_int: {
       if (info->degree == MAX_NUM_REG - 1) {
-        COL_removeNode(m, &spillWorklist);
-        simplyfyWorklist = G_NodeList(m, simplyfyWorklist);
+        if (G_inNodeList(m, spillWorklist) && !G_inNodeList(m, simplyfyWorklist)) {
+          COL_removeNode(m, &spillWorklist);
+          simplyfyWorklist = G_NodeList(m, simplyfyWorklist);
+        }
       }
       break;
     }
     case T_float: {
       if (info->degree == MAX_NUM_FLOATREG - 1) {
-        COL_removeNode(m, &spillWorklist);
-        simplyfyWorklist = G_NodeList(m, simplyfyWorklist);
+        if (G_inNodeList(m, spillWorklist) && !G_inNodeList(m, simplyfyWorklist)) {
+          COL_removeNode(m, &spillWorklist);
+          simplyfyWorklist = G_NodeList(m, simplyfyWorklist);
+        }
       }
       break;
     }
@@ -337,6 +337,7 @@ static void COL_assignColor(COL_result res) {
         bitmap_set_all(b);
         for (G_nodeList nl = G_adj(n); nl; nl = nl->tail) {
           Temp_temp t = G_nodeInfo(nl->head);
+          if (t->type != T_int) continue;
           COL_tempInfo info = TAB_look(colEnv, t);
           ASSERT(info, Stringf("t%d's info is NULL", t->num));
           if (info->regId != -1) {
@@ -359,6 +360,7 @@ static void COL_assignColor(COL_result res) {
         bitmap_set_all(b);
         for (G_nodeList nl = G_adj(n); nl; nl = nl->tail) {
           Temp_temp t = G_nodeInfo(nl->head);
+          if (t->type != T_float) continue;
           COL_tempInfo info = TAB_look(colEnv, t);
           ASSERT(info, "info is NULL");
           if (info->regId != -1) {
@@ -474,13 +476,9 @@ typedef struct {
   int floatRegs;
 } RA_spillInfo;
 
-static inline int RA_getCalleeStackSize(int maxRegId) {
-  return maxRegId > 5 ? maxRegId - 5 : 0;
-}
+static inline int RA_getCalleeStackSize(int maxRegId) { return maxRegId > 5 ? maxRegId - 5 : 0; }
 
-static inline int RA_getFloatCalleeStackSize(int maxFloatRegId) {
-  return maxFloatRegId > 13 ? maxFloatRegId - 13 : 0;
-}
+static inline int RA_getFloatCalleeStackSize(int maxFloatRegId) { return maxFloatRegId > 13 ? maxFloatRegId - 13 : 0; }
 
 static RA_spillInfo RA_computeStackSize(RA_result res, COL_result colRes) {
 #ifdef REGALLOC_DEBUG
@@ -544,13 +542,11 @@ static RA_spillInfo RA_computeStackSize(RA_result res, COL_result colRes) {
 }
 
 static inline bool RA_isProlog(AS_instr instr) {
-  return instr->kind == I_OPER &&
-         !strcmp(instr->u.OPER.assem, "\tpush {r4, r5, r6, r7, r8, r9, r10}");
+  return instr->kind == I_OPER && !strcmp(instr->u.OPER.assem, "\tpush {r4, r5, r6, r7, r8, r9, r10}");
 }
 
 static inline bool RA_isReturn(AS_instr instr) {
-  return instr->kind == I_OPER &&
-         !strcmp(instr->u.OPER.assem, "\tsub sp, fp, #32");
+  return instr->kind == I_OPER && !strcmp(instr->u.OPER.assem, "\tsub sp, fp, #32");
 }
 
 static inline string RA_getToStoreRegs(int regs, int num_reservedRegUsed) {
@@ -598,8 +594,7 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
 #endif
   string toStoreRegs = NULL;
   if (spillInfo.regs || spillInfo.num_reservedRegUsed) {
-    toStoreRegs =
-        RA_getToStoreRegs(spillInfo.regs, spillInfo.num_reservedRegUsed);
+    toStoreRegs = RA_getToStoreRegs(spillInfo.regs, spillInfo.num_reservedRegUsed);
   }
   string toStoreFloatRegs = NULL;
   if (spillInfo.floatRegs) {
@@ -617,31 +612,25 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
 
       // if need, add spill stack size
       if (spillInfo.spillStackSize) {
-        AS_instr subSp = AS_Oper(
-            Stringf("\tsub sp, sp, #%d", spillInfo.spillStackSize * ARCH_SIZE),
-            NULL, NULL, NULL);
+        AS_instr subSp = AS_Oper(Stringf("\tsub sp, sp, #%d", spillInfo.spillStackSize * ARCH_SIZE), NULL, NULL, NULL);
         pre->tail = AS_InstrList(subSp, cur);
         cur = pre->tail;
       }
 
       if (toStoreFloatRegs) {
-        AS_instr newInstr =
-            AS_Oper(Stringf("\tvpush %s", toStoreFloatRegs), NULL, NULL, NULL);
+        AS_instr newInstr = AS_Oper(Stringf("\tvpush %s", toStoreFloatRegs), NULL, NULL, NULL);
         pre->tail = AS_InstrList(newInstr, cur);
         cur = pre->tail;
       }
 
       if (toStoreRegs) {
-        AS_instr newInstr =
-            AS_Oper(Stringf("\tpush %s", toStoreRegs), NULL, NULL, NULL);
+        AS_instr newInstr = AS_Oper(Stringf("\tpush %s", toStoreRegs), NULL, NULL, NULL);
         pre->tail = AS_InstrList(newInstr, cur);
         cur = pre->tail;
       }
 
       // due to putfloat constraint, #regs must be even
-      if ((spillInfo.regs + spillInfo.num_reservedRegUsed +
-           spillInfo.floatRegs + spillInfo.spillStackSize) %
-          2) {
+      if ((spillInfo.regs + spillInfo.num_reservedRegUsed + spillInfo.floatRegs + spillInfo.spillStackSize) % 2) {
         AS_instr newInstr = AS_Oper("\tpush {r8}", NULL, NULL, NULL);
         pre->tail = AS_InstrList(newInstr, cur);
         cur = pre->tail;
@@ -659,32 +648,26 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
       AS_instrList tmpCur = cur;
 
       // due to putfloat constraint, #regs must be even
-      if ((spillInfo.regs + spillInfo.num_reservedRegUsed +
-           spillInfo.floatRegs + spillInfo.spillStackSize) %
-          2) {
+      if ((spillInfo.regs + spillInfo.num_reservedRegUsed + spillInfo.floatRegs + spillInfo.spillStackSize) % 2) {
         AS_instr newInstr = AS_Oper("\tpop {r8}", NULL, NULL, NULL);
         pre->tail = AS_InstrList(newInstr, cur);
         cur = pre->tail;
       }
 
       if (toStoreRegs) {
-        AS_instr newInstr =
-            AS_Oper(Stringf("\tpop %s", toStoreRegs), NULL, NULL, NULL);
+        AS_instr newInstr = AS_Oper(Stringf("\tpop %s", toStoreRegs), NULL, NULL, NULL);
         pre->tail = AS_InstrList(newInstr, cur);
         cur = pre->tail;
       }
 
       if (toStoreFloatRegs) {
-        AS_instr newInstr =
-            AS_Oper(Stringf("\tvpop %s", toStoreFloatRegs), NULL, NULL, NULL);
+        AS_instr newInstr = AS_Oper(Stringf("\tvpop %s", toStoreFloatRegs), NULL, NULL, NULL);
         pre->tail = AS_InstrList(newInstr, cur);
         cur = pre->tail;
       }
 
       if (spillInfo.spillStackSize) {
-        AS_instr addSp = AS_Oper(
-            Stringf("\tadd sp, sp, #%d", spillInfo.spillStackSize * ARCH_SIZE),
-            NULL, NULL, NULL);
+        AS_instr addSp = AS_Oper(Stringf("\tadd sp, sp, #%d", spillInfo.spillStackSize * ARCH_SIZE), NULL, NULL, NULL);
         pre->tail = AS_InstrList(addSp, cur);
         cur = pre->tail;
       }
@@ -707,23 +690,17 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
           switch (temp->type) {
             case T_int: {
               if (offset == 0) {
-                spillInstr =
-                    AS_Oper(Stringf("\tldr r%d, [sp]", ints), NULL, NULL, NULL);
+                spillInstr = AS_Oper(Stringf("\tldr r%d, [sp]", ints), NULL, NULL, NULL);
               } else {
-                spillInstr = AS_Oper(
-                    Stringf("\tldr r%d, [sp, #%d]", ints, offset * ARCH_SIZE),
-                    NULL, NULL, NULL);
+                spillInstr = AS_Oper(Stringf("\tldr r%d, [sp, #%d]", ints, offset * ARCH_SIZE), NULL, NULL, NULL);
               }
               break;
             }
             case T_float: {
               if (offset == 0) {
-                spillInstr = AS_Oper(Stringf("\tvldr s%d, [sp]", floats), NULL,
-                                     NULL, NULL);
+                spillInstr = AS_Oper(Stringf("\tvldr s%d, [sp]", floats), NULL, NULL, NULL);
               } else {
-                spillInstr = AS_Oper(Stringf("\tvldr s%d, [sp, #%d]", floats,
-                                             offset * ARCH_SIZE),
-                                     NULL, NULL, NULL);
+                spillInstr = AS_Oper(Stringf("\tvldr s%d, [sp, #%d]", floats, offset * ARCH_SIZE), NULL, NULL, NULL);
               }
               break;
             }
@@ -764,9 +741,7 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
               if (offset == 0) {
                 spillInstr = AS_Oper("\tstr r9, [sp]", NULL, NULL, NULL);
               } else {
-                spillInstr =
-                    AS_Oper(Stringf("\tstr r9, [sp, #%d]", offset * ARCH_SIZE),
-                            NULL, NULL, NULL);
+                spillInstr = AS_Oper(Stringf("\tstr r9, [sp, #%d]", offset * ARCH_SIZE), NULL, NULL, NULL);
               }
               break;
             }
@@ -774,9 +749,7 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
               if (offset == 0) {
                 spillInstr = AS_Oper("\tvstr s14, [sp]", NULL, NULL, NULL);
               } else {
-                spillInstr = AS_Oper(
-                    Stringf("\tvstr s14, [sp, #%d]", offset * ARCH_SIZE), NULL,
-                    NULL, NULL);
+                spillInstr = AS_Oper(Stringf("\tvstr s14, [sp, #%d]", offset * ARCH_SIZE), NULL, NULL, NULL);
               }
               break;
             }
@@ -805,8 +778,7 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
         pre = pre->tail;
       }
     } else if (cur->head->kind == I_MOVE) {
-      ASSERT(cur->head->u.MOVE.src,
-             Stringf("src is NULL, %s", cur->head->u.MOVE.assem));
+      ASSERT(cur->head->u.MOVE.src, Stringf("src is NULL, %s", cur->head->u.MOVE.assem));
       ASSERT(cur->head->u.MOVE.dst, "dst is NULL");
       ASSERT(!cur->head->u.MOVE.src->tail, "src is not a single temp");
       ASSERT(!cur->head->u.MOVE.dst->tail, "dst is not a single temp");
@@ -839,20 +811,15 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
             if (srcOffset == 0) {
               spillInstr = AS_Oper(Stringf("\tldr r9, [sp]"), NULL, NULL, NULL);
             } else {
-              spillInstr =
-                  AS_Oper(Stringf("\tldr r9, [sp, #%d]", srcOffset * ARCH_SIZE),
-                          NULL, NULL, NULL);
+              spillInstr = AS_Oper(Stringf("\tldr r9, [sp, #%d]", srcOffset * ARCH_SIZE), NULL, NULL, NULL);
             }
             break;
           }
           case T_float: {
             if (srcOffset == 0) {
-              spillInstr =
-                  AS_Oper(Stringf("\tvldr s14, [sp]"), NULL, NULL, NULL);
+              spillInstr = AS_Oper(Stringf("\tvldr s14, [sp]"), NULL, NULL, NULL);
             } else {
-              spillInstr = AS_Oper(
-                  Stringf("\tvldr s14, [sp, #%d]", srcOffset * ARCH_SIZE), NULL,
-                  NULL, NULL);
+              spillInstr = AS_Oper(Stringf("\tvldr s14, [sp, #%d]", srcOffset * ARCH_SIZE), NULL, NULL, NULL);
             }
             break;
           }
@@ -888,20 +855,15 @@ static void RA_realSpill(RA_result res, RA_spillInfo spillInfo) {
             if (dstOffset == 0) {
               spillInstr = AS_Oper(Stringf("\tstr r9, [sp]"), NULL, NULL, NULL);
             } else {
-              spillInstr =
-                  AS_Oper(Stringf("\tstr r9, [sp, #%d]", dstOffset * ARCH_SIZE),
-                          NULL, NULL, NULL);
+              spillInstr = AS_Oper(Stringf("\tstr r9, [sp, #%d]", dstOffset * ARCH_SIZE), NULL, NULL, NULL);
             }
             break;
           }
           case T_float: {
             if (dstOffset == 0) {
-              spillInstr =
-                  AS_Oper(Stringf("\tvstr s14, [sp]"), NULL, NULL, NULL);
+              spillInstr = AS_Oper(Stringf("\tvstr s14, [sp]"), NULL, NULL, NULL);
             } else {
-              spillInstr = AS_Oper(
-                  Stringf("\tvstr s14, [sp, #%d]", dstOffset * ARCH_SIZE), NULL,
-                  NULL, NULL);
+              spillInstr = AS_Oper(Stringf("\tvstr s14, [sp, #%d]", dstOffset * ARCH_SIZE), NULL, NULL, NULL);
             }
             break;
           }
