@@ -42,7 +42,7 @@ int bitmap_read(bitmap b, int n) {
 int bitmap_get_first(bitmap b) {
   for (int i = 0; i < b->words; i++) {
     if (b->array[i]) {
-      for (int j = 0; j < bitmap_wordlength; j++) {
+      for (int j = 0; j < bitmap_wordlength && (i * bitmap_wordlength + j < b->bits); j++) {
         if ((b->array[i] >> j) & 1) {
           return i * bitmap_wordlength + j;
         }
