@@ -1,0 +1,20 @@
+// test comments
+public int main() 
+/*{
+    putnum(32);
+    return 0;
+}*/
+{
+    /*
+    putnum(16);
+    return 0;
+    *///putnum(8);
+    putnum(4);//putnum(2);
+    //return -1;
+    putch(10);
+    return 0;
+}
+
+/*
+4
+*/

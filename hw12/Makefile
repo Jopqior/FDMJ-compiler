@@ -56,6 +56,7 @@ test-extra: clean
 			$(FMJ2AST) "$${file%%.*}"; \
 			$(AST2IRP) -f xml "$${file%%.*}"; \
 			$(IRP2LLVM) "$${file%%.*}"; \
+			$(MAIN_EXE) "$${file%%.*}"; \
 		fi \
 	done; \
 	cd $(CURDIR)

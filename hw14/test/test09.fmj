@@ -1,0 +1,80 @@
+// test float regalloc
+public int main() {
+    float a1=0.0;
+    float a2=0.0;
+    float a3=0.0;
+    float a4=0.0;
+    float a5=0.0;
+    float a6=0.0;
+    float a7=0.0;
+    float a8=0.0;
+    float a9=0.0;
+    float a10=0.0;
+    float a11=0.0;
+    float a12=0.0;
+    float a13=0.0;
+    float a14=0.0;
+    float a15=0.0;
+    float a16=0.0;
+    float a17=1.0;
+    float a18=1.0;
+    float a19=1.0;
+    float a20=1.0;
+    float a21=1.0;
+    float a22=1.0;
+    float a23=1.0;
+    float a24=1.0;
+    float a25=2.0;
+    float a26=2.0;
+    float a27=2.0;
+    float a28=2.0;
+    float a29=2.0;
+    float a30=2.0;
+    float a31=2.0;
+    float a32=2.0;
+    float ans=0.0;
+    
+    ans = ans + a1;
+    ans = ans + a2;
+    ans = ans + a3;
+    ans = ans + a4;
+    ans = ans + a5;
+    ans = ans + a6;
+    ans = ans + a7;
+    ans = ans + a8;
+    ans = ans + a9;
+    ans = ans + a10;
+    ans = ans + a11;
+    ans = ans + a12;
+    ans = ans + a13;
+    ans = ans + a14;
+    ans = ans + a15;
+    ans = ans + a16;
+    ans = ans + a17;
+    ans = ans + a18;
+    ans = ans + a19;
+    ans = ans + a20;
+    ans = ans + a21;
+    ans = ans + a22;
+    ans = ans + a23;
+    ans = ans + a24;
+    ans = ans + a25;
+    ans = ans + a26;
+    ans = ans + a27;
+    ans = ans + a28;
+    ans = ans + a29;
+    ans = ans + a30;
+    ans = ans + a31;
+    ans = ans + a32;
+    putnum(ans);
+
+    return 0;
+}
+
+public class c1 {
+}
+
+
+/*
+24.000000
+*/

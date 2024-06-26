@@ -54,10 +54,13 @@ test-extra: clean
 	for file in $$(ls .); do \
 		if [ "$${file##*.}" = "fmj" ]; then \
 			echo "[$${file%%.*}]"; \
-			$(FMJ2AST) "$${file%%.*}"; \
-			$(AST2IRP) -f xml "$${file%%.*}"; \
-			$(IRP2LLVM) "$${file%%.*}"; \
-			$(MAIN_EXE) "$${file%%.*}"; \
+			$(FMJ2AST) "$${file%%.*}" && \
+			$(AST2IRP) -f xml "$${file%%.*}" && \
+			$(IRP2LLVM) "$${file%%.*}" && \
+			$(MAIN_EXE)  "$${file%%.*}" && \
+			$(ARMCC) -mcpu=cortex-a72 "$${file%%.*}".10.s $(BUILD_DIR)/vendor/libsysy/libsysy32.s --static -o "$${file%%.*}".s && \
+			$(QEMU) -B 0x1000 "$${file%%.*}".s > "$${file%%.*}".output && \
+			echo $$?; \
 		fi \
 	done; \
 	cd $(CURDIR)
@@ -87,6 +90,24 @@ irp2llvm:clean
 			$(AST2IRP) -f xml "$${file%%.*}" && \
 			$(IRP2LLVM) "$${file%%.*}"; \
 		fi \
+	done; \
+	cd $(CURDIR)
+
+diff_all:
+	@cd $(TEST_DIR)/extra; \
+	for file in $$(ls .); do \
+		if [ "$${file##*.}" = "ans" ]; then \
+			base_name=$${file%%.*}; \
+			ans_file="$${base_name}.ans"; \
+			output_file="$${base_name}.output"; \
+			echo "test $${base_name}"; \
+			if [ -f "$${output_file}" ]; then \
+				# echo "Comparing $${output_file} and $${ans_file}"; \
+				diff "$${output_file}" "$${ans_file}"; \
+			else \
+				echo "Skipping $${base_name} as $${output_file} does not generated"; \
+			fi; \
+		fi; \
 	done; \
 	cd $(CURDIR)
 

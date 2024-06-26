@@ -1,0 +1,29 @@
+// Lowest Common Ancestor
+public int main() {
+    int [] fa = {0, 0, 1, 1, 2, 2, 5, 5, 3};
+    int [] dep;
+    int x = 7;
+    int y = 8;
+    int i = 1;
+    int n;
+    n = length(fa);
+    dep = new int[20];
+    dep[0] = 0;
+    while (i < n) {
+        dep[i] = dep[fa[i]] + 1;
+        i = i + 1;
+    }
+    while (x != y) {
+        if (dep[x] < dep[y])
+            y = fa[y];
+        else
+            x = fa[x];
+    }
+    putnum(x);
+    putch(10);
+    return 0;
+}
+
+/*
+1
+*/

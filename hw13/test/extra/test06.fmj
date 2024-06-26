@@ -1,0 +1,29 @@
+// test new
+public int main() {
+    int x = 2;
+    int []a;
+    class c my_c;
+    putnum(x);
+    putch(10);
+    a = new int[4];
+    putnum(length(a));
+    putch(10);
+    my_c = new c();
+    putnum(my_c.x);
+    putch(10);
+    putnum(my_c.a[1]);
+    putch(10);
+    return 0;
+}
+
+public class c {
+    int x = 1;
+    int []a = {1, 2, 3};
+}
+
+/*
+2
+4
+1
+2
+*/

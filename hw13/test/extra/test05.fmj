@@ -1,0 +1,21 @@
+// test shortcut
+public int main() {
+    if (true || ({putnum(1);} true))
+        putnum(2);
+    if (false || ({putnum(3);} false))
+        putnum(4);
+    if (true && ({putnum(5);} true))
+        putnum(6);
+    if (false && ({putnum(7);} true))
+        putnum(8);
+    if (true && (false || ({putnum(9);} false)) && ({putnum(10);} true))
+        putnum(11);
+    if (false || (true && ({putnum(12);} false)) || ({putnum(13);} true))
+        putnum(14);
+    putch(10);
+    return 0;
+}
+
+/*
+23569121314
+*/

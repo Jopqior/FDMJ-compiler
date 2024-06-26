@@ -1,0 +1,42 @@
+// test get and put
+public int main() {
+    int a;
+    int b;
+    int c;
+    int [] d;
+    b = getch();
+    putch(b);
+    putch(10);
+    putnum(b);
+    putch(10);
+    a = getnum();
+    putnum(a);
+    putch(10);
+    d = new int[20];
+    c = getarray(d);
+    putnum(c);
+    putch(10);
+    putarray(c, d);
+    putch(10);
+    return 0;
+}
+
+/*
+input: char b 
+output: char b, number b 
+input: number a 
+output: a
+input: array d
+output: the size of d, array d
+
+test case:
+input: 
+    c
+    1905
+    10 17 78 112 147 152 171 208 4 109 136
+output:
+    c
+    99
+    1905
+    10: 17 78 112 147 152 171 208 4 109 136
+*/
