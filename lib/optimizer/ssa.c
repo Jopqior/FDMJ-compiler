@@ -101,8 +101,7 @@ struct instrInfoList_ {
   Temp_tempList origin_def;
   instrInfoList tail;
 };
-static instrInfoList InstrInfoList(AS_instr instr, Temp_tempList tl,
-                                   instrInfoList tail) {
+static instrInfoList InstrInfoList(AS_instr instr, Temp_tempList tl, instrInfoList tail) {
   instrInfoList il = checked_malloc(sizeof *il);
   il->instr = instr;
   il->origin_def = tl;
@@ -123,8 +122,7 @@ static instrInfoList InstrInfoList_Splice(instrInfoList a, instrInfoList b) {
   p->tail = b;
   return a;
 }
-static instrInfoList Insert_phi_func(instrInfoList a, AS_instr instr,
-                                     Temp_tempList tl) {
+static instrInfoList Insert_phi_func(instrInfoList a, AS_instr instr, Temp_tempList tl) {
   instrInfoList firstInstr = a->tail;
   instrInfoList newInstrs = InstrInfoList(instr, tl, firstInstr);
   a->tail = newInstrs;
@@ -257,8 +255,7 @@ static void init_bg_RPO() {
 }
 
 static void init_blockInfoEnv(G_nodeList bg) {
-  blockInfoEnv =
-      (SSA_block_info *)checked_malloc(num_bg_nodes * sizeof *blockInfoEnv);
+  blockInfoEnv = (SSA_block_info *)checked_malloc(num_bg_nodes * sizeof(SSA_block_info));
   for (G_nodeList p = bg; p; p = p->tail) {
     blockInfoEnv[p->head->mykey] = SSA_block_info_init(p->head, num_bg_nodes);
   }
@@ -288,8 +285,7 @@ static void init_blockInfoAbountLg(G_nodeList lg) {
 
       Temp_tempList tl = FG_def(p->head);
       // record the instrs
-      blockInfoEnv[i]->instrInfos = InstrInfoList_Splice(
-          blockInfoEnv[i]->instrInfos, InstrInfoList(q->head, tl, NULL));
+      blockInfoEnv[i]->instrInfos = InstrInfoList_Splice(blockInfoEnv[i]->instrInfos, InstrInfoList(q->head, tl, NULL));
 
       if (!tl) {
         continue;
@@ -298,8 +294,7 @@ static void init_blockInfoAbountLg(G_nodeList lg) {
       if (!blockInfoEnv[i]->orig_vars) {
         blockInfoEnv[i]->orig_vars = tl;
       } else {
-        blockInfoEnv[i]->orig_vars =
-            Temp_TempListUnion(blockInfoEnv[i]->orig_vars, tl);
+        blockInfoEnv[i]->orig_vars = Temp_TempListUnion(blockInfoEnv[i]->orig_vars, tl);
       }
     }
   }
@@ -477,8 +472,7 @@ static void compute_bg_idoms() {
         continue;
       }
       // idom[u] is the closest dominator of u
-      bitmap flag =
-          bitmap_difference(blockInfoEnv[u]->doms, blockInfoEnv[v]->doms);
+      bitmap flag = bitmap_difference(blockInfoEnv[u]->doms, blockInfoEnv[v]->doms);
       if (bitmap_equal(flag, u_mask)) {
 #ifdef DOM_TREE_DEBUG
         fprintf(stderr, "set idom, u=%d, v=%d\n", u, v);
@@ -538,8 +532,7 @@ static void LT_compress(int v) {
 
   if (lt_infos[lt_infos[v]->ancestor]->ancestor != -1) {
     LT_compress(lt_infos[v]->ancestor);
-    if (lt_infos[lt_infos[lt_infos[v]->ancestor]->label]->semi_dfsnum <
-        lt_infos[lt_infos[v]->label]->semi_dfsnum) {
+    if (lt_infos[lt_infos[lt_infos[v]->ancestor]->label]->semi_dfsnum < lt_infos[lt_infos[v]->label]->semi_dfsnum) {
       lt_infos[v]->label = lt_infos[lt_infos[v]->ancestor]->label;
     }
     lt_infos[v]->ancestor = lt_infos[lt_infos[v]->ancestor]->ancestor;
@@ -559,7 +552,7 @@ static int LT_eval(int v) {
 
 static void LT_findIdoms() {
   // initialize the LT_info
-  lt_infos = (LT_info *)checked_malloc(num_bg_nodes * sizeof *lt_infos);
+  lt_infos = (LT_info *)checked_malloc(num_bg_nodes * sizeof(LT_info));
   for (int i = 0; i < num_bg_nodes; ++i) {
     lt_infos[i] = LT_Info_init();
   }
@@ -640,8 +633,8 @@ static void construct_bg_dom_tree() {
       continue;
     }
 
-    blockInfoEnv[idom]->dom_tree_children = BlockIdlist_Splice(
-        blockInfoEnv[idom]->dom_tree_children, BlockIdList(i, NULL));
+    blockInfoEnv[idom]->dom_tree_children =
+        BlockIdlist_Splice(blockInfoEnv[idom]->dom_tree_children, BlockIdList(i, NULL));
   }
 }
 
@@ -691,8 +684,7 @@ static void compute_bg_df_recur(int u) {
   // store DF[u]
   for (int i = 0; i < num_bg_nodes; ++i) {
     if (bitmap_read(tmp, i)) {
-      blockInfoEnv[u]->dom_frontiers = BlockIdlist_Splice(
-          blockInfoEnv[u]->dom_frontiers, BlockIdList(i, NULL));
+      blockInfoEnv[u]->dom_frontiers = BlockIdlist_Splice(blockInfoEnv[u]->dom_frontiers, BlockIdList(i, NULL));
     }
   }
 }
@@ -754,8 +746,7 @@ static void compute_phi_functions(G_nodeList lg) {
         if (!Temp_TempInTempList(var, blockInfoEnv[v]->phi_vars) &&
             Temp_TempInTempList(var, blockInfoEnv[v]->blockIn)) {
           place_phi_func(var, v);
-          blockInfoEnv[v]->phi_vars =
-              Temp_TempList(var, blockInfoEnv[v]->phi_vars);
+          blockInfoEnv[v]->phi_vars = Temp_TempList(var, blockInfoEnv[v]->phi_vars);
           // need to reconsider v
           if (!Temp_TempInTempList(var, blockInfoEnv[v]->orig_vars)) {
             bitmap_set(w, v);
@@ -777,8 +768,7 @@ static void place_phi_func(Temp_temp var, int v) {
   Temp_tempList dsts = Temp_TempList(Temp_namedtemp(var->num, var->type), NULL);
   Temp_tempList srcs = NULL;
   Temp_labelList labels = NULL;
-  string instr_str =
-      Stringf("%%`d0 = phi %s ", var->type == T_int ? "i64" : "double");
+  string instr_str = Stringf("%%`d0 = phi %s ", var->type == T_int ? "i64" : "double");
   int cnt = 0;
   for (G_nodeList p = G_pred(blockInfoEnv[v]->mynode); p; p = p->tail, ++cnt) {
     srcs = Temp_TempList(Temp_namedtemp(var->num, var->type), srcs);
@@ -791,10 +781,8 @@ static void place_phi_func(Temp_temp var, int v) {
   }
 
   // insert the phi function
-  blockInfoEnv[v]->instrInfos =
-      Insert_phi_func(blockInfoEnv[v]->instrInfos,
-                      AS_Oper(instr_str, dsts, srcs, AS_Targets(labels)),
-                      Temp_TempList(var, NULL));
+  blockInfoEnv[v]->instrInfos = Insert_phi_func(
+      blockInfoEnv[v]->instrInfos, AS_Oper(instr_str, dsts, srcs, AS_Targets(labels)), Temp_TempList(var, NULL));
 }
 
 static void print_var_defsites(FILE *out) {
@@ -845,9 +833,8 @@ static int get_pred_num(G_nodeList pred, int u) {
 }
 
 static bool is_phi_func(AS_instr instr) {
-  return instr->kind == I_OPER && instr->u.OPER.assem[0] == '%' &&
-         instr->u.OPER.assem[7] == 'p' && instr->u.OPER.assem[8] == 'h' &&
-         instr->u.OPER.assem[9] == 'i';
+  return instr->kind == I_OPER && instr->u.OPER.assem[0] == '%' && instr->u.OPER.assem[7] == 'p' &&
+         instr->u.OPER.assem[8] == 'h' && instr->u.OPER.assem[9] == 'i';
 }
 
 static void rename_vars_recur(int u) {
@@ -875,8 +862,8 @@ static void rename_vars_recur(int u) {
 #ifdef RENAME_DEBUG
         fprintf(out, "rename1: %d -> ", use_x->head->num);
 #endif
-        use_x->head = Var_Stack_top((SSA_var_info)TAB_look(
-            varInfoEnv, Temp_namedtemp(use_x->head->num, use_x->head->type)));
+        use_x->head =
+            Var_Stack_top((SSA_var_info)TAB_look(varInfoEnv, Temp_namedtemp(use_x->head->num, use_x->head->type)));
 #ifdef RENAME_DEBUG
         fprintf(out, "%d\n", use_x->head->num);
 #endif
@@ -901,8 +888,7 @@ static void rename_vars_recur(int u) {
     // record the origin def
     p->origin_def = NULL;
     for (Temp_tempList q = def_x; q; q = q->tail) {
-      p->origin_def =
-          Temp_TempListSplice(p->origin_def, Temp_TempList(q->head, NULL));
+      p->origin_def = Temp_TempListSplice(p->origin_def, Temp_TempList(q->head, NULL));
     }
 
     while (def_x) {
@@ -910,14 +896,12 @@ static void rename_vars_recur(int u) {
 #ifdef RENAME_DEBUG
       fprintf(out, "rename2: %d -> %d\n", def_x->head->num, new_x->num);
       fprintf(out, "old stack: ");
-      print_var_stack(out,
-                      ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
+      print_var_stack(out, ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
 #endif
       Var_Stack_push((SSA_var_info)TAB_look(varInfoEnv, def_x->head), new_x);
 #ifdef RENAME_DEBUG
       fprintf(out, "new stack: %d", TAB_look(varInfoEnv, def_x->head) == NULL);
-      print_var_stack(out,
-                      ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
+      print_var_stack(out, ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
 #endif
       def_x->head = new_x;
       def_x = def_x->tail;
@@ -926,8 +910,7 @@ static void rename_vars_recur(int u) {
 
   for (G_nodeList Y = G_succ(blockInfoEnv[u]->mynode); Y; Y = Y->tail) {
     int cnt = get_pred_num(G_pred(Y->head), u);
-    for (instrInfoList p = blockInfoEnv[Y->head->mykey]->instrInfos; p;
-         p = p->tail) {
+    for (instrInfoList p = blockInfoEnv[Y->head->mykey]->instrInfos; p; p = p->tail) {
       if (!is_phi_func(p->instr)) {
         continue;
       }
@@ -962,14 +945,12 @@ static void rename_vars_recur(int u) {
 #ifdef RENAME_DEBUG
       fprintf(out, "rename4: %d\n", def_x->head->num);
       fprintf(out, "old stack: ");
-      print_var_stack(out,
-                      ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
+      print_var_stack(out, ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
 #endif
       Var_Stack_pop((SSA_var_info)TAB_look(varInfoEnv, def_x->head));
 #ifdef RENAME_DEBUG
       fprintf(out, "new stack: ");
-      print_var_stack(out,
-                      ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
+      print_var_stack(out, ((SSA_var_info)TAB_look(varInfoEnv, def_x->head))->stack);
 #endif
       def_x = def_x->tail;
     }
@@ -989,16 +970,14 @@ static AS_instrList get_final_result() {
 void SSA_writeBackToBg(G_nodeList bg) {
   for (G_nodeList p = bg; p; p = p->tail) {
     AS_instrList instrs = NULL;
-    for (instrInfoList q = blockInfoEnv[p->head->mykey]->instrInfos; q;
-         q = q->tail) {
+    for (instrInfoList q = blockInfoEnv[p->head->mykey]->instrInfos; q; q = q->tail) {
       instrs = AS_splice(instrs, AS_InstrList(q->instr, NULL));
     }
     p->head->info = AS_Block(instrs);
   }
 }
 
-AS_instrList SSA_construction(AS_instrList bodyil, G_nodeList lg,
-                              G_nodeList bg) {
+AS_instrList SSA_construction(AS_instrList bodyil, G_nodeList lg, G_nodeList bg) {
   if (!lg || !bg) {
     return bodyil;
   }
@@ -1015,7 +994,7 @@ AS_instrList SSA_construction(AS_instrList bodyil, G_nodeList lg,
 #endif
 
     // step 2: compute the dominators
-    compute_bg_doms(out);
+    compute_bg_doms();
 #ifdef SSA_DEBUG
     print_bg_doms(out, compute_doms_iter);
 #endif
@@ -1094,8 +1073,7 @@ static bool isNodeHasMultipleSucc(G_node n) {
 }
 
 static bool isInstrCmpOrJump(AS_instr instr) {
-  return instr->kind == I_OPER && (strstr(instr->u.OPER.assem, "cmp") ||
-                                   strstr(instr->u.OPER.assem, "br") ||
+  return instr->kind == I_OPER && (strstr(instr->u.OPER.assem, "cmp") || strstr(instr->u.OPER.assem, "br") ||
                                    strstr(instr->u.OPER.assem, "ret"));
 }
 
@@ -1103,10 +1081,8 @@ static G_node splitNewBlock(G_graph bg, G_node u, G_node v) {
   Temp_label vLabel = ((AS_block)G_nodeInfo(v))->label;
   // create a new block
   Temp_label new_label = Temp_newlabel_prefix('S');
-  AS_instr labelIns =
-      AS_Label(Stringf("%s:", Temp_labelstring(new_label)), new_label);
-  AS_instr jmpIns = AS_Oper("br label \%`j0", NULL, NULL,
-                            AS_Targets(Temp_LabelList(vLabel, NULL)));
+  AS_instr labelIns = AS_Label(Stringf("%s:", Temp_labelstring(new_label)), new_label);
+  AS_instr jmpIns = AS_Oper("br label \%`j0", NULL, NULL, AS_Targets(Temp_LabelList(vLabel, NULL)));
   AS_instrList instrs = AS_InstrList(labelIns, AS_InstrList(jmpIns, NULL));
   AS_block new_block = AS_Block(instrs);
 
@@ -1116,7 +1092,7 @@ static G_node splitNewBlock(G_graph bg, G_node u, G_node v) {
   while (last->tail) {
     last = last->tail;
   }
-  if (!last->head->kind == I_OPER) {
+  if (!(last->head->kind == I_OPER)) {
     fprintf(stderr, "Error: last instr is not I_OPER\n");
     exit(1);
   }
@@ -1184,9 +1160,8 @@ static struct {
   const char *op;
   const char *reverse_op;
 } operators[] = {
-    {"oeq", "one"}, {"one", "oeq"}, {"ogt", "ole"}, {"oge", "olt"},
-    {"olt", "oge"}, {"ole", "ogt"}, {"eq", "ne"},   {"ne", "eq"},
-    {"sgt", "sle"}, {"sge", "slt"}, {"slt", "sge"}, {"sle", "sgt"},
+    {"oeq", "one"}, {"one", "oeq"}, {"ogt", "ole"}, {"oge", "olt"}, {"olt", "oge"}, {"ole", "ogt"},
+    {"eq", "ne"},   {"ne", "eq"},   {"sgt", "sle"}, {"sge", "slt"}, {"slt", "sge"}, {"sle", "sgt"},
 };
 
 static void flipCmpIns(AS_instr cmp) {
@@ -1207,8 +1182,7 @@ static void flipCmpIns(AS_instr cmp) {
 
 static void trace(block_trace btrace) {
 #ifdef SSA_REORDER_DEBUG
-  fprintf(out, "trace: %s\n",
-          Temp_labelstring(((AS_block)G_nodeInfo(btrace->node))->label));
+  fprintf(out, "trace: %s\n", Temp_labelstring(((AS_block)G_nodeInfo(btrace->node))->label));
 #endif
   btrace->isVisited = TRUE;
   AS_block b = G_nodeInfo(btrace->node);
@@ -1251,10 +1225,8 @@ static void trace(block_trace btrace) {
     } else {
       // create a new block
       Temp_label new_label = Temp_newlabel_prefix('S');
-      AS_instr labelIns =
-          AS_Label(Stringf("%s:", Temp_labelstring(new_label)), new_label);
-      AS_instr jmpIns = AS_Oper("br label \%`j0", NULL, NULL,
-                                AS_Targets(Temp_LabelList(f, NULL)));
+      AS_instr labelIns = AS_Label(Stringf("%s:", Temp_labelstring(new_label)), new_label);
+      AS_instr jmpIns = AS_Oper("br label \%`j0", NULL, NULL, AS_Targets(Temp_LabelList(f, NULL)));
       AS_instrList instrs = AS_InstrList(labelIns, AS_InstrList(jmpIns, NULL));
       AS_block new_block = AS_Block(instrs);
 
@@ -1279,8 +1251,7 @@ static void trace(block_trace btrace) {
 static void traceLoop(G_graph ssa_bg) {
   G_nodeList nodeList = G_nodes(ssa_bg);
   int originNodeCnt = ssa_bg->nodecount;
-  for (G_nodeList p = nodeList; p && originNodeCnt;
-       p = p->tail, --originNodeCnt) {
+  for (G_nodeList p = nodeList; p && originNodeCnt; p = p->tail, --originNodeCnt) {
     AS_block b = G_nodeInfo(p->head);
     block_trace btrace = (block_trace)S_look(reorderNodeEnv, b->label);
     ASSERT(btrace, "btrace is NULL");
@@ -1337,8 +1308,7 @@ AS_instrList SSA_destruction(AS_instrList bodyil, G_nodeList bg) {
   G_graph ssa_bg = bg->head->mygraph;
 
   int originNodeCnt = ssa_bg->nodecount;
-  for (G_nodeList p = G_nodes(ssa_bg); p && originNodeCnt;
-       p = p->tail, --originNodeCnt) {
+  for (G_nodeList p = G_nodes(ssa_bg); p && originNodeCnt; p = p->tail, --originNodeCnt) {
     G_node v = p->head;
     AS_block b = G_nodeInfo(v);
     if (!isBlockContainPhi(b)) {
@@ -1357,13 +1327,11 @@ AS_instrList SSA_destruction(AS_instrList bodyil, G_nodeList bg) {
 
       AS_block pred = G_nodeInfo(u);
       if (!isNodeHasMultiplePred(v) || !isNodeHasMultipleSucc(u)) {
-        S_enter(parallelCopyTab, S_Symbol(Temp_labelstring(pred->label)),
-                (void *)u);
+        S_enter(parallelCopyTab, S_Symbol(Temp_labelstring(pred->label)), (void *)u);
         continue;
       } else {
 #ifdef SSA_DEC_DEBUG
-        fprintf(out, "split edge: %s -> %s\n", Temp_labelstring(pred->label),
-                Temp_labelstring(b->label));
+        fprintf(out, "split edge: %s -> %s\n", Temp_labelstring(pred->label), Temp_labelstring(b->label));
 #endif
         // split the edge: pred -> pred', pred' -> n
         G_rmEdge(u, v);
@@ -1372,8 +1340,7 @@ AS_instrList SSA_destruction(AS_instrList bodyil, G_nodeList bg) {
         AS_block newBlock = G_nodeInfo(newNode);
         fprintf(out, "new block: %s\n", Temp_labelstring(newBlock->label));
 #endif
-        S_enter(parallelCopyTab, S_Symbol(Temp_labelstring(pred->label)),
-                (void *)newNode);
+        S_enter(parallelCopyTab, S_Symbol(Temp_labelstring(pred->label)), (void *)newNode);
       }
     }
 #ifdef SSA_DEC_DEBUG
@@ -1398,8 +1365,7 @@ AS_instrList SSA_destruction(AS_instrList bodyil, G_nodeList bg) {
         Temp_label label = labels->head;
 
         // find the block that contains the label
-        G_node u =
-            (G_node)S_look(parallelCopyTab, S_Symbol(Temp_labelstring(label)));
+        G_node u = (G_node)S_look(parallelCopyTab, S_Symbol(Temp_labelstring(label)));
         AS_block pred = G_nodeInfo(u);
 #ifdef SSA_DEC_DEBUG
         fprintf(out, "pred: %s\n", Temp_labelstring(pred->label));
@@ -1415,15 +1381,11 @@ AS_instrList SSA_destruction(AS_instrList bodyil, G_nodeList bg) {
         AS_instr moveIns = NULL;
         switch (src->type) {
           case T_int: {
-            moveIns =
-                AS_Move("\%`d0 = add i64 \%`s0, 0", Temp_TempList(dst, NULL),
-                        Temp_TempList(src, NULL));
+            moveIns = AS_Move("\%`d0 = add i64 \%`s0, 0", Temp_TempList(dst, NULL), Temp_TempList(src, NULL));
             break;
           }
           case T_float: {
-            moveIns =
-                AS_Move("\%`d0 = fadd double \%`s0, 0.0",
-                        Temp_TempList(dst, NULL), Temp_TempList(src, NULL));
+            moveIns = AS_Move("\%`d0 = fadd double \%`s0, 0.0", Temp_TempList(dst, NULL), Temp_TempList(src, NULL));
             break;
           }
           default:
